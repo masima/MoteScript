@@ -9,6 +9,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [デコーダーの再利用](#デコーダーの再利用)
   - [デコード済みの式を再評価](#デコード済みの式を再評価)
   - [関数定義を先に評価](#関数定義を先に評価)
+  - [C#から関数を登録](#cから関数を登録)
 - [構文サンプル](#構文サンプル)
   - [数値演算](#数値演算)
   - [比較・論理演算](#比較論理演算)
@@ -122,6 +123,37 @@ float result = expression.Evalute(context).Value;
 この例では、最初のスクリプトを評価した時点で`double`関数が`context`に保持されます。そのため、後からデコードした別のスクリプトでも`double`を定義済みの関数として呼び出すことができ、`result`は`14`になります。C#側から引数の値を`Context`へ設定する必要はありません。
 
 関数定義をデコードするだけでは`Context`へ登録されないため、定義スクリプトは一度`Evalute(context)`してください。また、関数の定義時と呼び出し時には同じ`Context`インスタンスを使用してください。
+
+### C#から関数を登録
+
+C#で実装した関数を`MoteValue<T>`に変換して`Context`へ登録すると、スクリプトから通常の関数と同じ構文で呼び出せます。
+
+```csharp
+using System.Collections.Generic;
+using MoteScript;
+
+static MoteValue<float> Sum(
+    IContext<float> context,
+    List<MoteValue<float>> parameters)
+{
+    float result = 0f;
+    foreach (var parameter in parameters)
+    {
+        result += parameter.Evalute(context).Value;
+    }
+    return new MoteValue<float>(result);
+}
+
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+var context = new Context<float>();
+context["sum"] = new MoteValue<float>(Sum);
+
+float result = decoder.Decode("sum(1,2,3)").Evalute(context).Value;
+```
+
+この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evalute(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
 
 ## 構文サンプル
 
