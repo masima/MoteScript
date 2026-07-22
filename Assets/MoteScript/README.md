@@ -41,6 +41,48 @@ float result = decoder.DecodeCached("a+b").Evalute(context).Value;
 
 `decimal`を使用する場合は、`MoteDecoder<decimal>.Setup()`と`Context<decimal>`を使用します。
 
+### デコーダーの再利用
+
+`MoteDecoder`は、`Setup()`後に同じインスタンスを使い回して複数の式をデコードできます。
+
+```csharp
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+var context = new Context<float>()
+    .Set("a", 10f)
+    .Set("b", 2f);
+
+float sum = decoder.Decode("a+b").Evalute(context).Value;
+float product = decoder.Decode("a*b").Evalute(context).Value;
+```
+
+この例では、同じ`decoder`から`sum`は`12`、`product`は`20`になります。
+
+### デコード済みの式を再評価
+
+式を一度デコードして保持すれば、以降は`Context`の値を変更して評価だけを繰り返せます。同じ式を頻繁に実行する場合は、毎回デコードする必要がありません。
+
+```csharp
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+var expression = decoder.Decode("price*count");
+var context = new Context<float>()
+    .Set("price", 100f)
+    .Set("count", 2f);
+
+float first = expression.Evalute(context).Value;
+
+context
+    .Set("price", 120f)
+    .Set("count", 3f);
+
+float second = expression.Evalute(context).Value;
+```
+
+この例では、`first`は`200`、`second`は`360`です。`expression`は同じインスタンスを再利用し、2回目は値の評価だけを行います。
+
 ## 構文サンプル
 
 各サンプルは、最後に評価した式の値を結果として返します。複数の文は`;`で区切ります。
