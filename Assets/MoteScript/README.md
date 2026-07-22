@@ -41,6 +41,160 @@ float result = decoder.DecodeCached("a+b").Evalute(context).Value;
 
 `decimal`を使用する場合は、`MoteDecoder<decimal>.Setup()`と`Context<decimal>`を使用します。
 
+## 構文サンプル
+
+各サンプルは、最後に評価した式の値を結果として返します。複数の文は`;`で区切ります。
+
+### 数値演算
+
+`+`、`-`、`*`、`/`、`%`と丸括弧を使用できます。
+
+```text
+(1+2)*3
+```
+
+結果は`9`です。
+
+### 比較・論理演算
+
+比較には`<`、`>`、`<=`、`>=`、`==`、`!=`、論理演算には`&&`と`||`を使用できます。真は`1`、偽は`0`として扱われます。
+
+```text
+score>=80 && bonus==1
+```
+
+### 変数
+
+代入した変数は、同じ`Context`内の後続の式から参照できます。
+
+```text
+price=120;count=3;price*count
+```
+
+結果は`360`です。C#から初期値を渡す場合は、次のように設定します。
+
+```csharp
+var context = new Context<float>()
+    .Set("price", 120f)
+    .Set("count", 3f);
+
+float result = decoder.DecodeCached("price*count").Evalute(context).Value;
+```
+
+### 配列
+
+`(...)`で配列を作成し、`[index]`で要素を参照または更新します。
+
+```text
+values=(10,20,30);values[1]=25;values[0]+values[1]
+```
+
+結果は`35`です。配列では次の操作も使用できます。
+
+```text
+values=();values.add(10);values.add(20,30);values.insert(1,15);values.removeat(0);values.pop()
+```
+
+- `add(...)`: 末尾へ要素を追加
+- `insert(index,value)`: 指定位置へ要素を挿入
+- `removeat(index)`: 指定位置の要素を削除
+- `pop()`: 末尾の要素を削除して返す
+- `clear()`: 全要素を削除
+
+### 辞書
+
+`[key:value,...]`で辞書を作成し、`.`で値へアクセスします。空の辞書は`[]`です。
+
+```text
+player=[hp:100,attack:20];player.hp=player.hp-15;player.hp
+```
+
+結果は`85`です。代入時に階層を作成することもできます。
+
+```text
+player.status.level=3;player.status.level
+```
+
+### 関数
+
+`(引数)=>{処理}`で関数を定義します。
+
+```text
+add=(x,y)=>{x+y};add(2,3)
+```
+
+結果は`5`です。関数から明示的に値を返す場合は`return`を使用します。
+
+```text
+min=(x,y)=>{if(x<=y){return x};return y};min(4,2)
+```
+
+再帰呼び出しにも対応しています。
+
+```text
+factorial=(n)=>{if(n<=1){return 1};return factorial(n-1)*n};factorial(5)
+```
+
+結果は`120`です。
+
+### 条件分岐
+
+`if`、`else if`、`else`を使用できます。
+
+```text
+score=75;
+rank=0;
+if(score>=80){rank=2}
+else if(score>=60){rank=1}
+else{rank=-1};
+rank
+```
+
+結果は`1`です。
+
+### ループ
+
+`while`で条件が真の間、処理を繰り返します。
+
+```text
+i=0;sum=0;while(i<5){sum=sum+i;i=i+1};sum
+```
+
+結果は`10`です。
+
+`break`でループを終了し、`continue`で次の反復へ進めます。
+
+```text
+i=0;sum=0;
+while(1){
+    i=i+1;
+    if(i==3){continue}
+    if(i>5){break}
+    sum=sum+i
+};
+sum
+```
+
+結果は`12`です。
+
+### 数値型の選択
+
+用途に応じて`float`、`int`、`decimal`のCalculatorを選択できます。型ごとに最初の評価前に`Setup()`を呼び出します。
+
+```csharp
+MoteDecoder<float>.Setup();
+var floatDecoder = new MoteDecoder<float>();
+
+MoteDecoder<int>.Setup();
+var intDecoder = new MoteDecoder<int>();
+
+MoteDecoder<decimal>.Setup();
+var decimalDecoder = new MoteDecoder<decimal>();
+decimal result = decimalDecoder.Decode("0.1+0.2").Evalute(new Context<decimal>()).Value;
+```
+
+MoteScriptの値は数値、配列、辞書、関数を対象としており、文字列値は扱いません。
+
 ## 開発
 
 このリポジトリ自体はUnityプロジェクトです。パッケージルートを`Assets/MoteScript`に置くことで、従来どおりプロジェクト内で開発・テストしながら、Git URLではサブフォルダパッケージとして利用できます。
