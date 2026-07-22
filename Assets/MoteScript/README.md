@@ -8,6 +8,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
 - [使用例](#使用例)
   - [デコーダーの再利用](#デコーダーの再利用)
   - [デコード済みの式を再評価](#デコード済みの式を再評価)
+  - [関数定義を先に評価](#関数定義を先に評価)
 - [構文サンプル](#構文サンプル)
   - [数値演算](#数値演算)
   - [比較・論理演算](#比較論理演算)
@@ -100,6 +101,27 @@ float second = expression.Evalute(context).Value;
 ```
 
 この例では、`first`は`200`、`second`は`360`です。`expression`は同じインスタンスを再利用し、2回目は値の評価だけを行います。
+
+### 関数定義を先に評価
+
+同じ`Context`を使い回すことで、初期化時に関数定義だけを評価しておき、その関数が定義済みであることを前提とした別のスクリプトを後からデコードして実行できます。
+
+```csharp
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+var context = new Context<float>();
+
+var definitions = decoder.Decode("double=(value)=>{value*2}");
+definitions.Evalute(context);
+
+var expression = decoder.Decode("double(3)+double(4)");
+float result = expression.Evalute(context).Value;
+```
+
+この例では、最初のスクリプトを評価した時点で`double`関数が`context`に保持されます。そのため、後からデコードした別のスクリプトでも`double`を定義済みの関数として呼び出すことができ、`result`は`14`になります。C#側から引数の値を`Context`へ設定する必要はありません。
+
+関数定義をデコードするだけでは`Context`へ登録されないため、定義スクリプトは一度`Evalute(context)`してください。また、関数の定義時と呼び出し時には同じ`Context`インスタンスを使用してください。
 
 ## 構文サンプル
 
