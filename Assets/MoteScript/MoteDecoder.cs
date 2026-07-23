@@ -1016,7 +1016,17 @@ namespace MoteScript
 			try
 			{
 				GetOneValue(queue, childRpn);
-				rpn.InsertRange(insertIndex++, childRpn);
+				rpn.InsertRange(insertIndex, childRpn);
+				if (1 < childRpn.Count
+					&& childRpn[childRpn.Count - 1]
+						.TryGetOperator(out OperatorOpenSquareBracket<T> _))
+				{
+					insertIndex += childRpn.Count;
+				}
+				else
+				{
+					++insertIndex;
+				}
 				rpn.Insert(insertIndex, new MoteValue<T>(binaryOperator));
 			}
 			finally
@@ -1067,6 +1077,22 @@ namespace MoteScript
 			else
 			{
 				rpn.Add(value);
+			}
+			GetPostfixBrackets(queue, rpn);
+		}
+		private void GetPostfixBrackets(
+			Queue<MoteValue<T>> queue
+			, List<MoteValue<T>> rpn
+		)
+		{
+			while (0 < queue.Count
+				&& queue.Peek().TryGetOperator(out UnrayOperatorOpenBracket<T> openBracket)
+				&& openBracket.BracketsType == Brackets.EType.SquareBrackets)
+			{
+				MoteValue<T> bracketOperator = queue.Dequeue();
+				MoteValue<T> bracket = GetBrackets(queue, openBracket);
+				rpn.Add(bracket);
+				rpn.Add(bracketOperator);
 			}
 		}
 		private MoteValue<T> GetBrackets(

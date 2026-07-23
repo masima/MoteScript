@@ -9,6 +9,7 @@ namespace MoteScript.Tests
 		[TestCase("array=(1,2,3);array[1]=array[1]+1;array[1]")]
 		[TestCase("matrix=((1,2),(3,4));matrix[1][0]")]
 		[TestCase("matrix=((1,2),(3,4));matrix[1][0]=5;matrix[1][0]")]
+		[TestCase("matrix=((1,2),(3,4));matrix[0][0]+matrix[1][1]")]
 		[TestCase("matrix=((1,2),(3,4));matrix[0].add(5);matrix[0].removeat(2)")]
 		[TestCase("cube=(((1,2),(3,4)),((5,6),(7,8)));cube[1][0][1]")]
 		[TestCase("cube=(((1,2),(3,4)),((5,6),(7,8)));cube[1][0][1]=10;cube[1][0][1]")]

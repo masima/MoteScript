@@ -144,6 +144,23 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestNestedArray_AccessorsInCompoundExpressions()
+		{
+			var context = new Context();
+			var patterns = new (string sentence, float result)[]
+			{
+				("matrix=((1,2),(3,4));matrix[0][0]+matrix[1][1]", 5),
+				("matrix=((1,2),(3,4));matrix[0][1]<matrix[1][0]", 1),
+				("add=(a,b)=>{a+b};matrix=((1,2),(3,4));"
+					+ "add(matrix[0][0],matrix[1][1])", 5),
+				("matrix=((1,2),(3,4));result=0;"
+					+ "if(matrix[0][0]<matrix[1][0]){result=1};result", 1),
+			};
+
+			TestPatterns(patterns, context);
+		}
+
+		[Test]
 		public void TestNestedArray_Edit()
 		{
 			var context = new Context();
