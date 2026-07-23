@@ -35,7 +35,21 @@ namespace MoteScript
 
 		public IContext<T> Clone()
 		{
-			var clone = new MoteList<T>(this);
+			var clone = new MoteList<T>
+			{
+				Capacity = Count,
+			};
+			foreach (MoteValue<T> value in this)
+			{
+				if (value.GetObject() is IClonableContext<T> child)
+				{
+					clone.Add(new MoteValue<T>(child.Clone()));
+				}
+				else
+				{
+					clone.Add(value);
+				}
+			}
 			return clone;
 		}
 

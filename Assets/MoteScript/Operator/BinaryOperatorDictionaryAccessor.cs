@@ -16,12 +16,20 @@ namespace MoteScript
 
 		private List<string> _values;
 		private string[] _splitedPath;
+		private MoteValue<T> _target;
+		private string _memberName;
+		private bool _isDynamicTarget;
 
 
 		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
 		{
 			base.Finailze(rpnStack);
-			if (!Left.TryGetOperator(out BinaryOperatorDictionaryAccessor<T> accessor))
+			BinaryOperatorDictionaryAccessor<T> accessor;
+			if (Left.TryGetOperator(out accessor) && accessor._values is not null)
+			{
+				accessor._values.Add(Right.StringValue);
+			}
+			else if (Left.ValueType == EValueType.Variable)
 			{
 				_values = new List<string>();
 				_values.Add(Left.StringValue);
@@ -30,7 +38,10 @@ namespace MoteScript
 			}
 			else
 			{
-				accessor._values.Add(Right.StringValue);
+				_target = Left;
+				_memberName = Right.StringValue;
+				_isDynamicTarget = true;
+				accessor = this;
 			}
 			Left = MoteValue<T>.Default;
 			Right = MoteValue<T>.Default;
@@ -46,6 +57,16 @@ namespace MoteScript
 
 		public override MoteValue<T> Evalute(IContext<T> context)
 		{
+			if (_isDynamicTarget)
+			{
+				IContext<T> targetContext = _target.EvaluteInner(context).GetDictionary();
+				if (targetContext is not null
+					&& targetContext.TryGetValue(_memberName, out MoteValue<T> value))
+				{
+					return value;
+				}
+				throw new InvalidOperationException($"undefined {_memberName}");
+			}
 			return GetByPath(context, _splitedPath);
 		}
 		public static MoteValue<T> GetByPath(IContext<T> context, IReadOnlyList<string> hierarchy)
@@ -74,6 +95,16 @@ namespace MoteScript
 
 		public void AssignmentTo(IContext<T> context, MoteValue<T> value)
 		{
+			if (_isDynamicTarget)
+			{
+				IContext<T> targetContext = _target.EvaluteInner(context).GetDictionary();
+				if (targetContext is null)
+				{
+					throw new InvalidOperationException($"undefined {_memberName}");
+				}
+				targetContext[_memberName] = value;
+				return;
+			}
 			IContext<T> dictionary = null;
 			string contextKey = _splitedPath[0];
 			if (context.TryGetValue(contextKey, out MoteValue<T> moteValue))

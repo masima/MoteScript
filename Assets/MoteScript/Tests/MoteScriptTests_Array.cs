@@ -13,6 +13,7 @@ using MoteScript;
 namespace MoteScript.Tests
 {
 	using MoteValue = MoteValue<float>;
+	using MoteList = MoteList<float>;
 
 	public partial class MoteScriptTests
 	{
@@ -140,6 +141,88 @@ namespace MoteScript.Tests
 			Assert.AreEqual(10, result.IntegerValue);
 			Assert.AreEqual(10,
 				context["cube"].GetArray()[1].GetArray()[0].GetArray()[1].IntegerValue);
+		}
+
+		[Test]
+		public void TestNestedArray_Edit()
+		{
+			var context = new Context();
+
+			_decoder.Decode(
+					"matrix=((1,2),(3,4));"
+					+ "matrix[0].add(5);"
+					+ "matrix[1].insert(1,6);"
+					+ "matrix[0].removeat(0)")
+				.Evalute(context);
+
+			MoteList firstRow = context["matrix"].GetArray()[0].GetArray();
+			MoteList secondRow = context["matrix"].GetArray()[1].GetArray();
+			CollectionAssert.AreEqual(new[] { 2f, 5f }, firstRow.Select(value => value.Value));
+			CollectionAssert.AreEqual(new[] { 3f, 6f, 4f }, secondRow.Select(value => value.Value));
+		}
+
+		[Test]
+		public void TestThreeDimensionalArray_Edit()
+		{
+			var context = new Context();
+
+			_decoder.Decode(
+					"cube=(((1,2),(3,4)),((5,6),(7,8)));"
+					+ "cube[1][0].add(9)")
+				.Evalute(context);
+
+			MoteList row = context["cube"].GetArray()[1].GetArray()[0].GetArray();
+			CollectionAssert.AreEqual(new[] { 5f, 6f, 9f }, row.Select(value => value.Value));
+		}
+
+		[Test]
+		public void TestNestedArray_CloneCreatesIndependentRows()
+		{
+			var context = new Context()
+				.Set("value", 1);
+			MoteValue initialize = _decoder.Decode(
+				"matrix=((value,value+1),(value+2,value+3))");
+
+			initialize.Evalute(context);
+			_decoder.Decode("copy=new matrix;").Evalute(context);
+			Assert.AreNotSame(
+				context["matrix"].GetArray(),
+				context["copy"].GetArray());
+			Assert.AreNotSame(
+				context["matrix"].GetArray()[0].GetArray(),
+				context["copy"].GetArray()[0].GetArray());
+			_decoder.Decode("copy[0][0]=9").Evalute(context);
+			Assert.AreEqual(1, context["matrix"].GetArray()[0].GetArray()[0].IntegerValue);
+			Assert.AreEqual(9, context["copy"].GetArray()[0].GetArray()[0].IntegerValue);
+
+			context.Set("value", 10);
+			initialize.Evalute(context);
+			_decoder.Decode("copy=new matrix;").Evalute(context);
+			_decoder.Decode("copy[0][0]=9").Evalute(context);
+			Assert.AreEqual(10, context["matrix"].GetArray()[0].GetArray()[0].IntegerValue);
+			Assert.AreEqual(9, context["copy"].GetArray()[0].GetArray()[0].IntegerValue);
+		}
+
+		[Test]
+		public void TestThreeDimensionalArray_CloneCreatesIndependentDepths()
+		{
+			var context = new Context();
+
+			_decoder.Decode("cube=(((1,2),(3,4)),((5,6),(7,8)));")
+				.Evalute(context);
+			_decoder.Decode("copy=new cube;").Evalute(context);
+			_decoder.Decode("copy[1][0][1]=10").Evalute(context);
+
+			Assert.AreEqual(6,
+				context["cube"].GetArray()[1].GetArray()[0].GetArray()[1].IntegerValue);
+			Assert.AreEqual(10,
+				context["copy"].GetArray()[1].GetArray()[0].GetArray()[1].IntegerValue);
+			Assert.AreNotSame(
+				context["cube"].GetArray()[1].GetArray(),
+				context["copy"].GetArray()[1].GetArray());
+			Assert.AreNotSame(
+				context["cube"].GetArray()[1].GetArray()[0].GetArray(),
+				context["copy"].GetArray()[1].GetArray()[0].GetArray());
 		}
 
 		/// <summary>
