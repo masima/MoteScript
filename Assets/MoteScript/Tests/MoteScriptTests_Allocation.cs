@@ -7,6 +7,10 @@ namespace MoteScript.Tests
 	{
 		[TestCase("value=value+1")]
 		[TestCase("array=(1,2,3);array[1]=array[1]+1;array[1]")]
+		[TestCase("matrix=((1,2),(3,4));matrix[1][0]")]
+		[TestCase("matrix=((1,2),(3,4));matrix[1][0]=5;matrix[1][0]")]
+		[TestCase("cube=(((1,2),(3,4)),((5,6),(7,8)));cube[1][0][1]")]
+		[TestCase("cube=(((1,2),(3,4)),((5,6),(7,8)));cube[1][0][1]=10;cube[1][0][1]")]
 		[TestCase("dictionary=[a:1,b:2];dictionary.a=dictionary.a+1;dictionary.a")]
 		[TestCase("increment=(value)=>{value+1};increment(1)")]
 		[TestCase("value=0;while(value<10){value=value+1};value")]

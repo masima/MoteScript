@@ -68,6 +68,80 @@ namespace MoteScript.Tests
 			}
 		}
 
+		[Test]
+		public void TestNestedArray_InitializeAndAccess()
+		{
+			var context = new Context()
+				.Set("value", 1)
+				.Set("row", 1)
+				.Set("column", 0);
+			MoteValue script = _decoder.Decode(
+				"matrix=((value,value+1),(value+2,value+3));matrix[row][column]");
+
+			MoteValue result = script.Evalute(context);
+
+			Assert.AreEqual(3, result.IntegerValue);
+
+			context
+				.Set("value", 10)
+				.Set("row", 0)
+				.Set("column", 1);
+
+			Assert.AreEqual(11, script.Evalute(context).IntegerValue);
+		}
+
+		[Test]
+		public void TestNestedArray_Assignment()
+		{
+			var context = new Context();
+
+			MoteValue result = _decoder
+				.Decode("matrix=((1,2),(3,4));matrix[1][0]=9;matrix[1][0]")
+				.Evalute(context);
+
+			Assert.AreEqual(9, result.IntegerValue);
+			Assert.AreEqual(9, context["matrix"].GetArray()[1].GetArray()[0].IntegerValue);
+		}
+
+		[Test]
+		public void TestThreeDimensionalArray_InitializeAndAccess()
+		{
+			var context = new Context()
+				.Set("value", 1)
+				.Set("depth", 1)
+				.Set("row", 0)
+				.Set("column", 1);
+			MoteValue script = _decoder.Decode(
+				"cube=(((value,value+1),(value+2,value+3)),"
+				+ "((value+4,value+5),(value+6,value+7)));"
+				+ "cube[depth][row][column]");
+
+			Assert.AreEqual(6, script.Evalute(context).IntegerValue);
+
+			context
+				.Set("value", 10)
+				.Set("depth", 0)
+				.Set("row", 1)
+				.Set("column", 0);
+
+			Assert.AreEqual(12, script.Evalute(context).IntegerValue);
+		}
+
+		[Test]
+		public void TestThreeDimensionalArray_Assignment()
+		{
+			var context = new Context();
+
+			MoteValue result = _decoder
+				.Decode("cube=(((1,2),(3,4)),((5,6),(7,8)));"
+					+ "cube[1][0][1]=10;cube[1][0][1]")
+				.Evalute(context);
+
+			Assert.AreEqual(10, result.IntegerValue);
+			Assert.AreEqual(10,
+				context["cube"].GetArray()[1].GetArray()[0].GetArray()[1].IntegerValue);
+		}
+
 		/// <summary>
 		/// 配列クローン
 		/// </summary>

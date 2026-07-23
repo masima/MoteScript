@@ -124,20 +124,19 @@ namespace MoteScript
 			if (0 < rpnStack.Count)
 			{
 				MoteValue<T> left = rpnStack.Peek();
-				switch (left.ValueType)
+				if (left.ValueType == EValueType.Variable
+					|| left.TryGetOperator(out BinaryOperatorArrayAccessor<T> _))
 				{
-					case EValueType.Function:
-						#if VERVOSE
-						Debug.Log("Function");
-						#endif
-						break;
-					case EValueType.Variable:
-					{
-						var functionOperator = new BinaryOperatorArrayAccessor<T>();
-						functionOperator.Right = Right;
-						functionOperator.Left = rpnStack.Pop();
-						return new MoteValue<T>(functionOperator);
-					}
+					var accessorOperator = new BinaryOperatorArrayAccessor<T>();
+					accessorOperator.Right = Right;
+					accessorOperator.Left = rpnStack.Pop();
+					return new MoteValue<T>(accessorOperator);
+				}
+				if (left.ValueType == EValueType.Function)
+				{
+					#if VERVOSE
+					Debug.Log("Function");
+					#endif
 				}
 			}
 			return new MoteValue<T>(
