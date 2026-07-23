@@ -1,6 +1,6 @@
 {
   "name": "io.github.masima.motescript",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "MoteScript",
   "description": "A small generic expression and scripting runtime for Unity with float, int, and decimal calculators.",
   "unity": "6000.0",

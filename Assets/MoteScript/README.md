@@ -15,6 +15,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [比較・論理演算](#比較論理演算)
   - [変数](#変数)
   - [配列](#配列)
+    - [多次元配列](#多次元配列)
   - [辞書](#辞書)
   - [関数](#関数)
   - [条件分岐](#条件分岐)
@@ -33,7 +34,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.1.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.1.1
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -41,7 +42,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.1.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.1.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.1.1"
   }
 }
 ```
@@ -214,6 +215,40 @@ values=();values.add(10);values.add(20,30);values.insert(1,15);values.removeat(0
 - `removeat(index)`: 指定位置の要素を削除
 - `pop()`: 末尾の要素を削除して返す
 - `clear()`: 全要素を削除
+
+#### 多次元配列
+
+配列を入れ子にすることで、2次元以上の配列を作成できます。`[index]`を続けて記述し、各階層の要素を参照または更新します。
+
+```text
+matrix=((1,2),(3,4));matrix[1][0]
+```
+
+結果は`3`です。要素への代入も同じ形式です。
+
+```text
+matrix=((1,2),(3,4));matrix[1][0]=9;matrix[1][0]
+```
+
+3次元配列では、次のようにアクセサーを3つ続けます。
+
+```text
+cube=(((1,2),(3,4)),((5,6),(7,8)));cube[1][0][1]
+```
+
+結果は`6`です。各階層は独立した配列なので、行ごとに異なる要素数を持つジャグ配列として扱えます。アクセサーで取得した配列には、通常の配列と同じ操作を使用できます。
+
+```text
+matrix=((1,2),(3,4));matrix[0].add(5);matrix[0]
+```
+
+`new`を使用すると、内側の配列を含めて再帰的にクローンできます。コピー先の要素を変更しても、コピー元には影響しません。
+
+```text
+matrix=((1,2),(3,4));copy=new matrix;copy[0][0]=9;matrix[0][0]
+```
+
+この例の結果は`1`です。`new`は新しい配列を生成するため、評価時にメモリ割り当てが発生します。
 
 ### 辞書
 
