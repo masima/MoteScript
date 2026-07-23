@@ -127,7 +127,7 @@ namespace MoteScript.Tests
 		{
 			foreach ((string sentence, decimal expected) in patterns)
 			{
-				decimal actual = _decoder.Decode(sentence).Evalute(context).Value;
+				decimal actual = _decoder.Decode(sentence).Evaluate(context).Value;
 				Assert.AreEqual(expected, actual, sentence);
 			}
 		}

@@ -44,8 +44,19 @@ namespace MoteScript.Tests
 		{
 			// Decoder.Setup()実行後
 			var decoder = new Decoder();
-			float result = decoder.Decode("1+2").Evalute(null).FloatValue;
+			float result = decoder.Decode("1+2").Evaluate(null).FloatValue;
 			Assert.AreEqual(result, 3f);
+		}
+
+		[Test]
+		public void TestEvaluate_LegacyEvaluteReturnsSameResult()
+		{
+			MoteValue script = _decoder.Decode("1+2");
+
+			Assert.AreEqual(3, script.Evaluate(null).IntegerValue);
+#pragma warning disable CS0618
+			Assert.AreEqual(3, script.Evalute(null).IntegerValue);
+#pragma warning restore CS0618
 		}
 
 		[Test]
@@ -53,7 +64,7 @@ namespace MoteScript.Tests
 		{
 			// Decoder.Setup()実行後
 			var decoder = new Decoder();
-			float result = decoder.Decode("(1+2)*3").Evalute(null).FloatValue;
+			float result = decoder.Decode("(1+2)*3").Evaluate(null).FloatValue;
 			float correctAnsower = 9f;
 			Assert.AreEqual(result, correctAnsower, $"{result} != {correctAnsower}");
 		}
@@ -76,14 +87,14 @@ namespace MoteScript.Tests
 				.Set("a", 1f)
 				.Set("b", 2f);
 			result = 1f + 2f;
-			Assert.AreEqual(moteValue.Evalute(context).FloatValue, result);
+			Assert.AreEqual(moteValue.Evaluate(context).FloatValue, result);
 
 			// 別の値設定
 			context
 				.Set("a", 2f)
 				.Set("b", 3f);
 			result = 2f + 3f;
-			Assert.AreEqual(moteValue.Evalute(context).FloatValue, result);
+			Assert.AreEqual(moteValue.Evaluate(context).FloatValue, result);
 		}
 
 		[Test]
@@ -97,7 +108,7 @@ namespace MoteScript.Tests
 			";
 			var context = new Context();
 			MoteValue moteValue = _decoder.Decode(sentence);
-			float result = moteValue.Evalute(context).Value;
+			float result = moteValue.Evaluate(context).Value;
 			Assert.AreEqual(result, 3f);
 		}
 
@@ -139,7 +150,7 @@ namespace MoteScript.Tests
 		{
 			var context = new Context();
 			MoteValue moteValue = _decoder.Decode("a=1;b=2;a+b");
-			Assert.AreEqual(moteValue.Evalute(context).Value, 1f + 2f);
+			Assert.AreEqual(moteValue.Evaluate(context).Value, 1f + 2f);
 		}
 
 
@@ -161,7 +172,7 @@ namespace MoteScript.Tests
 #endif
 				{
 					MoteValue moteValue = GetDecodedMinValue(pattern.sentence);
-					MoteValue resultMoteValue = moteValue.Evalute(context);
+					MoteValue resultMoteValue = moteValue.Evaluate(context);
 					float result = resultMoteValue.FloatValue;
 					Assert.That(
 						result,
@@ -188,7 +199,7 @@ namespace MoteScript.Tests
 				try
 				{
 					MoteValue moteValue = GetDecodedMinValue(pattern.sentence);
-					MoteList result = moteValue.Evalute(context).GetArray();
+					MoteList result = moteValue.Evaluate(context).GetArray();
 					Assert.AreEqual(pattern.result.Length, result.Count
 						, $"{pattern.sentence} not same size:{result.Count},{pattern.result.Length}");
 					for (int i = 0; i < result.Count; i++)

@@ -22,7 +22,7 @@ namespace MoteScript.Tests
 			MoteValue<float> script = _decoder.Decode("missing");
 
 			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-				() => script.Evalute(new Context()));
+				() => script.Evaluate(new Context()));
 			StringAssert.Contains("Undefined variable : missing", exception.Message);
 		}
 	}

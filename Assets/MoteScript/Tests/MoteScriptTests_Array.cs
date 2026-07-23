@@ -79,7 +79,7 @@ namespace MoteScript.Tests
 			MoteValue script = _decoder.Decode(
 				"matrix=((value,value+1),(value+2,value+3));matrix[row][column]");
 
-			MoteValue result = script.Evalute(context);
+			MoteValue result = script.Evaluate(context);
 
 			Assert.AreEqual(3, result.IntegerValue);
 
@@ -88,7 +88,7 @@ namespace MoteScript.Tests
 				.Set("row", 0)
 				.Set("column", 1);
 
-			Assert.AreEqual(11, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(11, script.Evaluate(context).IntegerValue);
 		}
 
 		[Test]
@@ -98,7 +98,7 @@ namespace MoteScript.Tests
 
 			MoteValue result = _decoder
 				.Decode("matrix=((1,2),(3,4));matrix[1][0]=9;matrix[1][0]")
-				.Evalute(context);
+				.Evaluate(context);
 
 			Assert.AreEqual(9, result.IntegerValue);
 			Assert.AreEqual(9, context["matrix"].GetArray()[1].GetArray()[0].IntegerValue);
@@ -117,7 +117,7 @@ namespace MoteScript.Tests
 				+ "((value+4,value+5),(value+6,value+7)));"
 				+ "cube[depth][row][column]");
 
-			Assert.AreEqual(6, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(6, script.Evaluate(context).IntegerValue);
 
 			context
 				.Set("value", 10)
@@ -125,7 +125,7 @@ namespace MoteScript.Tests
 				.Set("row", 1)
 				.Set("column", 0);
 
-			Assert.AreEqual(12, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(12, script.Evaluate(context).IntegerValue);
 		}
 
 		[Test]
@@ -136,7 +136,7 @@ namespace MoteScript.Tests
 			MoteValue result = _decoder
 				.Decode("cube=(((1,2),(3,4)),((5,6),(7,8)));"
 					+ "cube[1][0][1]=10;cube[1][0][1]")
-				.Evalute(context);
+				.Evaluate(context);
 
 			Assert.AreEqual(10, result.IntegerValue);
 			Assert.AreEqual(10,
@@ -153,7 +153,7 @@ namespace MoteScript.Tests
 					+ "matrix[0].add(5);"
 					+ "matrix[1].insert(1,6);"
 					+ "matrix[0].removeat(0)")
-				.Evalute(context);
+				.Evaluate(context);
 
 			MoteList firstRow = context["matrix"].GetArray()[0].GetArray();
 			MoteList secondRow = context["matrix"].GetArray()[1].GetArray();
@@ -169,7 +169,7 @@ namespace MoteScript.Tests
 			_decoder.Decode(
 					"cube=(((1,2),(3,4)),((5,6),(7,8)));"
 					+ "cube[1][0].add(9)")
-				.Evalute(context);
+				.Evaluate(context);
 
 			MoteList row = context["cube"].GetArray()[1].GetArray()[0].GetArray();
 			CollectionAssert.AreEqual(new[] { 5f, 6f, 9f }, row.Select(value => value.Value));
@@ -183,22 +183,22 @@ namespace MoteScript.Tests
 			MoteValue initialize = _decoder.Decode(
 				"matrix=((value,value+1),(value+2,value+3))");
 
-			initialize.Evalute(context);
-			_decoder.Decode("copy=new matrix;").Evalute(context);
+			initialize.Evaluate(context);
+			_decoder.Decode("copy=new matrix;").Evaluate(context);
 			Assert.AreNotSame(
 				context["matrix"].GetArray(),
 				context["copy"].GetArray());
 			Assert.AreNotSame(
 				context["matrix"].GetArray()[0].GetArray(),
 				context["copy"].GetArray()[0].GetArray());
-			_decoder.Decode("copy[0][0]=9").Evalute(context);
+			_decoder.Decode("copy[0][0]=9").Evaluate(context);
 			Assert.AreEqual(1, context["matrix"].GetArray()[0].GetArray()[0].IntegerValue);
 			Assert.AreEqual(9, context["copy"].GetArray()[0].GetArray()[0].IntegerValue);
 
 			context.Set("value", 10);
-			initialize.Evalute(context);
-			_decoder.Decode("copy=new matrix;").Evalute(context);
-			_decoder.Decode("copy[0][0]=9").Evalute(context);
+			initialize.Evaluate(context);
+			_decoder.Decode("copy=new matrix;").Evaluate(context);
+			_decoder.Decode("copy[0][0]=9").Evaluate(context);
 			Assert.AreEqual(10, context["matrix"].GetArray()[0].GetArray()[0].IntegerValue);
 			Assert.AreEqual(9, context["copy"].GetArray()[0].GetArray()[0].IntegerValue);
 		}
@@ -209,9 +209,9 @@ namespace MoteScript.Tests
 			var context = new Context();
 
 			_decoder.Decode("cube=(((1,2),(3,4)),((5,6),(7,8)));")
-				.Evalute(context);
-			_decoder.Decode("copy=new cube;").Evalute(context);
-			_decoder.Decode("copy[1][0][1]=10").Evalute(context);
+				.Evaluate(context);
+			_decoder.Decode("copy=new cube;").Evaluate(context);
+			_decoder.Decode("copy[1][0][1]=10").Evaluate(context);
 
 			Assert.AreEqual(6,
 				context["cube"].GetArray()[1].GetArray()[0].GetArray()[1].IntegerValue);

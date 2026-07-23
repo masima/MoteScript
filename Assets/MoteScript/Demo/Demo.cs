@@ -13,7 +13,7 @@ public class Demo : MonoBehaviour
 		context
 			.Set("a", 1)
 			.Set("b", 2);
-		var value = decoder.Decode("a+b").Evalute(context);
+		var value = decoder.Decode("a+b").Evaluate(context);
 		Debug.Log(value.Value.ToString());
 	}
 }

@@ -50,10 +50,10 @@ namespace MoteScript.Tests
 			var decoder = new MoteDecoder<decimal>();
 			var context = new Context<decimal>();
 
-			Assert.AreEqual(0.3m, decoder.Decode("0.1+0.2").Evalute(context).Value);
-			Assert.AreEqual(2.5m, decoder.Decode("5/2").Evalute(context).Value);
-			Assert.AreEqual(1.0m, decoder.Decode("5%2").Evalute(context).Value);
-			Assert.AreEqual(1.0m, decoder.Decode("2>=2").Evalute(context).Value);
+			Assert.AreEqual(0.3m, decoder.Decode("0.1+0.2").Evaluate(context).Value);
+			Assert.AreEqual(2.5m, decoder.Decode("5/2").Evaluate(context).Value);
+			Assert.AreEqual(1.0m, decoder.Decode("5%2").Evaluate(context).Value);
+			Assert.AreEqual(1.0m, decoder.Decode("2>=2").Evaluate(context).Value);
 		}
 	}
 }

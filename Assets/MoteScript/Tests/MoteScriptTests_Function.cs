@@ -23,7 +23,7 @@ namespace MoteScript.Tests
 				"function=(value)=>{return value+1};function(2)");
 			var context = new Context().Set("value", 10);
 
-			Assert.AreEqual(3, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(3, script.Evaluate(context).IntegerValue);
 			Assert.AreEqual(10, context["value"].IntegerValue);
 		}
 
@@ -34,7 +34,7 @@ namespace MoteScript.Tests
 				"function=(value)=>{missing};function(2)");
 			var context = new Context().Set("value", 10);
 
-			Assert.Throws<InvalidOperationException>(() => script.Evalute(context));
+			Assert.Throws<InvalidOperationException>(() => script.Evaluate(context));
 			Assert.AreEqual(10, context["value"].IntegerValue);
 		}
 
@@ -44,7 +44,7 @@ namespace MoteScript.Tests
 			MoteValue script = _decoder.Decode("function=(value)=>{value+1};function(2)");
 			var context = new Context();
 
-			Assert.AreEqual(3, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(3, script.Evaluate(context).IntegerValue);
 			Assert.IsFalse(context.ContainsKey("value"));
 		}
 
@@ -55,7 +55,7 @@ namespace MoteScript.Tests
 				"double=(value)=>{value*2};increment=(value)=>{double(value)+1};increment(3)");
 			var context = new Context();
 
-			Assert.AreEqual(7, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(7, script.Evaluate(context).IntegerValue);
 			Assert.IsFalse(context.ContainsKey("value"));
 		}
 
@@ -66,7 +66,7 @@ namespace MoteScript.Tests
 				"factorial=(value)=>{if(value<=1){return 1};return factorial(value-1)*value};factorial(5)");
 			var context = new Context().Set("value", 10);
 
-			Assert.AreEqual(120, script.Evalute(context).IntegerValue);
+			Assert.AreEqual(120, script.Evaluate(context).IntegerValue);
 			Assert.AreEqual(10, context["value"].IntegerValue);
 		}
 		[Test]
@@ -108,7 +108,7 @@ namespace MoteScript.Tests
 			float sum = 0;
 			foreach	(var value in parameters)
 			{
-				sum += value.Evalute(context).Value;
+				sum += value.Evaluate(context).Value;
 			}
 			return new MoteValue(sum);
 		}

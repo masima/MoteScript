@@ -79,7 +79,7 @@ namespace MoteScript.Tests
 		{
 			var context = new Context();
 			MoteValue moteValue = _decoder.Decode("a.b.c=123");
-			moteValue.Evalute(context);
+			moteValue.Evaluate(context);
 			Assert.AreEqual(context.GetByPath("a.b.c").Value, 123f);
 			Assert.AreEqual(context.GetByPath(new[] { "a", "b", "c" }).Value, 123f);
 		}

@@ -28,13 +28,13 @@ namespace MoteScript.Tests
 			// Populate reusable result buffers and dictionary capacities before measuring.
 			for (int i = 0; i < 10; ++i)
 			{
-				script.Evalute(context);
+				script.Evaluate(context);
 			}
 
 			long before = GC.GetAllocatedBytesForCurrentThread();
 			for (int i = 0; i < 1000; ++i)
 			{
-				script.Evalute(context);
+				script.Evaluate(context);
 			}
 			long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
 
@@ -93,10 +93,10 @@ namespace MoteScript.Tests
 			var firstContext = new Context().Set("counter", 0);
 			var secondContext = new Context().Set("counter", 100);
 
-			Assert.AreEqual(1, script.Evalute(firstContext).IntegerValue);
-			Assert.AreEqual(101, script.Evalute(secondContext).IntegerValue);
-			Assert.AreEqual(2, script.Evalute(firstContext).IntegerValue);
-			Assert.AreEqual(102, script.Evalute(secondContext).IntegerValue);
+			Assert.AreEqual(1, script.Evaluate(firstContext).IntegerValue);
+			Assert.AreEqual(101, script.Evaluate(secondContext).IntegerValue);
+			Assert.AreEqual(2, script.Evaluate(firstContext).IntegerValue);
+			Assert.AreEqual(102, script.Evaluate(secondContext).IntegerValue);
 		}
 
 		[Test]
@@ -107,9 +107,9 @@ namespace MoteScript.Tests
 			var firstContext = new Context().Set("offset", 1).Set("input", 10);
 			var secondContext = new Context().Set("offset", 100).Set("input", 20);
 
-			Assert.AreEqual(11, script.Evalute(firstContext).IntegerValue);
-			Assert.AreEqual(120, script.Evalute(secondContext).IntegerValue);
-			Assert.AreEqual(11, script.Evalute(firstContext).IntegerValue);
+			Assert.AreEqual(11, script.Evaluate(firstContext).IntegerValue);
+			Assert.AreEqual(120, script.Evaluate(secondContext).IntegerValue);
+			Assert.AreEqual(11, script.Evaluate(firstContext).IntegerValue);
 		}
 
 		[Test]
@@ -117,11 +117,11 @@ namespace MoteScript.Tests
 		{
 			MoteValue<float> script = _decoder.DecodeCached("(value,value+1)");
 			var context = new Context().Set("value", 1);
-			MoteList<float> first = script.Evalute(context).GetArray();
+			MoteList<float> first = script.Evaluate(context).GetArray();
 			Assert.AreEqual(1, first[0].IntegerValue);
 
 			context.Set("value", 10);
-			MoteList<float> second = script.Evalute(context).GetArray();
+			MoteList<float> second = script.Evaluate(context).GetArray();
 
 			Assert.AreSame(first, second);
 			Assert.AreEqual(10, first[0].IntegerValue);
@@ -133,11 +133,11 @@ namespace MoteScript.Tests
 		{
 			MoteValue<float> script = _decoder.DecodeCached("dictionary=[a:value];dictionary");
 			var context = new Context().Set("value", 1);
-			IContext<float> first = script.Evalute(context).GetDictionary();
+			IContext<float> first = script.Evaluate(context).GetDictionary();
 			Assert.AreEqual(1, first["a"].IntegerValue);
 
 			context.Set("value", 10);
-			IContext<float> second = script.Evalute(context).GetDictionary();
+			IContext<float> second = script.Evaluate(context).GetDictionary();
 
 			Assert.AreSame(first, second);
 			Assert.AreEqual(10, first["a"].IntegerValue);

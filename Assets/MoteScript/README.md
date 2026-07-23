@@ -57,8 +57,10 @@ var context = new Context<float>()
     .Set("a", 1f)
     .Set("b", 2f);
 
-float result = decoder.DecodeCached("a+b").Evalute(context).Value;
+float result = decoder.DecodeCached("a+b").Evaluate(context).Value;
 ```
+
+従来の`Evalute()`は互換性のため残されていますが非推奨です。新しいコードでは`Evaluate()`を使用してください。
 
 `decimal`を使用する場合は、`MoteDecoder<decimal>.Setup()`と`Context<decimal>`を使用します。
 
@@ -74,8 +76,8 @@ var context = new Context<float>()
     .Set("a", 10f)
     .Set("b", 2f);
 
-float sum = decoder.Decode("a+b").Evalute(context).Value;
-float product = decoder.Decode("a*b").Evalute(context).Value;
+float sum = decoder.Decode("a+b").Evaluate(context).Value;
+float product = decoder.Decode("a*b").Evaluate(context).Value;
 ```
 
 この例では、同じ`decoder`から`sum`は`12`、`product`は`20`になります。
@@ -93,13 +95,13 @@ var context = new Context<float>()
     .Set("price", 100f)
     .Set("count", 2f);
 
-float first = expression.Evalute(context).Value;
+float first = expression.Evaluate(context).Value;
 
 context
     .Set("price", 120f)
     .Set("count", 3f);
 
-float second = expression.Evalute(context).Value;
+float second = expression.Evaluate(context).Value;
 ```
 
 この例では、`first`は`200`、`second`は`360`です。`expression`は同じインスタンスを再利用し、2回目は値の評価だけを行います。
@@ -115,10 +117,10 @@ var decoder = new MoteDecoder<float>();
 var context = new Context<float>();
 
 var definitions = decoder.Decode("double=(value)=>{value*2}");
-definitions.Evalute(context);
+definitions.Evaluate(context);
 
 var expression = decoder.Decode("double(3)+double(4)");
-float result = expression.Evalute(context).Value;
+float result = expression.Evaluate(context).Value;
 ```
 
 この例では、最初のスクリプトを評価した時点で`double`関数が`context`に保持されます。そのため、後からデコードした別のスクリプトでも`double`を定義済みの関数として呼び出すことができ、`result`は`14`になります。C#側から引数の値を`Context`へ設定する必要はありません。
@@ -140,7 +142,7 @@ static MoteValue<float> Sum(
     float result = 0f;
     foreach (var parameter in parameters)
     {
-        result += parameter.Evalute(context).Value;
+        result += parameter.Evaluate(context).Value;
     }
     return new MoteValue<float>(result);
 }
@@ -151,7 +153,7 @@ var decoder = new MoteDecoder<float>();
 var context = new Context<float>();
 context["sum"] = new MoteValue<float>(Sum);
 
-float result = decoder.Decode("sum(1,2,3)").Evalute(context).Value;
+float result = decoder.Decode("sum(1,2,3)").Evaluate(context).Value;
 ```
 
 この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evalute(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
@@ -193,7 +195,7 @@ var context = new Context<float>()
     .Set("price", 120f)
     .Set("count", 3f);
 
-float result = decoder.DecodeCached("price*count").Evalute(context).Value;
+float result = decoder.DecodeCached("price*count").Evaluate(context).Value;
 ```
 
 ### 配列
@@ -339,7 +341,7 @@ var intDecoder = new MoteDecoder<int>();
 
 MoteDecoder<decimal>.Setup();
 var decimalDecoder = new MoteDecoder<decimal>();
-decimal result = decimalDecoder.Decode("0.1+0.2").Evalute(new Context<decimal>()).Value;
+decimal result = decimalDecoder.Decode("0.1+0.2").Evaluate(new Context<decimal>()).Value;
 ```
 
 MoteScriptの値は数値、配列、辞書、関数を対象としており、文字列値は扱いません。

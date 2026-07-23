@@ -254,7 +254,7 @@ namespace MoteScript
 
 		private string AssignmentKey => _object as string;
 
-		public MoteValue<T> Evalute(IContext<T> context)
+		public MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> result = EvaluteInner(context);
 			if (result.TryGetOperator(out FlowControlOperatorReturn<T> returnOperator))
@@ -262,6 +262,11 @@ namespace MoteScript
 				return returnOperator.ReturnValue;
 			}
 			return result;
+		}
+		[Obsolete("Use Evaluate instead.")]
+		public MoteValue<T> Evalute(IContext<T> context)
+		{
+			return Evaluate(context);
 		}
 		internal MoteValue<T> EvaluteInner(IContext<T> context)
 		{
