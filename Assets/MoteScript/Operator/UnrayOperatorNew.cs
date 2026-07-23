@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MoteScript
 {
@@ -9,6 +10,12 @@ namespace MoteScript
 	{
 		public override OperatorType OperatorType => OperatorType.New;
 		public override string OperatorCode => "new";
+
+		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		{
+			Right = rpnStack.Pop();
+			return new MoteValue<T>(this);
+		}
 
 		public override MoteValue<T> Evalute(IContext<T> context)
 		{

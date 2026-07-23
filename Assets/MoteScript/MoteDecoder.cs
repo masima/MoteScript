@@ -1017,9 +1017,12 @@ namespace MoteScript
 			{
 				GetOneValue(queue, childRpn);
 				rpn.InsertRange(insertIndex, childRpn);
-				if (1 < childRpn.Count
-					&& childRpn[childRpn.Count - 1]
-						.TryGetOperator(out OperatorOpenSquareBracket<T> _))
+				bool isCompoundRightValue = 1 < childRpn.Count
+					&& (childRpn[childRpn.Count - 1]
+							.TryGetOperator(out OperatorOpenSquareBracket<T> _)
+						|| childRpn[childRpn.Count - 1]
+							.TryGetOperator(out UnrayOperatorNew<T> _));
+				if (isCompoundRightValue)
 				{
 					insertIndex += childRpn.Count;
 				}

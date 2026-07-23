@@ -221,6 +221,23 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestNew_WithoutSentenceSeparatorClonesArray()
+		{
+			var context = new Context();
+			_decoder.Decode("source=((1,2),(3,4));").Evaluate(context);
+
+			_decoder.Decode("copy=new source").Evaluate(context);
+			_decoder.Decode("copy[0][0]=9").Evaluate(context);
+
+			Assert.AreEqual(1, context["source"].GetArray()[0].GetArray()[0].IntegerValue);
+			Assert.AreEqual(9, context["copy"].GetArray()[0].GetArray()[0].IntegerValue);
+			Assert.AreNotSame(context["source"].GetArray(), context["copy"].GetArray());
+			Assert.AreNotSame(
+				context["source"].GetArray()[0].GetArray(),
+				context["copy"].GetArray()[0].GetArray());
+		}
+
+		[Test]
 		public void TestThreeDimensionalArray_CloneCreatesIndependentDepths()
 		{
 			var context = new Context();

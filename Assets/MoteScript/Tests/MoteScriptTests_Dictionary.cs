@@ -114,5 +114,21 @@ namespace MoteScript.Tests
 			TestPatterns(patterns, context);
 		}
 
+		[Test]
+		public void TestNew_WithoutSentenceSeparatorClonesDictionary()
+		{
+			var context = new Context();
+			_decoder.Decode("source=[value:1];").Evaluate(context);
+
+			_decoder.Decode("copy=new source").Evaluate(context);
+			_decoder.Decode("copy.value=2").Evaluate(context);
+
+			Assert.AreEqual(1, context.GetByPath("source.value").IntegerValue);
+			Assert.AreEqual(2, context.GetByPath("copy.value").IntegerValue);
+			Assert.AreNotSame(
+				context["source"].GetDictionary(),
+				context["copy"].GetDictionary());
+		}
+
 	}
 }
