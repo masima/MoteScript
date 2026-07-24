@@ -121,6 +121,28 @@ namespace MoteScript.Tests
 			TestPatterns(patterns, context);
 		}
 
+		[Test]
+		public void TestOperatorDecimal_LogicalShortCircuit()
+		{
+			var context = new Context<decimal>().Set("callCount", 0m);
+
+			Assert.AreEqual(0m, _decoder.Decode("0 && (callCount=callCount+1)").Evaluate(context).Value);
+			Assert.AreEqual(0m, context["callCount"].Value,
+				"&& must not evaluate its right operand when the left operand is false.");
+
+			Assert.AreEqual(1m, _decoder.Decode("1 || (callCount=callCount+1)").Evaluate(context).Value);
+			Assert.AreEqual(0m, context["callCount"].Value,
+				"|| must not evaluate its right operand when the left operand is true.");
+
+			Assert.AreEqual(1m, _decoder.Decode("1 && (callCount=callCount+1)").Evaluate(context).Value);
+			Assert.AreEqual(1m, context["callCount"].Value,
+				"&& must evaluate its right operand when the left operand is true.");
+
+			Assert.AreEqual(1m, _decoder.Decode("0 || (callCount=callCount+1)").Evaluate(context).Value);
+			Assert.AreEqual(2m, context["callCount"].Value,
+				"|| must evaluate its right operand when the left operand is false.");
+		}
+
 		private void TestPatterns(
 			(string sentence, decimal result)[] patterns,
 			Context<decimal> context = null)

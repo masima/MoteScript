@@ -153,5 +153,27 @@ namespace MoteScript.Tests
 			}
 		}
 
+		[Test]
+		public void TestOperator_LogicalShortCircuit()
+		{
+			var context = new Context().Set("callCount", 0);
+
+			Assert.AreEqual(0, _decoder.Decode("0 && (callCount=callCount+1)").Evaluate(context).IntegerValue);
+			Assert.AreEqual(0, context["callCount"].IntegerValue,
+				"&& must not evaluate its right operand when the left operand is false.");
+
+			Assert.AreEqual(1, _decoder.Decode("1 || (callCount=callCount+1)").Evaluate(context).IntegerValue);
+			Assert.AreEqual(0, context["callCount"].IntegerValue,
+				"|| must not evaluate its right operand when the left operand is true.");
+
+			Assert.AreEqual(1, _decoder.Decode("1 && (callCount=callCount+1)").Evaluate(context).IntegerValue);
+			Assert.AreEqual(1, context["callCount"].IntegerValue,
+				"&& must evaluate its right operand when the left operand is true.");
+
+			Assert.AreEqual(1, _decoder.Decode("0 || (callCount=callCount+1)").Evaluate(context).IntegerValue);
+			Assert.AreEqual(2, context["callCount"].IntegerValue,
+				"|| must evaluate its right operand when the left operand is false.");
+		}
+
 	}
 }
