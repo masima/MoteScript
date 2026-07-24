@@ -16,6 +16,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [変数](#変数)
   - [文字列](#文字列)
   - [正規表現](#正規表現)
+  - [数値関数](#数値関数)
   - [配列](#配列)
     - [多次元配列](#多次元配列)
   - [辞書](#辞書)
@@ -315,6 +316,43 @@ StandardRegexLibrary<float>.ClearCache(context);
 ```
 
 `RegexOptions.Compiled`と無限タイムアウトは使用できません。タイムアウト時には`RegexMatchTimeoutException`が発生します。Match結果の辞書・配列や置換文字列の生成ではGC割り当てが発生します。
+
+### 数値関数
+
+標準数値関数を使用する前に、使用するCalculatorと同じ型でMathライブラリをContextへ登録します。
+
+```csharp
+var context = new Context<float>();
+StandardMathLibrary<float>.Register(context);
+```
+
+スクリプトでは次の関数を使用できます。
+
+- `math.abs(value)`
+- `math.min(a,b)`、`math.max(a,b)`
+- `math.clamp(value,min,max)`
+- `math.sign(value)`
+- `math.pow(value,exponent)`
+- `math.sqrt(value)`
+- `math.exp(value)`
+- `math.log(value[,base])`、`math.log10(value)`
+- `math.sin(value)`、`math.cos(value)`、`math.tan(value)`
+- `math.asin(value)`、`math.acos(value)`、`math.atan(value)`
+- `math.atan2(y,x)`
+- `math.floor(value)`
+- `math.ceiling(value)`または`math.ceil(value)`
+- `math.round(value[,digits])`
+- `math.truncate(value)`
+- `math.pi()`
+
+```text
+radius=3;
+area=math.pi()*math.pow(radius,2)
+```
+
+`round`はC#と同じく既定で`MidpointRounding.ToEven`を使用します。`decimal`の指数対数・三角関数・πは、`System.Math`との互換性のため内部で一度`double`を経由するので、decimal固有の精度が必要な処理では注意してください。
+
+`CalculatorInteger`では`abs`、`min`、`max`、`clamp`、`sign`、非負整数指数の`pow`、各丸め関数を使用できます。小数結果を必要とする平方根、指数対数、三角関数、負数指数の`pow`、`pi`は`NotImplementedException`を送出します。
 
 ### 配列
 

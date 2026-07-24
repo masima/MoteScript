@@ -2,6 +2,13 @@
 
 このプロジェクトの主な変更を記録します。
 
+## [Unreleased]
+
+### Added
+
+- `float`と`decimal`向けの標準数値関数ライブラリと`math.pi()`
+- `int`向けの整数演算関数。小数結果を必要とする関数は`NotImplementedException`を送出
+
 ## [0.2.0] - 2026-07-25
 
 ### Added
