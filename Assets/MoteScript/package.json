@@ -1,6 +1,6 @@
 {
   "name": "io.github.masima.motescript",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "MoteScript",
   "description": "A lightweight typed scripting runtime for Unity with numeric, string, and regular expression support.",
   "unity": "6000.0",

@@ -13,7 +13,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 タグを指定して導入する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.2.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.2.1
 ```
 
 詳しい使用方法は[パッケージREADME](Assets/MoteScript/README.md)を参照してください。

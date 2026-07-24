@@ -2,12 +2,16 @@
 
 このプロジェクトの主な変更を記録します。
 
-## [Unreleased]
+## [0.2.1] - 2026-07-25
 
 ### Added
 
-- `float`と`decimal`向けの標準数値関数ライブラリと`math.pi()`
-- `int`向けの整数演算関数。小数結果を必要とする関数は`NotImplementedException`を送出
+- `StandardMathLibrary<T>.Register(context)`で登録できる標準数値関数ライブラリ
+- 絶対値、最小値・最大値、クランプ、符号、累乗を扱う基本数値関数
+- 平方根、指数・対数、三角・逆三角関数
+- floor、ceiling、round、truncateによる丸め関数
+- `math.pi()`によるπの取得
+- `CalculatorInteger`向けの整数演算関数。小数結果を必要とする関数は`NotImplementedException`を送出
 
 ## [0.2.0] - 2026-07-25
 
