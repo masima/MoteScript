@@ -102,6 +102,10 @@ namespace MoteScript
 				{
 					throw new InvalidOperationException($"undefined {_memberName}");
 				}
+				if (targetContext.TryGetValue(_memberName, out MoteValue<T> current))
+				{
+					MoteValue<T>.ValidateAssignment(current, value, _memberName);
+				}
 				targetContext[_memberName] = value;
 				return;
 			}
@@ -110,6 +114,13 @@ namespace MoteScript
 			if (context.TryGetValue(contextKey, out MoteValue<T> moteValue))
 			{
 				dictionary = moteValue.GetDictionary();
+				if (dictionary is null)
+				{
+					MoteValue<T>.ValidateAssignment(
+						moteValue,
+						new MoteValue<T>(context.Instantiate()),
+						contextKey);
+				}
 			}
 			if (dictionary is null)
 			{
@@ -126,6 +137,13 @@ namespace MoteScript
 				{
 					moteValue = childValue;
 					dictionary = moteValue.GetDictionary();
+					if (dictionary is null)
+					{
+						MoteValue<T>.ValidateAssignment(
+							moteValue,
+							new MoteValue<T>(context.Instantiate()),
+							key);
+					}
 				}
 				else
 				{
@@ -134,7 +152,12 @@ namespace MoteScript
 					dictionary = childDictionary;
 				}
 			}
-			dictionary[_splitedPath[lastIndex]] = value;
+			string memberName = _splitedPath[lastIndex];
+			if (dictionary.TryGetValue(memberName, out MoteValue<T> currentValue))
+			{
+				MoteValue<T>.ValidateAssignment(currentValue, value, memberName);
+			}
+			dictionary[memberName] = value;
 		}
 	}
 

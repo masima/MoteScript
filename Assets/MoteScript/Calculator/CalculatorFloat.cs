@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 
 namespace MoteScript
@@ -28,12 +29,12 @@ namespace MoteScript
 		}
 		public float Convert(string value)
 		{
-			return float.Parse(value);
+			return float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
 		}
 
 		public float Convert(ReadOnlySpan<char> value)
 		{
-			return float.Parse(value);
+			return float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
 		}
 
 

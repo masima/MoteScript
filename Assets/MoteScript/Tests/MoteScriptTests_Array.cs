@@ -58,7 +58,7 @@ namespace MoteScript.Tests
 					("a=(1,2,3);a.insert(0,4)", new float[] {4,1,2,3}),
 					("a=(1,2,3);a.insert(1,4)", new float[] {1,4,2,3}),
 					("a=(1,1+1,3);a.insert(1,2+2)", new float[] {1,2+2,1+1,3}),
-					("a=1;b=2;c=3;array=(a,a+a,c);array.insert(a,b+b)", new float[] {1,2+2,1+1,3}),
+					("x=1;b=2;c=3;array=(x,x+x,c);array.insert(x,b+b)", new float[] {1,2+2,1+1,3}),
 
 					("a=(1,2,3);a.removeat(1)", new float[] {1,3}),
 					("a=(1,2,3);(a.pop(),a.pop(),a.pop())", new float[] {3,2,1}),

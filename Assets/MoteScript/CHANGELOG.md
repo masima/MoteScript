@@ -2,6 +2,20 @@
 
 このプロジェクトの主な変更を記録します。
 
+## [Unreleased]
+
+### Added
+
+- ダブルクォーテーション形式の文字列リテラル、エスケープ、null文字列
+- Ordinal／InvariantCultureで動作する標準文字列ライブラリ
+- `string.insert`、`string.remove`、`string.parseNumber`、`string.fromNumber`
+
+### Changed
+
+- 最初の代入で通常変数、配列要素、辞書メンバーの型を固定
+- 数値演算子で文字列などの非数値型を使用した場合に明示的な例外を送出
+- 数値と文字列の暗黙変換を禁止
+
 ## [0.1.2] - 2026-07-24
 
 ### Changed

@@ -31,19 +31,55 @@ namespace MoteScript
 		}
 		public string StringValue
 		{
-			get => _object?.ToString() ?? _value.ToString();
+			get => ValueType == EValueType.String
+				? _object as string
+				: _object?.ToString() ?? _value.ToString();
 		}
 
 		public bool ToBool()
 		{
+			ThrowIfNotNumeric("boolean conversion");
 			return Calculator.ToBool(_value);
+		}
+
+		internal T GetNumericValue(string operation)
+		{
+			ThrowIfNotNumeric(operation);
+			return _value;
+		}
+
+		internal void ThrowIfNotNumeric(string operation)
+		{
+			if (ValueType != EValueType.Const)
+			{
+				throw new InvalidOperationException(
+					$"{operation} requires a numeric value, but received {GetDiagnosticTypeName(ValueType)}.");
+			}
+		}
+
+		internal static void ValidateAssignment(
+			MoteValue<T> current,
+			MoteValue<T> value,
+			string target)
+		{
+			if (current.ValueType.IsValid() && current.ValueType != value.ValueType)
+			{
+				throw new InvalidOperationException(
+					$"Cannot assign {GetDiagnosticTypeName(value.ValueType)}"
+					+ $" to {GetDiagnosticTypeName(current.ValueType)} target '{target}'.");
+			}
+		}
+
+		private static string GetDiagnosticTypeName(EValueType valueType)
+		{
+			return valueType == EValueType.Const ? "Number" : valueType.ToString();
 		}
 
 		public static MoteValue<T> Default => new MoteValue<T>((T)default);
 
 		public override string ToString()
 		{
-			return $"{{_valueType:{(EValueType)_valueType},_value:{_value.ToString()},_object:{_object?.ToString()??"null"}}}";
+			return $"{{_valueType:{(EValueType)_valueType},_value:{_value.ToString()},_object:{_object?.ToString() ?? "null"}}}";
 		}
 
 		/// <summary>
@@ -274,6 +310,7 @@ namespace MoteScript
 			{
 			case EValueType.Unknown:
 			case EValueType.Const:
+			case EValueType.String:
 			case EValueType.Array:
 			case EValueType.Dictionary:
 			case EValueType.Function:
@@ -311,6 +348,10 @@ namespace MoteScript
 			switch (ValueType)
 			{
 				case EValueType.Variable:
+					if (context.TryGetValue(AssignmentKey, out MoteValue<T> current))
+					{
+						ValidateAssignment(current, value, AssignmentKey);
+					}
 					context[AssignmentKey] = value;
 					break;
 				default:

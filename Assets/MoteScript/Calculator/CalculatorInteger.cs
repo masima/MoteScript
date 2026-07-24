@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 
 namespace MoteScript
@@ -28,12 +29,12 @@ namespace MoteScript
 		}
 		public int Convert(string value)
 		{
-			return int.Parse(value);
+			return int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 		}
 
 		public int Convert(ReadOnlySpan<char> value)
 		{
-			return int.Parse(value);
+			return int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 		}
 
 		public int Add(int left, int right)

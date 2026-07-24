@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 
 namespace MoteScript
@@ -28,11 +29,11 @@ namespace MoteScript
 		}
 		public decimal Convert(string value)
 		{
-			return decimal.Parse(value);
+			return decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
 		}
 		public decimal Convert(ReadOnlySpan<char> value)
 		{
-			return decimal.Parse(value);
+			return decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
 		}
 
 		public decimal Add(decimal left, decimal right)

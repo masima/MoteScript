@@ -14,6 +14,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [数値演算](#数値演算)
   - [比較・論理演算](#比較論理演算)
   - [変数](#変数)
+  - [文字列](#文字列)
   - [配列](#配列)
     - [多次元配列](#多次元配列)
   - [辞書](#辞書)
@@ -205,6 +206,50 @@ var context = new Context<float>()
 
 float result = decoder.DecodeCached("price*count").Evaluate(context).Value;
 ```
+
+変数の型は最初の代入で確定します。同じ型の値は再代入できますが、数値、文字列、配列、辞書、関数など異なる型の値で上書きすると`InvalidOperationException`が発生します。この規則は通常変数、既存の配列要素、既存の辞書メンバーに適用されます。
+
+### 文字列
+
+文字列リテラルはダブルクォーテーションで囲みます。`\"`、`\\`、`\n`、`\r`、`\t`のエスケープを使用できます。`null`はnull文字列、`""`は空文字列であり、両者は区別されます。
+
+```text
+message="Hello\nMoteScript"
+```
+
+文字列は`+`、`==`、`<`などの数値演算子では操作できません。また、数値と文字列の暗黙変換は行われません。文字列操作を使用する前に、標準文字列ライブラリをContextへ登録します。
+
+```csharp
+var context = new Context<float>();
+StandardStringLibrary<float>.Register(context);
+
+string result = decoder.Decode(
+    "message=string.concat(\"Hello \",\"MoteScript\");message")
+    .Evaluate(context)
+    .StringValue;
+```
+
+登録される関数は次のとおりです。比較はOrdinal、大文字・小文字変換と数値変換はInvariantCultureで行われます。
+
+- `string.concat(values...)`
+- `string.length(value)`
+- `string.substring(value,start[,length])`
+- `string.replace(value,oldValue,newValue)`
+- `string.trim(value)`
+- `string.toLower(value)`、`string.toUpper(value)`
+- `string.indexOf(value,search)`
+- `string.compare(a,b)`、`string.equals(a,b)`
+- `string.contains(value,search)`
+- `string.startsWith(value,prefix)`、`string.endsWith(value,suffix)`
+- `string.isEmpty(value)`、`string.isNull(value)`
+- `string.insert(value,index,insertedValue)`
+- `string.remove(value,start[,length])`
+- `string.parseNumber(value)`
+- `string.fromNumber(value)`
+
+`parseNumber`と`fromNumber`だけが数値と文字列を明示的に変換します。文字列は不変オブジェクトであるため、文字列を返す操作では原則としてGC割り当てが発生します。
+
+`equals`、`compare`、`isNull`はnull文字列を受け取れます。`concat`ではnullを空文字列として連結します。それ以外の文字列操作へnullを渡すと`InvalidOperationException`が発生します。
 
 ### 配列
 

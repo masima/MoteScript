@@ -27,6 +27,7 @@ namespace MoteScript
 				case List<MoteValue<T>> array:
 				{
 					MoteValue<T> right = Right.EvaluteInner(context);
+					right.ThrowIfNotNumeric(OperatorCode);
 					int index = right.IntegerValue;
 					return array[index];
 				}
@@ -35,7 +36,6 @@ namespace MoteScript
 					MoteValue<T> right = Right.EvaluteInner(context);
 					switch (right.ValueType)
 					{
-						case EValueType.Const:
 						case EValueType.String:
 							return targetContext[right.StringValue];
 						default:
@@ -56,7 +56,9 @@ namespace MoteScript
 			case List<MoteValue<T>> array:
 				{
 					MoteValue<T> right = Right.EvaluteInner(context);
+					right.ThrowIfNotNumeric(OperatorCode);
 					int index = right.IntegerValue;
+					MoteValue<T>.ValidateAssignment(array[index], value, $"[{index}]");
 					array[index] = value;
 					return;
 				}
@@ -65,8 +67,11 @@ namespace MoteScript
 					MoteValue<T> right = Right.EvaluteInner(context);
 					switch (right.ValueType)
 					{
-					case EValueType.Const:
 					case EValueType.String:
+						if (targetContext.TryGetValue(right.StringValue, out MoteValue<T> current))
+						{
+							MoteValue<T>.ValidateAssignment(current, value, $"[{right.StringValue}]");
+						}
 						targetContext[right.StringValue] = value;
 						return;
 					default:

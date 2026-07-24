@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Linq;
 
@@ -337,7 +338,7 @@ namespace MoteScript
 
 		private MoteValue<T> DecodeStructuredExpression(string expression)
 		{
-			int arrowIndex = expression.IndexOf("=>", StringComparison.Ordinal);
+			int arrowIndex = FindTopLevelToken(expression, "=>");
 			if (arrowIndex < 0)
 			{
 				int topLevelAssignment = FindTopLevelAssignment(expression);
@@ -377,7 +378,7 @@ namespace MoteScript
 				return DecodeStructuredValue(expression);
 			}
 
-			int assignmentIndex = expression.IndexOf('=');
+			int assignmentIndex = FindTopLevelToken(expression, "=");
 			if (assignmentIndex < 0 || assignmentIndex >= arrowIndex)
 			{
 				throw new FormatException("delegate assignment is required");
@@ -471,6 +472,11 @@ namespace MoteScript
 			for (int i = 0; i < expression.Length; ++i)
 			{
 				char c = expression[i];
+				if (c == '"')
+				{
+					i = FindStringLiteralEnd(expression, i);
+					continue;
+				}
 				if (c == '(') ++round;
 				else if (c == ')') --round;
 				else if (c == '[') ++square;
@@ -478,6 +484,34 @@ namespace MoteScript
 				else if (c == '=' && round == 0 && square == 0
 					&& (i == 0 || expression[i - 1] != '=' && expression[i - 1] != '!' && expression[i - 1] != '<' && expression[i - 1] != '>')
 					&& (i + 1 >= expression.Length || expression[i + 1] != '='))
+				{
+					return i;
+				}
+			}
+			return -1;
+		}
+
+		private static int FindTopLevelToken(string expression, string token)
+		{
+			int round = 0;
+			int square = 0;
+			int curly = 0;
+			for (int i = 0; i <= expression.Length - token.Length; ++i)
+			{
+				char c = expression[i];
+				if (c == '"')
+				{
+					i = FindStringLiteralEnd(expression, i);
+					continue;
+				}
+				if (c == '(') ++round;
+				else if (c == ')') --round;
+				else if (c == '[') ++square;
+				else if (c == ']') --square;
+				else if (c == '{') ++curly;
+				else if (c == '}') --curly;
+				else if (round == 0 && square == 0 && curly == 0
+					&& string.CompareOrdinal(expression, i, token, 0, token.Length) == 0)
 				{
 					return i;
 				}
@@ -494,7 +528,11 @@ namespace MoteScript
 			int depth = 0;
 			for (int i = 0; i < expression.Length; ++i)
 			{
-				if (expression[i] == '(') ++depth;
+				if (expression[i] == '"')
+				{
+					i = FindStringLiteralEnd(expression, i);
+				}
+				else if (expression[i] == '(') ++depth;
 				else if (expression[i] == ')' && --depth == 0 && i != expression.Length - 1) return false;
 			}
 			return depth == 0;
@@ -510,6 +548,11 @@ namespace MoteScript
 			for (int i = 0; i < expression.Length; ++i)
 			{
 				char c = expression[i];
+				if (c == '"')
+				{
+					i = FindStringLiteralEnd(expression, i);
+					continue;
+				}
 				if (c == '(') ++round;
 				else if (c == ')') --round;
 				else if (c == '[') ++square;
@@ -573,7 +616,11 @@ namespace MoteScript
 			while (position < source.Length && depth > 0)
 			{
 				char c = source[position++];
-				if (c == open) ++depth;
+				if (c == '"')
+				{
+					position = FindStringLiteralEnd(source, position - 1) + 1;
+				}
+				else if (c == open) ++depth;
 				else if (c == close) --depth;
 			}
 			if (depth != 0) throw new FormatException($"expected {close}");
@@ -589,6 +636,11 @@ namespace MoteScript
 			while (position < source.Length)
 			{
 				char c = source[position];
+				if (c == '"')
+				{
+					position = FindStringLiteralEnd(source, position) + 1;
+					continue;
+				}
 				if (c == '(') ++round;
 				else if (c == ')') --round;
 				else if (c == '[') ++square;
@@ -608,6 +660,73 @@ namespace MoteScript
 				++position;
 			}
 			return source.Substring(start, position - start);
+		}
+
+		private static int FindStringLiteralEnd(string source, int start)
+		{
+			bool escaped = false;
+			for (int i = start + 1; i < source.Length; ++i)
+			{
+				char c = source[i];
+				if (escaped)
+				{
+					escaped = false;
+					continue;
+				}
+				if (c == '\\')
+				{
+					escaped = true;
+					continue;
+				}
+				if (c == '"')
+				{
+					return i;
+				}
+			}
+			throw new FormatException("unterminated string literal");
+		}
+
+		private static bool TryReadStringLiteral(
+			string source,
+			ref int position,
+			out MoteValue<T> value)
+		{
+			if (position >= source.Length || source[position] != '"')
+			{
+				value = default;
+				return false;
+			}
+
+			int end = FindStringLiteralEnd(source, position);
+			var builder = new StringBuilder(end - position - 1);
+			for (int i = position + 1; i < end; ++i)
+			{
+				char c = source[i];
+				if (c != '\\')
+				{
+					builder.Append(c);
+					continue;
+				}
+
+				if (++i >= end)
+				{
+					throw new FormatException("invalid string escape");
+				}
+				switch (source[i])
+				{
+					case '"': builder.Append('"'); break;
+					case '\\': builder.Append('\\'); break;
+					case 'n': builder.Append('\n'); break;
+					case 'r': builder.Append('\r'); break;
+					case 't': builder.Append('\t'); break;
+					default:
+						throw new FormatException($"unsupported string escape : \\{source[i]}");
+				}
+			}
+
+			position = end + 1;
+			value = new MoteValue<T>(builder.ToString());
+			return true;
 		}
 
 		private static bool IsKeyword(string source, int position, string keyword)
@@ -659,6 +778,13 @@ namespace MoteScript
 					continue;
 				}
 
+				if (TryReadStringLiteral(sentence, ref startat, out MoteValue<T> stringValue))
+				{
+					queue.Enqueue(stringValue);
+					lastValue = stringValue;
+					continue;
+				}
+
 				if (TrimComment(sentence, ref startat))
 				{
 					continue;
@@ -707,6 +833,14 @@ namespace MoteScript
 					// 英数字？					
 					if (TryGetWord(sentence, startat, out string word))
 					{
+						if (word == "null")
+						{
+							var nullValue = new MoteValue<T>((string)null);
+							queue.Enqueue(nullValue);
+							startat += word.Length;
+							lastValue = nullValue;
+							continue;
+						}
 						// 変数
 						var wordValue = new MoteValue<T>(word).ConvertToVariable();
 						queue.Enqueue(wordValue);

@@ -15,10 +15,11 @@ namespace MoteScript
 			MoteValue<T> left = Left.EvaluteInner(context);
 			MoteValue<T> right = Right.EvaluteInner(context);
 
-			return new MoteValue<T>(MoteValue<T>.Calculator.Multiple(left.Value, right.Value));
+			return new MoteValue<T>(MoteValue<T>.Calculator.Multiple(
+				left.GetNumericValue(OperatorCode),
+				right.GetNumericValue(OperatorCode)));
 		}
 	}
 
 
 }
-
