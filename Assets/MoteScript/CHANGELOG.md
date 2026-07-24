@@ -10,6 +10,7 @@
 - Ordinal／InvariantCultureで動作する標準文字列ライブラリ
 - `string.insert`、`string.remove`、`string.parseNumber`、`string.fromNumber`
 - C#の複合書式指定をInvariantCultureで処理する`string.format`
+- タイムアウトと上限付きLRUキャッシュを備えた`regex.isMatch`、`regex.match`、`regex.matches`、`regex.replace`
 
 ### Changed
 

@@ -15,6 +15,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [比較・論理演算](#比較論理演算)
   - [変数](#変数)
   - [文字列](#文字列)
+  - [正規表現](#正規表現)
   - [配列](#配列)
     - [多次元配列](#多次元配列)
   - [辞書](#辞書)
@@ -259,6 +260,61 @@ string.format("{0}: {1:0.00}","score",12.5)
 この例の結果は`"score: 12.50"`です。書式引数には数値、文字列、nullを指定できます。
 
 `equals`、`compare`、`isNull`はnull文字列を受け取れます。`concat`ではnullを空文字列として連結します。それ以外の文字列操作へnullを渡すと`InvalidOperationException`が発生します。
+
+### 正規表現
+
+正規表現を使用する前に、標準正規表現ライブラリをContextへ登録します。既定では`RegexOptions.CultureInvariant`、100ミリ秒のタイムアウト、最大64パターンのLRUキャッシュが使用されます。
+
+```csharp
+StandardRegexLibrary<float>.Register(
+    context,
+    options: RegexOptions.IgnoreCase,
+    matchTimeout: TimeSpan.FromMilliseconds(100),
+    maxCachedPatterns: 64);
+```
+
+スクリプトでは次の関数を使用できます。
+
+- `regex.isMatch(input,pattern)`
+- `regex.match(input,pattern)`
+- `regex.matches(input,pattern)`
+- `regex.replace(input,pattern,replacement)`
+
+```text
+regex.isMatch("abc123","\\d+")
+```
+
+MoteScript文字列内では`\`をエスケープするため、正規表現の`\d`は`"\\d"`と記述します。`replace`の置換文字列ではC#と同じ`$1`などのキャプチャ参照を使用できます。
+
+```text
+regex.replace(
+    "2026-07-25",
+    "(\\d{4})-(\\d{2})-(\\d{2})",
+    "$2/$3/$1")
+```
+
+`match`は次のメンバーを持つ辞書を返し、`matches`はその辞書の配列を返します。代入文として単独で使用する場合も文末に`;`を付けます。
+
+- `success`: 成否
+- `value`: 一致文字列
+- `index`: 開始位置
+- `length`: 長さ
+- `groups`: グループ辞書の配列。各辞書も`success`、`value`、`index`、`length`を持ちます。
+
+```text
+result=regex.match("abc123","([a-z]+)(\\d+)");
+groups=result.groups;
+groups[2].value
+```
+
+Regexオブジェクトは登録した`regex`子Context内に保持され、同じパターンは再利用されます。キャッシュの確認と消去はC#から行えます。
+
+```csharp
+int count = StandardRegexLibrary<float>.GetCachedPatternCount(context);
+StandardRegexLibrary<float>.ClearCache(context);
+```
+
+`RegexOptions.Compiled`と無限タイムアウトは使用できません。タイムアウト時には`RegexMatchTimeoutException`が発生します。Match結果の辞書・配列や置換文字列の生成ではGC割り当てが発生します。
 
 ### 配列
 
