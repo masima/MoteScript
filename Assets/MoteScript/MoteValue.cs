@@ -285,7 +285,15 @@ namespace MoteScript
 				{
 					return value;
 				}
-				throw new InvalidOperationException($"Undefined variable : {key}");
+				string availableVariables = context is IEnumerable<KeyValuePair<string, MoteValue<T>>> values
+					? string.Join(", ", values.Select(pair => pair.Key).OrderBy(name => name))
+					: string.Empty;
+				string message = $"Undefined variable : {key}";
+				if (!string.IsNullOrEmpty(availableVariables))
+				{
+					message += $". Available variables: {availableVariables}";
+				}
+				throw new InvalidOperationException(message);
 			}
 			default:
 				switch (_object)

@@ -129,31 +129,67 @@ namespace MoteScript
 		/// <returns></returns>
 		public MoteValue<T> Decode(string sentence, int startat = 0)
 		{
-			if (s_regexStructuredStatement.IsMatch(sentence, startat)
-				|| sentence.IndexOf(';', startat) >= 0)
+			if (sentence == null)
 			{
-				return DecodeStructuredScript(sentence, ref startat);
+				throw new ArgumentNullException(nameof(sentence));
 			}
-			return DecodeExpression(sentence, startat);
+			if (startat < 0 || startat > sentence.Length)
+			{
+				throw new ArgumentOutOfRangeException(nameof(startat));
+			}
+
+			try
+			{
+				if (s_regexStructuredStatement.IsMatch(sentence, startat)
+					|| sentence.IndexOf(';', startat) >= 0)
+				{
+					return DecodeStructuredScript(sentence, ref startat);
+				}
+				return DecodeExpression(sentence, startat);
+			}
+			catch (MoteScriptParseException e)
+			{
+				if (e.Source == sentence)
+				{
+					throw;
+				}
+
+				int searchStart = Math.Min(startat, sentence.Length) - 1;
+				int nestedStart = searchStart >= 0 && !string.IsNullOrEmpty(e.Source)
+					? sentence.LastIndexOf(e.Source, searchStart, StringComparison.Ordinal)
+					: -1;
+				if (nestedStart < 0)
+				{
+					throw;
+				}
+				throw new MoteScriptParseException(
+					sentence,
+					nestedStart + e.Position,
+					e.InnerException ?? e);
+			}
+			catch (Exception e)
+			{
+				throw new MoteScriptParseException(sentence, startat, e);
+			}
 		}
 
 		private MoteValue<T> DecodeExpression(string sentence, int startat = 0)
 		{
-			#if CATCH_EXCEPTION
 			try
-			#endif
 			{
 				_queue.Clear();
 				SplitSentence(_queue, sentence, ref startat);
 				MoteValue<T> result = DecodeInner(_queue);
 				return result;
 			}
-			#if CATCH_EXCEPTION
+			catch (MoteScriptParseException)
+			{
+				throw;
+			}
 			catch (Exception e)
 			{
-				throw new FormatException(GetErrorPositionMessage(sentence, startat), e);
+				throw new MoteScriptParseException(sentence, startat, e);
 			}
-			#endif
 		}
 
 
@@ -710,27 +746,6 @@ namespace MoteScript
 		// 	var childValue = _childDecoder.DecodeInner(sentence, ref startat);
 		// 	return childValue;
 		// }
-		static string GetErrorPositionMessage(string sentence, int startat)
-		{
-			int clipLength = 8;
-			int startClipPosition = startat - clipLength;
-			int startClipLength = clipLength;
-			if (startClipPosition < 0)
-			{
-				startClipLength += startClipPosition;
-				startClipPosition = 0;
-			}
-			int endClipLength = clipLength;
-			if (sentence.Length < startat + clipLength)
-			{
-				endClipLength = sentence.Length - startat;
-			}
-
-			return $"({startat.ToString()})"
-				+ $" : {sentence.Substring(startClipPosition, startClipLength)}"
-				+ "^^^"
-				+ $" {sentence.Substring(startat, endClipLength)}";
-		}
 		static bool IsSpace(char c)
 		{
 			switch (c)
