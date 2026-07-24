@@ -2,7 +2,7 @@
 
 このプロジェクトの主な変更を記録します。
 
-## [Unreleased]
+## [0.2.0] - 2026-07-25
 
 ### Added
 
@@ -11,12 +11,15 @@
 - `string.insert`、`string.remove`、`string.parseNumber`、`string.fromNumber`
 - C#の複合書式指定をInvariantCultureで処理する`string.format`
 - タイムアウトと上限付きLRUキャッシュを備えた`regex.isMatch`、`regex.match`、`regex.matches`、`regex.replace`
+- 解析位置、行、列、該当行を取得できる`MoteScriptParseException`
 
 ### Changed
 
 - 最初の代入で通常変数、配列要素、辞書メンバーの型を固定
 - 数値演算子で文字列などの非数値型を使用した場合に明示的な例外を送出
 - 数値と文字列の暗黙変換を禁止
+- 未定義変数の例外にContext内で利用可能な変数名を追加
+- `&&`と`||`の短絡評価動作をテストとREADMEで明文化
 
 ## [0.1.2] - 2026-07-24
 
