@@ -24,6 +24,7 @@ namespace MoteScript
 
 			IContext<T> library = context.Instantiate();
 			library["concat"] = Function(Concat);
+			library["format"] = Function(Format);
 			library["length"] = Function(Length);
 			library["substring"] = Function(Substring);
 			library["replace"] = Function(Replace);
@@ -63,6 +64,33 @@ namespace MoteScript
 				builder.Append(GetString(parameter, context, "string.concat"));
 			}
 			return new MoteValue<T>(builder.ToString());
+		}
+
+		private static MoteValue<T> Format(IContext<T> context, List<MoteValue<T>> values)
+		{
+			RequireCount(values, 1, int.MaxValue, "string.format");
+			string format = RequireNonNull(
+				GetString(values[0], context, "string.format"),
+				"string.format");
+			var arguments = new object[values.Count - 1];
+			for (int i = 1; i < values.Count; ++i)
+			{
+				MoteValue<T> value = values[i].EvaluteInner(context);
+				switch (value.ValueType)
+				{
+					case EValueType.String:
+						arguments[i - 1] = value.StringValue;
+						break;
+					case EValueType.Const:
+						arguments[i - 1] = value.Value;
+						break;
+					default:
+						throw new InvalidOperationException(
+							$"string.format does not support {value.ValueType} arguments.");
+				}
+			}
+			return new MoteValue<T>(
+				string.Format(CultureInfo.InvariantCulture, format, arguments));
 		}
 
 		private static MoteValue<T> Length(IContext<T> context, List<MoteValue<T>> values)

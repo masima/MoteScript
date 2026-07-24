@@ -142,6 +142,31 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestString_FormatUsesCSharpCompositeFormatting()
+		{
+			var context = new Context();
+			StandardStringLibrary<float>.Register(context);
+
+			Assert.AreEqual(
+				"value: 12.50",
+				EvaluateString("string.format(\"{0}: {1:0.00}\",\"value\",12.5)", context));
+			Assert.AreEqual(
+				"[    x]",
+				EvaluateString("string.format(\"[{0,5}]\",\"x\")", context));
+			Assert.AreEqual(
+				"{x}",
+				EvaluateString("string.format(\"{{{0}}}\",\"x\")", context));
+			Assert.AreEqual(
+				"null=[]",
+				EvaluateString("string.format(\"null=[{0}]\",null)", context));
+
+			Assert.Throws<FormatException>(
+				() => _decoder.Decode("string.format(\"{0\")").Evaluate(context));
+			Assert.Throws<InvalidOperationException>(
+				() => _decoder.Decode("string.format(\"{0}\",(1,2))").Evaluate(context));
+		}
+
+		[Test]
 		public void TestString_StandardLibraryInsertRemoveAndExplicitConversion()
 		{
 			var context = new Context();

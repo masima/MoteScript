@@ -9,6 +9,7 @@
 - ダブルクォーテーション形式の文字列リテラル、エスケープ、null文字列
 - Ordinal／InvariantCultureで動作する標準文字列ライブラリ
 - `string.insert`、`string.remove`、`string.parseNumber`、`string.fromNumber`
+- C#の複合書式指定をInvariantCultureで処理する`string.format`
 
 ### Changed
 

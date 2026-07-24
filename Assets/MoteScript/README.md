@@ -232,6 +232,7 @@ string result = decoder.Decode(
 登録される関数は次のとおりです。比較はOrdinal、大文字・小文字変換と数値変換はInvariantCultureで行われます。
 
 - `string.concat(values...)`
+- `string.format(format,args...)`
 - `string.length(value)`
 - `string.substring(value,start[,length])`
 - `string.replace(value,oldValue,newValue)`
@@ -248,6 +249,14 @@ string result = decoder.Decode(
 - `string.fromNumber(value)`
 
 `parseNumber`と`fromNumber`だけが数値と文字列を明示的に変換します。文字列は不変オブジェクトであるため、文字列を返す操作では原則としてGC割り当てが発生します。
+
+`format`はC#の複合書式指定をInvariantCultureで処理します。プレースホルダー、配置、数値書式、波括弧のエスケープをそのまま使用できます。
+
+```text
+string.format("{0}: {1:0.00}","score",12.5)
+```
+
+この例の結果は`"score: 12.50"`です。書式引数には数値、文字列、nullを指定できます。
 
 `equals`、`compare`、`isNull`はnull文字列を受け取れます。`concat`ではnullを空文字列として連結します。それ以外の文字列操作へnullを渡すと`InvalidOperationException`が発生します。
 
@@ -397,7 +406,7 @@ var decimalDecoder = new MoteDecoder<decimal>();
 decimal result = decimalDecoder.Decode("0.1+0.2").Evaluate(new Context<decimal>()).Value;
 ```
 
-MoteScriptの値は数値、配列、辞書、関数を対象としており、文字列値は扱いません。
+MoteScriptの値は数値、文字列、配列、辞書、関数を扱えます。
 
 ## 開発
 
