@@ -13,7 +13,7 @@ namespace MoteScript
 		public override string OperatorCode => "";
 
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> left = Left.EvaluteInner(context);
 			MoteValue<T> right = Right.EvaluteInner(context);

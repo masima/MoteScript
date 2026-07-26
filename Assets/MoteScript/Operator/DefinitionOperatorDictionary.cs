@@ -48,7 +48,7 @@ namespace MoteScript
 			}
 		}
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			_results.Clear();
 			foreach (BinaryOperatorKeyValuePair<T> value in _values)
@@ -63,4 +63,3 @@ namespace MoteScript
 
 
 }
-

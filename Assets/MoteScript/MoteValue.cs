@@ -350,7 +350,7 @@ namespace MoteScript
 				switch (_object)
 				{
 					case IOperator<T> op:
-						return op.Evalute(context);
+						return op.Evaluate(context);
 					default:
 						throw new System.Exception($"not support type : {((EValueType)_valueType).ToString()}");
 				}

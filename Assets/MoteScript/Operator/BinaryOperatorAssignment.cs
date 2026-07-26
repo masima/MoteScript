@@ -10,7 +10,7 @@ namespace MoteScript
 		public override OperatorType OperatorType => OperatorType.Assignment;
 		public override string OperatorCode => "=";
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> right = Right.EvaluteInner(context);
 			if (right.TryGetYield(out MoteYield<T> yield))

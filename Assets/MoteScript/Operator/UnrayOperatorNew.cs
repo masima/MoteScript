@@ -17,7 +17,7 @@ namespace MoteScript
 			return new MoteValue<T>(this);
 		}
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> right = Right.EvaluteInner(context);
 
@@ -33,4 +33,3 @@ namespace MoteScript
 
 
 }
-

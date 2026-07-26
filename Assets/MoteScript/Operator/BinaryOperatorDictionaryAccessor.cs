@@ -55,7 +55,7 @@ namespace MoteScript
 			_values = null;
 		}
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			if (_isDynamicTarget)
 			{

@@ -13,7 +13,7 @@ namespace MoteScript
 		public override string OperatorCode => "while";
 
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			return ContinueLoop(context, default);
 		}

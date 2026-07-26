@@ -78,7 +78,7 @@ namespace MoteScript
 		}
 
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> lastValue = default;
 			foreach	(var value in _statements)
@@ -95,4 +95,3 @@ namespace MoteScript
 
 
 }
-

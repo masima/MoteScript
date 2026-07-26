@@ -43,7 +43,7 @@ namespace MoteScript
 		// 	return flowControlValue;
 		// }
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> result = Judge.EvaluteInner(context);
 			if (result.ValueType.IsExecutionControl())

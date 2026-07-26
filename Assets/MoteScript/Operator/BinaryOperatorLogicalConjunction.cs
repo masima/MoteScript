@@ -10,7 +10,7 @@ namespace MoteScript
 		public override OperatorType OperatorType => OperatorType.LogicalConjunction;
 		public override string OperatorCode => "&&";
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			bool left = Left.EvaluteInner(context).ToBool();
 			if (!left)
@@ -25,4 +25,3 @@ namespace MoteScript
 
 
 }
-

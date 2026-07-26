@@ -17,7 +17,7 @@ namespace MoteScript
 		public int Priority => OperatorType.SentenceSeparator.GetPriority();
 		public bool IsFinalized => true;
 
-		public MoteValue<T> Evalute(IContext<T> context)
+		public MoteValue<T> Evaluate(IContext<T> context)
 		{
 			return ExecuteFrom(context, 0, default);
 		}

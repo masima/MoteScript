@@ -151,7 +151,7 @@ namespace MoteScript
 		}
 
 
-		public override MoteValue<T> Evalute(IContext<T> context)
+		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			throw new InvalidOperationException();
 		}

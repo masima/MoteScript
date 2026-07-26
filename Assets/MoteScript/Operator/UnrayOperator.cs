@@ -48,7 +48,7 @@ namespace MoteScript
 		}
 
 
-		public abstract MoteValue<T> Evalute(IContext<T> context);
+		public abstract MoteValue<T> Evaluate(IContext<T> context);
 	}
 
 }

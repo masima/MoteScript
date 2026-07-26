@@ -18,7 +18,7 @@ namespace MoteScript
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
-		MoteValue<T> Evalute(IContext<T> context);
+		MoteValue<T> Evaluate(IContext<T> context);
 	}
 
 	public interface IOperatorOnFinalized
