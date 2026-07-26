@@ -19,16 +19,47 @@ namespace MoteScript
 
 		public MoteValue<T> Evalute(IContext<T> context)
 		{
-			MoteValue<T> result = default;
-			foreach (MoteValue<T> statement in _statements)
+			return ExecuteFrom(context, 0, default);
+		}
+
+		private MoteValue<T> ExecuteFrom(IContext<T> context, int start, MoteValue<T> result)
+		{
+			if (result.ValueType.IsExecutionControl())
 			{
-				result = statement.EvaluteInner(context);
-				if (result.ValueType.IsLoopControl())
+				return result;
+			}
+			for (int index = start; index < _statements.Count; ++index)
+			{
+				result = _statements[index].EvaluteInner(context);
+				if (result.TryGetYield(out MoteYield<T> yield))
 				{
+					yield.AddContinuation(new Continuation(this, index + 1));
 					return result;
 				}
+				if (result.ValueType.IsLoopControl()) return result;
 			}
 			return result;
+		}
+
+		private sealed class Continuation : IYieldContinuation<T>
+		{
+			private readonly ScriptBlockOperator<T> _owner;
+			private readonly int _nextStatement;
+
+			public Continuation(ScriptBlockOperator<T> owner, int nextStatement)
+			{
+				_owner = owner;
+				_nextStatement = nextStatement;
+			}
+
+			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
+			{
+				return _owner.ExecuteFrom(context, _nextStatement, result);
+			}
+
+			public void Cancel(IContext<T> context)
+			{
+			}
 		}
 	}
 }

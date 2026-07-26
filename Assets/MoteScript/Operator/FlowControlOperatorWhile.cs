@@ -15,27 +15,56 @@ namespace MoteScript
 
 		public override MoteValue<T> Evalute(IContext<T> context)
 		{
-			ILoopControl loopControl = null;
+			return ContinueLoop(context, default);
+		}
+
+		private MoteValue<T> ContinueLoop(IContext<T> context, MoteValue<T> result)
+		{
+			if (result.ValueType.IsLoopControl())
+			{
+				if (result.TryGetOperator(out ILoopControl control))
+				{
+					if (control.FlowControlFlag.IsReturn()) return result;
+					if (control.FlowControlFlag.IsBreak()) return default;
+				}
+			}
 			while (Judge.EvaluteInner(context).ToBool())
 			{
-				MoteValue<T> result = Statement.EvaluteInner(context);
+				result = Statement.EvaluteInner(context);
+				if (result.TryGetYield(out MoteYield<T> yield))
+				{
+					yield.AddContinuation(new Continuation(this));
+					return result;
+				}
 				if (result.ValueType.IsLoopControl())
 				{
-					if (result.TryGetOperator(out loopControl)
-						&& loopControl.FlowControlFlag.IsBreak()
-						)
+					if (result.TryGetOperator(out ILoopControl loopControl))
 					{
-						break;
+						if (loopControl.FlowControlFlag.IsReturn()) return result;
+						if (loopControl.FlowControlFlag.IsBreak()) return default;
 					}
 				}
 			}
-
-			if (loopControl is not null
-				&& loopControl.FlowControlFlag.IsReturn())
-			{
-				return new MoteValue<T>(loopControl);
-			}
 			return default;
+		}
+
+		private sealed class Continuation : IYieldContinuation<T>
+		{
+			private readonly FlowControlOperatorWhile<T> _owner;
+
+			public Continuation(FlowControlOperatorWhile<T> owner)
+			{
+				_owner = owner;
+			}
+
+			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
+			{
+				return _owner.ContinueLoop(context, result);
+			}
+
+			public void Cancel(IContext<T> context)
+			{
+			}
 		}
 	}
 }

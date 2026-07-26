@@ -66,13 +66,52 @@ namespace MoteScript
 			public MoteValue<T> Func(IContext<T> context, List<MoteValue<T>> parameters)
 			{
 				SetupValues(context, parameters);
+				bool suspended = false;
 				try
 				{
-					return Statement.EvaluteInner(context);
+					MoteValue<T> result = Statement.EvaluteInner(context);
+					if (result.TryGetYield(out MoteYield<T> yield))
+					{
+						suspended = true;
+						yield.AddContinuation(new ParameterRestoreContinuation(this));
+					}
+					return result;
 				}
 				finally
 				{
-					RestoreValues(context);
+					if (!suspended)
+					{
+						RestoreValues(context);
+					}
+				}
+			}
+
+			private sealed class ParameterRestoreContinuation : IYieldContinuation<T>
+			{
+				private readonly DelegateInfo _owner;
+				private bool _restored;
+
+				public ParameterRestoreContinuation(DelegateInfo owner)
+				{
+					_owner = owner;
+				}
+
+				public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
+				{
+					Restore(context);
+					return result;
+				}
+
+				public void Cancel(IContext<T> context)
+				{
+					Restore(context);
+				}
+
+				private void Restore(IContext<T> context)
+				{
+					if (_restored) return;
+					_restored = true;
+					_owner.RestoreValues(context);
 				}
 			}
 

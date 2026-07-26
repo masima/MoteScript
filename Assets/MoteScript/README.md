@@ -23,6 +23,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [関数](#関数)
   - [条件分岐](#条件分岐)
   - [ループ](#ループ)
+  - [処理の中断と再開](#処理の中断と再開)
   - [数値型の選択](#数値型の選択)
 - [開発](#開発)
 
@@ -483,6 +484,26 @@ sum
 ```
 
 結果は`12`です。
+
+### 処理の中断と再開
+
+`yield(値)`を文として実行すると、スクリプト全体をその位置で中断し、評価結果として`MoteYield<T>`を返します。`MoteYield<T>.Value`で渡された値を取得し、`Evaluate()`で`yield`の次の文から再開できます。
+
+```csharp
+var script = decoder.Decode(
+    "i=0;while(i<3){i=i+1;yield(i)};i");
+MoteValue<float> result = script.Evaluate(context);
+
+while (result.TryGetYield(out MoteYield<float> yielded))
+{
+    Debug.Log(yielded.Value.Value);
+    result = yielded.Evaluate();
+}
+```
+
+この例では`1`、`2`、`3`を順番に受け取り、最後の`result`は`3`になります。中断中も同じ`Context`を保持するため、再開前にC#側で変更した値は再開後の評価へ反映されます。関数内で中断した場合は、関数引数とループ位置も維持されます。
+
+各`MoteYield<T>`は一度だけ再開できます。複数回`yield`するスクリプトでは、再開結果として新しい`MoteYield<T>`が返ります。`yield`は式の一部ではなく、`yield(value);`のように独立した文として記述してください。再開後に例外が発生した場合、その継続は無効になり、もう一度再開することはできません。
 
 ### 数値型の選択
 

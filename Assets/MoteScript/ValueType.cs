@@ -22,6 +22,7 @@ namespace MoteScript
 		Dictionary,
 		Function,
 		LoopControl,
+		Yield,
 
 		/// <summary>
 		/// ()
@@ -76,6 +77,14 @@ namespace MoteScript
 		public static bool IsLoopControl(this EValueType valueType)
 		{
 			return valueType == EValueType.LoopControl;
+		}
+		public static bool IsYield(this EValueType valueType)
+		{
+			return valueType == EValueType.Yield;
+		}
+		public static bool IsExecutionControl(this EValueType valueType)
+		{
+			return valueType.IsLoopControl() || valueType.IsYield();
 		}
 	}
 }

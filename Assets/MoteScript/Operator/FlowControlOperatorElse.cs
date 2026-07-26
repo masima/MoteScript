@@ -46,14 +46,14 @@ namespace MoteScript
 		public override MoteValue<T> Evalute(IContext<T> context)
 		{
 			MoteValue<T> result = Judge.EvaluteInner(context);
-			if (result.ValueType.IsLoopControl())
+			if (result.ValueType.IsExecutionControl())
 			{
 				return result;
 			}
 
 			if (!result.ToBool())
 			{
-				Statement.EvaluteInner(context);
+				return Statement.EvaluteInner(context);
 			}
 			return result;
 		}

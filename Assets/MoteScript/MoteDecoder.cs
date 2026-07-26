@@ -196,7 +196,7 @@ namespace MoteScript
 
 		static readonly Regex s_regexConstValue = new Regex(@"-?\d+(\.\d*)?");
 		static readonly Regex s_regexWord = new Regex(@"[a-zA-Z0-9_]+");
-		static readonly Regex s_regexStructuredStatement = new Regex(@"\b(if|while|return|break|continue)\b|=>");
+		static readonly Regex s_regexStructuredStatement = new Regex(@"\b(if|while|return|break|continue|yield)\b|=>");
 		const string CommentCode = "//";
 
 		static bool CanStartSignedConst(MoteValue<T> lastValue)
@@ -264,6 +264,10 @@ namespace MoteScript
 				else if (IsKeyword(source, position, "return"))
 				{
 					statement = ParseReturn(source, ref position, terminator);
+				}
+				else if (IsKeyword(source, position, "yield"))
+				{
+					statement = ParseYield(source, ref position);
 				}
 				else if (IsKeyword(source, position, "break"))
 				{
@@ -588,6 +592,25 @@ namespace MoteScript
 				throw new FormatException("return value is required");
 			}
 			return new MoteValue<T>(new FlowControlOperatorReturn<T>
+			{
+				Statement = DecodeExpression(expression),
+			});
+		}
+
+		private MoteValue<T> ParseYield(string source, ref int position)
+		{
+			position += "yield".Length;
+			string expression = ReadEnclosed(source, ref position, '(', ')');
+			if (string.IsNullOrWhiteSpace(expression))
+			{
+				throw new FormatException("yield value is required");
+			}
+			SkipTrivia(source, ref position);
+			if (position < source.Length && source[position] == ';')
+			{
+				++position;
+			}
+			return new MoteValue<T>(new FlowControlOperatorYield<T>
 			{
 				Statement = DecodeExpression(expression),
 			});

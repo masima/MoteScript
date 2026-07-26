@@ -125,6 +125,12 @@ namespace MoteScript
 			return _object as MoteList<T>;
 		}
 
+		public bool TryGetYield(out MoteYield<T> yield)
+		{
+			yield = _object as MoteYield<T>;
+			return yield is not null;
+		}
+
 
 		static ICalculator s_calculator;
 		public static ICalculator<T> Calculator
@@ -270,6 +276,13 @@ namespace MoteScript
 			_object = value;
 		}
 
+		public MoteValue(MoteYield<T> yield)
+		{
+			_valueType = (ValueTypeType)EValueType.Yield;
+			_value = default;
+			_object = yield;
+		}
+
 		public MoteValue(EValueType valueType, object value)
 		{
 			_valueType = (ValueTypeType)valueType;
@@ -314,6 +327,7 @@ namespace MoteScript
 			case EValueType.Array:
 			case EValueType.Dictionary:
 			case EValueType.Function:
+			case EValueType.Yield:
 				return this;
 			case EValueType.Variable:
 			{

@@ -20,7 +20,7 @@ namespace MoteScript
 			if (result.ToBool())
 			{
 				MoteValue<T> r = Statement.EvaluteInner(context);
-				if (r.ValueType.IsLoopControl())
+				if (r.ValueType.IsExecutionControl())
 				{
 					return r;
 				}
