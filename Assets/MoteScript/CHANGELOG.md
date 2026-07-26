@@ -12,6 +12,7 @@
 - ビットフラグだった`FlowControlFlag`を排他的な`FlowControlType`へ変更し、continue、break、returnの判定を明確化
 - 内部評価APIの`EvaluteInner`を`EvaluateInner`、RPN構築APIの`Finailze`を`FinalizeOperator`へ修正
 - `UnrayOperator`系の型名を正しい綴りの`UnaryOperator`へ変更
+- `MoteExecution<T>`の開始、再開、中断、完了、例外終了に伴う状態更新を専用メソッドへ集約
 
 ## [0.4.0] - 2026-07-26
 

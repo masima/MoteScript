@@ -65,41 +65,22 @@ namespace MoteScript
 
 		public MoteValue<T> Evaluate()
 		{
-			if (State != MoteExecutionState.Ready)
-			{
-				throw new InvalidOperationException("Execution can only be started once.");
-			}
-			State = MoteExecutionState.Running;
+			EnsureReady();
 			try
 			{
-				AcquireContext();
-				return CompleteOrYield(_script.Evaluate(_context));
+				BeginExecution();
+				return Finish(_script.Evaluate(_context));
 			}
 			catch (Exception exception)
 			{
-				Fault(exception);
+				Fail(exception);
 				throw;
 			}
 		}
 
 		public MoteValue<T> Resume()
 		{
-			if (State != MoteExecutionState.Yielded)
-			{
-				throw new InvalidOperationException("Only a yielded execution can be resumed.");
-			}
-			if (!ReferenceEquals(_context.CurrentExecution, this))
-			{
-				throw new InvalidOperationException(
-					"The execution no longer owns its execution context.");
-			}
-
-			State = MoteExecutionState.Running;
-			YieldValue = default;
-			List<ExecutionContinuation<T>> current = _continuations;
-			_continuations = _resumeContinuations;
-			_resumeContinuations = current;
-			_continuations.Clear();
+			List<ExecutionContinuation<T>> current = BeginResume();
 
 			MoteValue<T> result = default;
 			int index = 0;
@@ -119,7 +100,7 @@ namespace MoteScript
 					}
 				}
 				current.Clear();
-				return CompleteOrYield(result);
+				return Finish(result);
 			}
 			catch (Exception exception)
 			{
@@ -128,12 +109,12 @@ namespace MoteScript
 					current[index].Cancel(_context);
 				}
 				current.Clear();
-				Fault(exception);
+				Fail(exception);
 				throw;
 			}
 		}
 
-		internal void Yield(MoteValue<T> value)
+		internal void Suspend(MoteValue<T> value)
 		{
 			if (State != MoteExecutionState.Running)
 			{
@@ -148,22 +129,61 @@ namespace MoteScript
 			_continuations.Add(new ExecutionContinuation<T>(target, state));
 		}
 
-		private MoteValue<T> CompleteOrYield(MoteValue<T> result)
+		private void BeginExecution()
+		{
+			State = MoteExecutionState.Running;
+			if (!_context.TryAcquireExecution(this))
+			{
+				throw new InvalidOperationException(
+					"The execution context is already being used by another execution.");
+			}
+		}
+
+		private void EnsureReady()
+		{
+			if (State != MoteExecutionState.Ready)
+			{
+				throw new InvalidOperationException("Execution can only be started once.");
+			}
+		}
+
+		private List<ExecutionContinuation<T>> BeginResume()
+		{
+			if (State != MoteExecutionState.Yielded)
+			{
+				throw new InvalidOperationException("Only a yielded execution can be resumed.");
+			}
+			if (!ReferenceEquals(_context.CurrentExecution, this))
+			{
+				throw new InvalidOperationException(
+					"The execution no longer owns its execution context.");
+			}
+
+			State = MoteExecutionState.Running;
+			YieldValue = default;
+			List<ExecutionContinuation<T>> current = _continuations;
+			_continuations = _resumeContinuations;
+			_resumeContinuations = current;
+			_continuations.Clear();
+			return current;
+		}
+
+		private MoteValue<T> Finish(MoteValue<T> result)
 		{
 			if (State == MoteExecutionState.Yielded) return result;
 			Result = result;
 			State = MoteExecutionState.Completed;
-			ReleaseContext();
+			_context.ReleaseExecution(this);
 			return result;
 		}
 
-		private void Fault(Exception exception)
+		private void Fail(Exception exception)
 		{
 			Exception = exception;
 			State = MoteExecutionState.Faulted;
 			_continuations.Clear();
 			_resumeContinuations.Clear();
-			ReleaseContext();
+			_context.ReleaseExecution(this);
 		}
 
 		internal static MoteExecution<T> Get(IContext<T> context)
@@ -178,18 +198,5 @@ namespace MoteScript
 				"Scripts containing yield require an IExecutionContext<T> and must be run through CreateExecution(context).");
 		}
 
-		private void AcquireContext()
-		{
-			if (!_context.TryAcquireExecution(this))
-			{
-				throw new InvalidOperationException(
-					"The execution context is already being used by another execution.");
-			}
-		}
-
-		private void ReleaseContext()
-		{
-			_context.ReleaseExecution(this);
-		}
 	}
 }

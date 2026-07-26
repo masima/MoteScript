@@ -12,7 +12,7 @@ namespace MoteScript
 		{
 			MoteValue<T> value = Statement.EvaluateInner(context);
 			MoteExecution<T> execution = MoteExecution<T>.Get(context);
-			execution.Yield(value);
+			execution.Suspend(value);
 			return new MoteValue<T>(execution);
 		}
 	}
