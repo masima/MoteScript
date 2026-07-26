@@ -15,8 +15,31 @@ namespace MoteScript
 	internal interface IExecutionContinuation<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 	{
-		MoteValue<T> Resume(IContext<T> context, MoteValue<T> result);
+		MoteValue<T> Resume(IContext<T> context, MoteValue<T> result, int state);
 		void Cancel(IContext<T> context);
+	}
+
+	internal readonly struct ExecutionContinuation<T>
+		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
+	{
+		private readonly IExecutionContinuation<T> _target;
+		private readonly int _state;
+
+		public ExecutionContinuation(IExecutionContinuation<T> target, int state)
+		{
+			_target = target;
+			_state = state;
+		}
+
+		public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
+		{
+			return _target.Resume(context, result, _state);
+		}
+
+		public void Cancel(IContext<T> context)
+		{
+			_target.Cancel(context);
+		}
 	}
 
 	public sealed class MoteExecution<T> : IExecutionControl
@@ -24,8 +47,8 @@ namespace MoteScript
 	{
 		private readonly MoteValue<T> _script;
 		private readonly IExecutionContext<T> _context;
-		private List<IExecutionContinuation<T>> _continuations = new(4);
-		private List<IExecutionContinuation<T>> _resumeContinuations = new(4);
+		private List<ExecutionContinuation<T>> _continuations = new(4);
+		private List<ExecutionContinuation<T>> _resumeContinuations = new(4);
 
 		internal MoteExecution(MoteValue<T> script, IExecutionContext<T> context)
 		{
@@ -73,7 +96,7 @@ namespace MoteScript
 
 			State = MoteExecutionState.Running;
 			YieldValue = default;
-			List<IExecutionContinuation<T>> current = _continuations;
+			List<ExecutionContinuation<T>> current = _continuations;
 			_continuations = _resumeContinuations;
 			_resumeContinuations = current;
 			_continuations.Clear();
@@ -120,9 +143,9 @@ namespace MoteScript
 			State = MoteExecutionState.Yielded;
 		}
 
-		internal void AddContinuation(IExecutionContinuation<T> continuation)
+		internal void AddContinuation(IExecutionContinuation<T> target, int state = 0)
 		{
-			_continuations.Add(continuation);
+			_continuations.Add(new ExecutionContinuation<T>(target, state));
 		}
 
 		private MoteValue<T> CompleteOrYield(MoteValue<T> result)

@@ -43,6 +43,28 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestYieldResume_DoesNotAllocateContinuationObjects()
+		{
+			var context = new Context();
+			MoteExecution<float> execution = _decoder
+				.Decode("i=0;while(i<1000){i=i+1;yield(i)};i")
+				.CreateExecution(context);
+
+			// The first yield allocates and sizes the reusable execution buffers.
+			execution.Evaluate();
+
+			long before = GC.GetAllocatedBytesForCurrentThread();
+			while (execution.IsYielded)
+			{
+				execution.Resume();
+			}
+			long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+			Assert.That(allocatedBytes, Is.Zero);
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(1000));
+		}
+
+		[Test]
 		public void TestDecodeCached_ReusesDecodedScriptWithoutAllocating()
 		{
 			const string sentence = "value=value+1";

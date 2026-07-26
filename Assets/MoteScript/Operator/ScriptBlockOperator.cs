@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MoteScript
 {
-	public sealed class ScriptBlockOperator<T> : IOperator<T>
+	public sealed class ScriptBlockOperator<T> : IOperator<T>, IExecutionContinuation<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 	{
 		private readonly IReadOnlyList<MoteValue<T>> _statements;
@@ -33,7 +33,7 @@ namespace MoteScript
 				result = _statements[index].EvaluteInner(context);
 				if (result.TryGetExecution(out MoteExecution<T> execution))
 				{
-					execution.AddContinuation(new Continuation(this, index + 1));
+					execution.AddContinuation(this, index + 1);
 					return result;
 				}
 				if (result.ValueType.IsLoopControl()) return result;
@@ -41,25 +41,16 @@ namespace MoteScript
 			return result;
 		}
 
-		private sealed class Continuation : IExecutionContinuation<T>
+		MoteValue<T> IExecutionContinuation<T>.Resume(
+			IContext<T> context,
+			MoteValue<T> result,
+			int state)
 		{
-			private readonly ScriptBlockOperator<T> _owner;
-			private readonly int _nextStatement;
+			return ExecuteFrom(context, state, result);
+		}
 
-			public Continuation(ScriptBlockOperator<T> owner, int nextStatement)
-			{
-				_owner = owner;
-				_nextStatement = nextStatement;
-			}
-
-			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
-			{
-				return _owner.ExecuteFrom(context, _nextStatement, result);
-			}
-
-			public void Cancel(IContext<T> context)
-			{
-			}
+		void IExecutionContinuation<T>.Cancel(IContext<T> context)
+		{
 		}
 	}
 }

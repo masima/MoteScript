@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace MoteScript
 {
 	public class FlowControlOperatorReturn<T>
-		: FlowControlOperator<T>, ILoopControl
+		: FlowControlOperator<T>, ILoopControl, IExecutionContinuation<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -46,30 +46,23 @@ namespace MoteScript
 			ReturnValue = Statement.EvaluteInner(context);
 			if (ReturnValue.TryGetExecution(out MoteExecution<T> execution))
 			{
-				execution.AddContinuation(new ReturnContinuation(this));
+				execution.AddContinuation(this);
 				return ReturnValue;
 			}
 			return new MoteValue<T>(this);
 		}
 
-		private sealed class ReturnContinuation : IExecutionContinuation<T>
+		MoteValue<T> IExecutionContinuation<T>.Resume(
+			IContext<T> context,
+			MoteValue<T> result,
+			int state)
 		{
-			private readonly FlowControlOperatorReturn<T> _owner;
+			ReturnValue = result;
+			return new MoteValue<T>(this);
+		}
 
-			public ReturnContinuation(FlowControlOperatorReturn<T> owner)
-			{
-				_owner = owner;
-			}
-
-			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
-			{
-				_owner.ReturnValue = result;
-				return new MoteValue<T>(_owner);
-			}
-
-			public void Cancel(IContext<T> context)
-			{
-			}
+		void IExecutionContinuation<T>.Cancel(IContext<T> context)
+		{
 		}
 	}
 }

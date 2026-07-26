@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace MoteScript
 {
 	public class FlowControlOperatorWhile<T>
-		: FlowControlOperator<T>
+		: FlowControlOperator<T>, IExecutionContinuation<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -33,7 +33,7 @@ namespace MoteScript
 				result = Statement.EvaluteInner(context);
 				if (result.TryGetExecution(out MoteExecution<T> execution))
 				{
-					execution.AddContinuation(new Continuation(this));
+					execution.AddContinuation(this);
 					return result;
 				}
 				if (result.ValueType.IsLoopControl())
@@ -48,23 +48,16 @@ namespace MoteScript
 			return default;
 		}
 
-		private sealed class Continuation : IExecutionContinuation<T>
+		MoteValue<T> IExecutionContinuation<T>.Resume(
+			IContext<T> context,
+			MoteValue<T> result,
+			int state)
 		{
-			private readonly FlowControlOperatorWhile<T> _owner;
+			return ContinueLoop(context, result);
+		}
 
-			public Continuation(FlowControlOperatorWhile<T> owner)
-			{
-				_owner = owner;
-			}
-
-			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
-			{
-				return _owner.ContinueLoop(context, result);
-			}
-
-			public void Cancel(IContext<T> context)
-			{
-			}
+		void IExecutionContinuation<T>.Cancel(IContext<T> context)
+		{
 		}
 	}
 }

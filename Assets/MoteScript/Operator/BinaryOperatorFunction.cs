@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace MoteScript
 {
 	public class BinaryOperatorFunction<T> 
-		: BinaryOperator<T>
+		: BinaryOperator<T>, IExecutionContinuation<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -24,7 +24,7 @@ namespace MoteScript
 			MoteValue<T> result = func.Invoke(context, parameters);
 			if (result.TryGetExecution(out MoteExecution<T> execution))
 			{
-				execution.AddContinuation(new FunctionResultContinuation());
+				execution.AddContinuation(this);
 				return result;
 			}
 			if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
@@ -34,20 +34,20 @@ namespace MoteScript
 			return result;
 		}
 
-		private sealed class FunctionResultContinuation : IExecutionContinuation<T>
+		MoteValue<T> IExecutionContinuation<T>.Resume(
+			IContext<T> context,
+			MoteValue<T> result,
+			int state)
 		{
-			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
+			if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
 			{
-				if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
-				{
-					return operatorReturn.ReturnValue;
-				}
-				return result;
+				return operatorReturn.ReturnValue;
 			}
+			return result;
+		}
 
-			public void Cancel(IContext<T> context)
-			{
-			}
+		void IExecutionContinuation<T>.Cancel(IContext<T> context)
+		{
 		}
 	}
 

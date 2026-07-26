@@ -3,7 +3,7 @@ using System;
 namespace MoteScript
 {
 	public class BinaryOperatorAssignment<T>
-		: BinaryOperator<T>
+		: BinaryOperator<T>, IExecutionContinuation<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -15,7 +15,7 @@ namespace MoteScript
 			MoteValue<T> right = Right.EvaluteInner(context);
 			if (right.TryGetExecution(out MoteExecution<T> execution))
 			{
-				execution.AddContinuation(new AssignmentContinuation(Left));
+				execution.AddContinuation(this);
 				return right;
 			}
 			Left.AssignmentTo(context, right);
@@ -23,24 +23,17 @@ namespace MoteScript
 			return right;
 		}
 
-		private sealed class AssignmentContinuation : IExecutionContinuation<T>
+		MoteValue<T> IExecutionContinuation<T>.Resume(
+			IContext<T> context,
+			MoteValue<T> result,
+			int state)
 		{
-			private readonly MoteValue<T> _target;
+			Left.AssignmentTo(context, result);
+			return result;
+		}
 
-			public AssignmentContinuation(MoteValue<T> target)
-			{
-				_target = target;
-			}
-
-			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
-			{
-				_target.AssignmentTo(context, result);
-				return result;
-			}
-
-			public void Cancel(IContext<T> context)
-			{
-			}
+		void IExecutionContinuation<T>.Cancel(IContext<T> context)
+		{
 		}
 	}
 

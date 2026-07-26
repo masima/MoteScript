@@ -96,7 +96,7 @@ namespace MoteScript
 					_owner = owner;
 				}
 
-				public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
+				public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result, int state)
 				{
 					Restore(context);
 					return result;
