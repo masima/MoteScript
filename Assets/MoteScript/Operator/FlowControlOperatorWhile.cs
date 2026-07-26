@@ -22,10 +22,9 @@ namespace MoteScript
 		{
 			if (result.ValueType.IsLoopControl())
 			{
-				if (result.TryGetOperator(out ILoopControl control))
+				if (TryResolveLoopControl(result, out MoteValue<T> resolved))
 				{
-					if (control.FlowControlFlag.IsReturn()) return result;
-					if (control.FlowControlFlag.IsBreak()) return default;
+					return resolved;
 				}
 			}
 			while (Judge.EvaluteInner(context).ToBool())
@@ -38,14 +37,35 @@ namespace MoteScript
 				}
 				if (result.ValueType.IsLoopControl())
 				{
-					if (result.TryGetOperator(out ILoopControl loopControl))
+					if (TryResolveLoopControl(result, out MoteValue<T> resolved))
 					{
-						if (loopControl.FlowControlFlag.IsReturn()) return result;
-						if (loopControl.FlowControlFlag.IsBreak()) return default;
+						return resolved;
 					}
 				}
 			}
 			return default;
+		}
+
+		private static bool TryResolveLoopControl(
+			MoteValue<T> result,
+			out MoteValue<T> resolved)
+		{
+			resolved = default;
+			if (!result.TryGetOperator(out ILoopControl control))
+			{
+				return false;
+			}
+			switch (control.FlowControlType)
+			{
+				case FlowControlType.Break:
+					return true;
+				case FlowControlType.Return:
+					resolved = result;
+					return true;
+				case FlowControlType.Continue:
+				default:
+					return false;
+			}
 		}
 
 		MoteValue<T> IExecutionContinuation<T>.Resume(

@@ -11,7 +11,7 @@ namespace MoteScript
 	{
 		public override OperatorType OperatorType => OperatorType.FlowControl;
 		public override string OperatorCode => "continue";
-		public FlowControlFlag FlowControlFlag => FlowControlFlag.Continue;
+		public FlowControlType FlowControlType => FlowControlType.Continue;
 
 
 		// public override MoteValue<T> SplitSentence(

@@ -9,6 +9,7 @@
 - `IExecutionContext<T>.CurrentExecution`を読み取り専用にし、実行所有権の取得と解放を`TryAcquireExecution()`／`ReleaseExecution()`へ集約
 - `Resume()`時に実行Contextの所有権を検証
 - ブロック、while、代入、関数呼び出し、returnのYield継続情報を構造体バッファへ格納し、再開時のオブジェクト生成を削減
+- ビットフラグだった`FlowControlFlag`を排他的な`FlowControlType`へ変更し、continue、break、returnの判定を明確化
 
 ## [0.4.0] - 2026-07-26
 

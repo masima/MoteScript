@@ -6,7 +6,7 @@ namespace MoteScript
 {
 	public interface ILoopControl : IOperator, IExecutionControl
 	{
-		public FlowControlFlag FlowControlFlag { get; }
+		public FlowControlType FlowControlType { get; }
 	}
 
 }

@@ -12,7 +12,7 @@ namespace MoteScript
 	{
 		public override OperatorType OperatorType => OperatorType.FlowControl;
 		public override string OperatorCode => "break";
-		public FlowControlFlag FlowControlFlag => FlowControlFlag.Break;
+		public FlowControlType FlowControlType => FlowControlType.Break;
 
 
 		// public override MoteValue<T> SplitSentence(

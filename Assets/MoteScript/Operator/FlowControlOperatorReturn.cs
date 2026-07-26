@@ -12,7 +12,7 @@ namespace MoteScript
 	{
 		public override OperatorType OperatorType => OperatorType.FlowControl;
 		public override string OperatorCode => "return";
-		public FlowControlFlag FlowControlFlag => FlowControlFlag.Break | FlowControlFlag.Return;
+		public FlowControlType FlowControlType => FlowControlType.Return;
 
 		public MoteValue<T> ReturnValue { get; private set; }
 
