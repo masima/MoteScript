@@ -27,9 +27,9 @@ namespace MoteScript
 					return resolved;
 				}
 			}
-			while (Judge.EvaluteInner(context).ToBool())
+			while (Judge.EvaluateInner(context).ToBool())
 			{
-				result = Statement.EvaluteInner(context);
+				result = Statement.EvaluateInner(context);
 				if (result.TryGetExecution(out MoteExecution<T> execution))
 				{
 					execution.AddContinuation(this);

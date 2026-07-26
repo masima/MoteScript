@@ -76,8 +76,8 @@ namespace MoteScript
 			{
 				List<OperatorInfo> infos;
 				var genericTypeDefinition = type.BaseType.GetGenericTypeDefinition();
-				if (genericTypeDefinition == typeof(UnrayOperatorOpenBracket<>)
-					|| genericTypeDefinition == typeof(UnrayOperatorCloseBracket<>)
+				if (genericTypeDefinition == typeof(UnaryOperatorOpenBracket<>)
+					|| genericTypeDefinition == typeof(UnaryOperatorCloseBracket<>)
 					)
 				{
 					infos = s_bracketOperators;
@@ -90,7 +90,7 @@ namespace MoteScript
 				{
 					infos = s_binaryOperators;
 				}
-				else if (genericTypeDefinition == typeof(UnrayOperator<>))
+				else if (genericTypeDefinition == typeof(UnaryOperator<>))
 				{
 					infos = s_unrayOperators;
 				}
@@ -209,7 +209,7 @@ namespace MoteScript
 			{
 				return false;
 			}
-			return !lastValue.TryGetOperator(out UnrayOperatorCloseBracket<T> _);
+			return !lastValue.TryGetOperator(out UnaryOperatorCloseBracket<T> _);
 		}
 
 
@@ -439,7 +439,7 @@ namespace MoteScript
 			}
 			if (trimmed.StartsWith("new ", StringComparison.Ordinal))
 			{
-				return new MoteValue<T>(new UnrayOperatorNew<T>
+				return new MoteValue<T>(new UnaryOperatorNew<T>
 				{
 					Right = DecodeStructuredValue(trimmed.Substring(4)),
 				});
@@ -821,7 +821,7 @@ namespace MoteScript
 				}
 
 				// if (lastValue.ValueType == EValueType.Unknown
-				// 	|| lastValue.ValueType == EValueType.UnrayOperator
+				// 	|| lastValue.ValueType == EValueType.UnaryOperator
 				// 	|| lastValue.ValueType == EValueType.BinaryOperator
 				// 	)
 				{
@@ -837,7 +837,7 @@ namespace MoteScript
 						continue;
 					}
 					// 単項演算子？
-					if (TryGetUnrayOperator(sentence, startat, out OperatorInfo unrayOperatorInfo))
+					if (TryGetUnaryOperator(sentence, startat, out OperatorInfo unrayOperatorInfo))
 					{
 						lastValue = EnqueueOperator(queue, ref startat, unrayOperatorInfo);
 						continue;
@@ -1054,7 +1054,7 @@ namespace MoteScript
 			return false;
 		}
 
-		internal bool TryGetUnrayOperator(string sentence, int startat, out OperatorInfo value)
+		internal bool TryGetUnaryOperator(string sentence, int startat, out OperatorInfo value)
 		{
 			foreach (OperatorInfo op in s_unrayOperators)
 			{
@@ -1090,7 +1090,7 @@ namespace MoteScript
 
 		private MoteValue<T> DecodeInner(
 			Queue<MoteValue<T>> queue
-			, UnrayOperatorOpenBracket<T> currentBracket = null
+			, UnaryOperatorOpenBracket<T> currentBracket = null
 			)
 		{
 			// リスト一時ワーク取得
@@ -1111,7 +1111,7 @@ namespace MoteScript
 		private void ConvertToRpn(
 			Queue<MoteValue<T>> queue
 			, List<MoteValue<T>> rpn
-			, UnrayOperatorOpenBracket<T> currentBracket = null
+			, UnaryOperatorOpenBracket<T> currentBracket = null
 			)
 		{
 #if VERVOSE
@@ -1128,7 +1128,7 @@ namespace MoteScript
 							InsertBinaryOperator(queue, rpn, binaryOperator);
 							break;
 						
-						case UnrayOperatorOpenBracket<T> openBracket:
+						case UnaryOperatorOpenBracket<T> openBracket:
 							MoteValue<T> bracketValue = DecodeInner(queue, openBracket);
 							if (openBracket.BracketsType == Brackets.EType.SquareBrackets
 								&& rpn.Count > 0
@@ -1145,7 +1145,7 @@ namespace MoteScript
 							}
 							break;
 
-						case UnrayOperatorCloseBracket<T> closeBracket:
+						case UnaryOperatorCloseBracket<T> closeBracket:
 							if (currentBracket != null
 								&& currentBracket.IsCloseBracket(closeBracket)
 								)
@@ -1154,7 +1154,7 @@ namespace MoteScript
 							}
 							throw new FormatException($"対応する括弧なし : {closeBracket.ToString()}");
 	
-						case UnrayOperator<T> unrayOperator:
+						case UnaryOperator<T> unrayOperator:
 							GetOneValue(queue, rpn);
 							rpn.Add(value);
 							break;
@@ -1193,7 +1193,7 @@ namespace MoteScript
 					&& (childRpn[childRpn.Count - 1]
 							.TryGetOperator(out OperatorOpenSquareBracket<T> _)
 						|| childRpn[childRpn.Count - 1]
-							.TryGetOperator(out UnrayOperatorNew<T> _));
+							.TryGetOperator(out UnaryOperatorNew<T> _));
 				if (isCompoundRightValue)
 				{
 					insertIndex += childRpn.Count;
@@ -1224,19 +1224,19 @@ namespace MoteScript
 			{
 				switch (value.GetOperator())
 				{
-					case UnrayOperatorOpenBracket<T> openBracket:
+					case UnaryOperatorOpenBracket<T> openBracket:
 						// カッコ内の値取得
 						MoteValue<T> bracket = GetBrackets(queue, openBracket);
 						rpn.Add(bracket);
 						rpn.Add(value);
 						break;
 
-					case UnrayOperatorCloseBracket<T> closeBracket:
+					case UnaryOperatorCloseBracket<T> closeBracket:
 						// throw new FormatException($"対応する括弧なし : {closeBracket}");
 						rpn.Add(value);
 						return;
 
-					case UnrayOperator<T> unrayOperator:
+					case UnaryOperator<T> unrayOperator:
 					{
 						GetOneValue(queue, rpn);
 						rpn.Add(value);
@@ -1261,7 +1261,7 @@ namespace MoteScript
 		)
 		{
 			while (0 < queue.Count
-				&& queue.Peek().TryGetOperator(out UnrayOperatorOpenBracket<T> openBracket)
+				&& queue.Peek().TryGetOperator(out UnaryOperatorOpenBracket<T> openBracket)
 				&& openBracket.BracketsType == Brackets.EType.SquareBrackets)
 			{
 				MoteValue<T> bracketOperator = queue.Dequeue();
@@ -1272,7 +1272,7 @@ namespace MoteScript
 		}
 		private MoteValue<T> GetBrackets(
 			Queue<MoteValue<T>> queue
-			, UnrayOperatorOpenBracket<T> openBracket
+			, UnaryOperatorOpenBracket<T> openBracket
 			)
 		{
 			return DecodeInner(queue, currentBracket: openBracket);
@@ -1321,7 +1321,7 @@ namespace MoteScript
 				{
 					if (value.TryGetOperator(out IRpnOperator<T> op))
 					{
-						pushValue = op.Finailze(_rpnStack);
+						pushValue = op.FinalizeOperator(_rpnStack);
 						if (op is IOperatorOnFinalized opOnFinalized)
 						{
 							if (opOnFinalized.IsOnFinishedRequired)

@@ -75,7 +75,7 @@ namespace MoteScript
 			var arguments = new object[values.Count - 1];
 			for (int i = 1; i < values.Count; ++i)
 			{
-				MoteValue<T> value = values[i].EvaluteInner(context);
+				MoteValue<T> value = values[i].EvaluateInner(context);
 				switch (value.ValueType)
 				{
 					case EValueType.String:
@@ -245,7 +245,7 @@ namespace MoteScript
 		private static MoteValue<T> FromNumber(IContext<T> context, List<MoteValue<T>> values)
 		{
 			RequireCount(values, 1, 1, "string.fromNumber");
-			MoteValue<T> value = values[0].EvaluteInner(context);
+			MoteValue<T> value = values[0].EvaluateInner(context);
 			T number = value.GetNumericValue("string.fromNumber");
 			return new MoteValue<T>(number.ToString(null, CultureInfo.InvariantCulture));
 		}
@@ -263,7 +263,7 @@ namespace MoteScript
 
 		private static string GetString(MoteValue<T> parameter, IContext<T> context, string function)
 		{
-			MoteValue<T> value = parameter.EvaluteInner(context);
+			MoteValue<T> value = parameter.EvaluateInner(context);
 			if (value.ValueType != EValueType.String)
 			{
 				throw new InvalidOperationException(
@@ -274,7 +274,7 @@ namespace MoteScript
 
 		private static int GetIndex(MoteValue<T> parameter, IContext<T> context, string function)
 		{
-			MoteValue<T> value = parameter.EvaluteInner(context);
+			MoteValue<T> value = parameter.EvaluateInner(context);
 			value.ThrowIfNotNumeric(function);
 			return value.IntegerValue;
 		}

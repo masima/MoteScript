@@ -258,7 +258,7 @@ namespace MoteScript
 			IContext<T> context,
 			string function)
 		{
-			MoteValue<T> value = parameter.EvaluteInner(context);
+			MoteValue<T> value = parameter.EvaluateInner(context);
 			if (value.ValueType != EValueType.String)
 			{
 				throw new InvalidOperationException(

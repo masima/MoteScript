@@ -51,9 +51,9 @@ namespace MoteScript
 		private MoteValue<T>[] _statements;
 
 
-		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			base.Finailze(rpnStack);
+			base.FinalizeOperator(rpnStack);
 			if (!Left.TryGetOperator(out BinaryOperatorSentenceSeparater<T> accessor))
 			{
 				_values = new List<MoteValue<T>>();
@@ -83,7 +83,7 @@ namespace MoteScript
 			MoteValue<T> lastValue = default;
 			foreach	(var value in _statements)
 			{
-				lastValue = value.EvaluteInner(context);
+				lastValue = value.EvaluateInner(context);
 				if (lastValue.ValueType.IsLoopControl())
 				{
 					return lastValue;

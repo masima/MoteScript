@@ -239,8 +239,8 @@ namespace MoteScript
 					_valueType = (ValueTypeType)EValueType.BinaryOperator;
 					_value = default;
 					break;
-				case UnrayOperator<T>:
-					_valueType = (ValueTypeType)EValueType.UnrayOperator;
+				case UnaryOperator<T>:
+					_valueType = (ValueTypeType)EValueType.UnaryOperator;
 					_value = default;
 					break;
 				default:
@@ -305,7 +305,7 @@ namespace MoteScript
 
 		public MoteValue<T> Evaluate(IContext<T> context)
 		{
-			MoteValue<T> result = EvaluteInner(context);
+			MoteValue<T> result = EvaluateInner(context);
 			if (result.TryGetOperator(out FlowControlOperatorReturn<T> returnOperator))
 			{
 				return returnOperator.ReturnValue;
@@ -322,7 +322,7 @@ namespace MoteScript
 		{
 			return Evaluate(context);
 		}
-		internal MoteValue<T> EvaluteInner(IContext<T> context)
+		internal MoteValue<T> EvaluateInner(IContext<T> context)
 		{
 			switch ((EValueType)_valueType)
 			{

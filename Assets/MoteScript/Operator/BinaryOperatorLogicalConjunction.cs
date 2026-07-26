@@ -12,12 +12,12 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			bool left = Left.EvaluteInner(context).ToBool();
+			bool left = Left.EvaluateInner(context).ToBool();
 			if (!left)
 			{
 				return new MoteValue<T>(false);
 			}
-			bool right = Right.EvaluteInner(context).ToBool();
+			bool right = Right.EvaluateInner(context).ToBool();
 
 			return new MoteValue<T>(right);
 		}

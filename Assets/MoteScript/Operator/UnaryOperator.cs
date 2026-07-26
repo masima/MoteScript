@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MoteScript
 {
-	public abstract class UnrayOperator<T>
+	public abstract class UnaryOperator<T>
 		: IOperator<T>
 		, IRpnOperator<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
@@ -40,7 +40,7 @@ namespace MoteScript
 			return true;
 		}
 
-		public virtual MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public virtual MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
 			// Right = rpnStack.Pop();
 			// return new MoteValue<T>(this);

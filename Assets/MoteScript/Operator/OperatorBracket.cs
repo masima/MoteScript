@@ -9,7 +9,7 @@ using UnityEngine;
 namespace MoteScript
 {
 	public abstract class OperatorBracket<T>
-		: UnrayOperator<T>
+		: UnaryOperator<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
@@ -29,7 +29,7 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			return Right.EvaluteInner(context);
+			return Right.EvaluateInner(context);
 		}
 
 	}

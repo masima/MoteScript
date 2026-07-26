@@ -31,7 +31,7 @@ namespace MoteScript
 		{
 			if (Judge.ValueType.IsValid())
 			{
-				MoteValue<T> result = Judge.EvaluteInner(context);
+				MoteValue<T> result = Judge.EvaluateInner(context);
 				if (result.ValueType.IsLoopControl())
 				{
 					return result;

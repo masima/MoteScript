@@ -45,7 +45,7 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			MoteValue<T> result = Judge.EvaluteInner(context);
+			MoteValue<T> result = Judge.EvaluateInner(context);
 			if (result.ValueType.IsExecutionControl())
 			{
 				return result;
@@ -53,7 +53,7 @@ namespace MoteScript
 
 			if (!result.ToBool())
 			{
-				return Statement.EvaluteInner(context);
+				return Statement.EvaluateInner(context);
 			}
 			return result;
 		}

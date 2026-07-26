@@ -54,7 +54,7 @@ namespace MoteScript
 			foreach (BinaryOperatorKeyValuePair<T> value in _values)
 			{
 				string key = value.Left.StringValue;
-				MoteValue<T> result = value.Right.EvaluteInner(context);
+				MoteValue<T> result = value.Right.EvaluateInner(context);
 				_results[key] = result;
 			}
 			return new MoteValue<T>(_results);

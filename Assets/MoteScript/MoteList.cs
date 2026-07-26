@@ -88,7 +88,7 @@ namespace MoteScript
 		{
 			foreach (MoteValue<T> value in values)
 			{
-				Add(value.EvaluteInner(context));
+				Add(value.EvaluateInner(context));
 			}
 			return new MoteValue<T>(this);
 		}
@@ -99,18 +99,18 @@ namespace MoteScript
 		}
 		private MoteValue<T> Insert(IContext<T> context, List<MoteValue<T>> values)
 		{
-			MoteValue<T> indexValue = values[0].EvaluteInner(context);
+			MoteValue<T> indexValue = values[0].EvaluateInner(context);
 			indexValue.ThrowIfNotNumeric("array.insert");
 			int index = indexValue.IntegerValue;
 			for (int i = 1; i < values.Count; i++)
 			{
-				Insert(index + i - 1, values[i].EvaluteInner(context));
+				Insert(index + i - 1, values[i].EvaluateInner(context));
 			}
 			return new MoteValue<T>(this);
 		}
 		private MoteValue<T> RemoveAt(IContext<T> context, List<MoteValue<T>> values)
 		{
-			MoteValue<T> indexValue = values[0].EvaluteInner(context);
+			MoteValue<T> indexValue = values[0].EvaluateInner(context);
 			indexValue.ThrowIfNotNumeric("array.removeat");
 			int index = indexValue.IntegerValue;
 			RemoveAt(index);
@@ -119,7 +119,7 @@ namespace MoteScript
 		private MoteValue<T> Pop(IContext<T> context, List<MoteValue<T>> values)
 		{
 			int lastIndex = Count - 1;
-			MoteValue<T> lastValue = this[lastIndex].EvaluteInner(context);
+			MoteValue<T> lastValue = this[lastIndex].EvaluateInner(context);
 			RemoveAt(lastIndex);
 			return lastValue;
 		}

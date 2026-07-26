@@ -334,7 +334,7 @@ namespace MoteScript
 			IContext<T> context,
 			string function)
 		{
-			MoteValue<T> value = parameter.EvaluteInner(context);
+			MoteValue<T> value = parameter.EvaluateInner(context);
 			return value.GetNumericValue(function);
 		}
 
@@ -343,7 +343,7 @@ namespace MoteScript
 			IContext<T> context,
 			string function)
 		{
-			MoteValue<T> value = parameter.EvaluteInner(context);
+			MoteValue<T> value = parameter.EvaluateInner(context);
 			value.ThrowIfNotNumeric(function);
 			return value.IntegerValue;
 		}

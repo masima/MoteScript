@@ -12,7 +12,7 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			MoteValue<T> right = Right.EvaluteInner(context);
+			MoteValue<T> right = Right.EvaluateInner(context);
 			if (right.TryGetExecution(out MoteExecution<T> execution))
 			{
 				execution.AddContinuation(this);

@@ -30,7 +30,7 @@ namespace MoteScript
 			}
 			for (int index = start; index < _statements.Count; ++index)
 			{
-				result = _statements[index].EvaluteInner(context);
+				result = _statements[index].EvaluateInner(context);
 				if (result.TryGetExecution(out MoteExecution<T> execution))
 				{
 					execution.AddContinuation(this, index + 1);

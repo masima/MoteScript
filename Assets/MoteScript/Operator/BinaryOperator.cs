@@ -43,7 +43,7 @@ namespace MoteScript
 			return true;
 		}
 
-		public virtual MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public virtual MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
 			Right = rpnStack.Pop();
 			Left = rpnStack.Pop();

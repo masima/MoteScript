@@ -15,11 +15,11 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			MoteValue<T> result = Judge.EvaluteInner(context);
+			MoteValue<T> result = Judge.EvaluateInner(context);
 
 			if (result.ToBool())
 			{
-				MoteValue<T> r = Statement.EvaluteInner(context);
+				MoteValue<T> r = Statement.EvaluateInner(context);
 				if (r.ValueType.IsExecutionControl())
 				{
 					return r;

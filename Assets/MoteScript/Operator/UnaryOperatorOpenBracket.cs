@@ -8,13 +8,13 @@ using UnityEngine;
 
 namespace MoteScript
 {
-	public abstract class UnrayOperatorOpenBracket<T>
+	public abstract class UnaryOperatorOpenBracket<T>
 		// : BinaryOperator<T>
 		: OperatorBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
-		public UnrayOperatorOpenBracket(Brackets.TypeInfo typeInfo, Brackets.EState state)
+		public UnaryOperatorOpenBracket(Brackets.TypeInfo typeInfo, Brackets.EState state)
 			: base(typeInfo, state)
 		{
 		}
@@ -22,7 +22,7 @@ namespace MoteScript
 
 		public bool IsCloseValue(MoteValue<T> value)
 		{
-			if (!value.TryGetOperator(out UnrayOperatorCloseBracket<T> closeBracket))
+			if (!value.TryGetOperator(out UnaryOperatorCloseBracket<T> closeBracket))
 			{
 				return false;
 			}
@@ -32,7 +32,7 @@ namespace MoteScript
 			}
 			return false;
 		}
-		public bool IsCloseBracket(UnrayOperatorCloseBracket<T> closeBracket)
+		public bool IsCloseBracket(UnaryOperatorCloseBracket<T> closeBracket)
 		{
 			if (closeBracket.BracketsType == BracketsType)
 			{
@@ -43,13 +43,13 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			return Right.EvaluteInner(context);
+			return Right.EvaluateInner(context);
 		}
 
 	}
 
 	public class OperatorOpenParenthereses<T>
-		: UnrayOperatorOpenBracket<T>
+		: UnaryOperatorOpenBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
@@ -61,9 +61,9 @@ namespace MoteScript
 			
 		}
 
-		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			// return base.Finailze(rpnStack);
+			// return base.FinalizeOperator(rpnStack);
 			Right = rpnStack.Pop();
 			if (!Right.ValueType.IsValid() && rpnStack.Count == 0)
 			{
@@ -91,7 +91,7 @@ namespace MoteScript
 
 	}
 	public class OperatorCloseParenthereses<T>
-		: UnrayOperatorCloseBracket<T>
+		: UnaryOperatorCloseBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
@@ -105,7 +105,7 @@ namespace MoteScript
 	}
 
 	public class OperatorOpenSquareBracket<T>
-		: UnrayOperatorOpenBracket<T>
+		: UnaryOperatorOpenBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
@@ -117,9 +117,9 @@ namespace MoteScript
 			
 		}
 
-		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			// return base.Finailze(rpnStack);
+			// return base.FinalizeOperator(rpnStack);
 			Right = rpnStack.Pop();
 			if (0 < rpnStack.Count)
 			{
@@ -144,7 +144,7 @@ namespace MoteScript
 		}
 	}
 	public class OperatorCloseSquareBracket<T>
-		: UnrayOperatorCloseBracket<T>
+		: UnaryOperatorCloseBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
@@ -158,7 +158,7 @@ namespace MoteScript
 	}
 
 	public class OperatorOpenCurlyBracket<T>
-		: UnrayOperatorOpenBracket<T>
+		: UnaryOperatorOpenBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{
@@ -171,7 +171,7 @@ namespace MoteScript
 		}
 	}
 	public class OperatorCloseCurlyBracket<T>
-		: UnrayOperatorCloseBracket<T>
+		: UnaryOperatorCloseBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
 	{

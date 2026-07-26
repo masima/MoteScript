@@ -35,9 +35,9 @@ namespace MoteScript
 			return new MoteValue<T>(arraySeparater);
 		}
 
-		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			base.Finailze(rpnStack);
+			base.FinalizeOperator(rpnStack);
 			if (!Left.TryGetOperator(out BinaryOperatorArraySeparater<T> separater))
 			{
 				_results = new MoteList<T>();
@@ -70,7 +70,7 @@ namespace MoteScript
 			_results.Clear();
 			foreach	(MoteValue<T> value in _values)
 			{
-				_results.Add(value.EvaluteInner(context));
+				_results.Add(value.EvaluateInner(context));
 			}
 			return new MoteValue<T>(_results);
 		}

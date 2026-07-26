@@ -21,9 +21,9 @@ namespace MoteScript
 		private bool _isDynamicTarget;
 
 
-		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			base.Finailze(rpnStack);
+			base.FinalizeOperator(rpnStack);
 			BinaryOperatorDictionaryAccessor<T> accessor;
 			if (Left.TryGetOperator(out accessor) && accessor._values is not null)
 			{
@@ -59,7 +59,7 @@ namespace MoteScript
 		{
 			if (_isDynamicTarget)
 			{
-				IContext<T> targetContext = _target.EvaluteInner(context).GetDictionary();
+				IContext<T> targetContext = _target.EvaluateInner(context).GetDictionary();
 				if (targetContext is not null
 					&& targetContext.TryGetValue(_memberName, out MoteValue<T> value))
 				{
@@ -97,7 +97,7 @@ namespace MoteScript
 		{
 			if (_isDynamicTarget)
 			{
-				IContext<T> targetContext = _target.EvaluteInner(context).GetDictionary();
+				IContext<T> targetContext = _target.EvaluateInner(context).GetDictionary();
 				if (targetContext is null)
 				{
 					throw new InvalidOperationException($"undefined {_memberName}");

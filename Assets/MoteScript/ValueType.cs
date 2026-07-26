@@ -44,7 +44,7 @@ namespace MoteScript
 
 		Operator = 0x80,
 		PrimaryOpeartor = Operator,
-		UnrayOperator,
+		UnaryOperator,
 		BinaryOperator,
 	}
 
@@ -62,9 +62,9 @@ namespace MoteScript
 		{
 			return (valueType & EValueType.Operator) != 0;
 		}
-		public static bool IsUnrayOperator(this EValueType valueType)
+		public static bool IsUnaryOperator(this EValueType valueType)
 		{
-			return valueType == EValueType.UnrayOperator;
+			return valueType == EValueType.UnaryOperator;
 		}
 		public static bool IsString(this EValueType valueType)
 		{

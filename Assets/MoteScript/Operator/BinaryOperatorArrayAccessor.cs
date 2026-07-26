@@ -20,20 +20,20 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			MoteValue<T> left = Left.EvaluteInner(context);
+			MoteValue<T> left = Left.EvaluateInner(context);
 
 			switch(left.GetObject())
 			{
 				case List<MoteValue<T>> array:
 				{
-					MoteValue<T> right = Right.EvaluteInner(context);
+					MoteValue<T> right = Right.EvaluateInner(context);
 					right.ThrowIfNotNumeric(OperatorCode);
 					int index = right.IntegerValue;
 					return array[index];
 				}
 				case IContext<T> targetContext:
 				{
-					MoteValue<T> right = Right.EvaluteInner(context);
+					MoteValue<T> right = Right.EvaluateInner(context);
 					switch (right.ValueType)
 					{
 						case EValueType.String:
@@ -49,13 +49,13 @@ namespace MoteScript
 
 		public void AssignmentTo(IContext<T> context, MoteValue<T> value)
 		{
-			MoteValue<T> left = Left.EvaluteInner(context);
+			MoteValue<T> left = Left.EvaluateInner(context);
 
 			switch (left.GetObject())
 			{
 			case List<MoteValue<T>> array:
 				{
-					MoteValue<T> right = Right.EvaluteInner(context);
+					MoteValue<T> right = Right.EvaluateInner(context);
 					right.ThrowIfNotNumeric(OperatorCode);
 					int index = right.IntegerValue;
 					MoteValue<T>.ValidateAssignment(array[index], value, $"[{index}]");
@@ -64,7 +64,7 @@ namespace MoteScript
 				}
 			case IContext<T> targetContext:
 				{
-					MoteValue<T> right = Right.EvaluteInner(context);
+					MoteValue<T> right = Right.EvaluateInner(context);
 					switch (right.ValueType)
 					{
 					case EValueType.String:

@@ -37,7 +37,7 @@ namespace MoteScript
 			, List<MoteValue<T>> rpn
 			, out int insertIndex
 			);
-		public MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack);
+		public MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack);
 	}
 
 }

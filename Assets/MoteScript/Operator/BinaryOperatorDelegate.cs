@@ -13,7 +13,7 @@ namespace MoteScript
 		public override string OperatorCode => "=>";
 
 
-		public override MoteValue<T> Finailze(Stack<MoteValue<T>> rpnStack)
+		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
 			MoteValue<T> statement = rpnStack.Pop();
 			MoteValue<T> paramValue = rpnStack.Pop();
@@ -69,7 +69,7 @@ namespace MoteScript
 				bool suspended = false;
 				try
 				{
-					MoteValue<T> result = Statement.EvaluteInner(context);
+					MoteValue<T> result = Statement.EvaluateInner(context);
 					if (result.TryGetExecution(out MoteExecution<T> execution))
 					{
 						suspended = true;

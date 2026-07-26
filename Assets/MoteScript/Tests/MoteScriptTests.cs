@@ -65,8 +65,8 @@ namespace MoteScript.Tests
 			// Decoder.Setup()実行後
 			var decoder = new Decoder();
 			float result = decoder.Decode("(1+2)*3").Evaluate(null).FloatValue;
-			float correctAnsower = 9f;
-			Assert.AreEqual(result, correctAnsower, $"{result} != {correctAnsower}");
+			float correctAnswer = 9f;
+			Assert.AreEqual(result, correctAnswer, $"{result} != {correctAnswer}");
 		}
 
 		/// <summary>
