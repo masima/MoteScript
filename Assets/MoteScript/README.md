@@ -24,6 +24,7 @@ Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ル
   - [条件分岐](#条件分岐)
   - [ループ](#ループ)
   - [処理の中断と再開](#処理の中断と再開)
+    - [複数の実行単位で値を共有](#複数の実行単位で値を共有)
   - [数値型の選択](#数値型の選択)
 - [開発](#開発)
 
@@ -513,6 +514,39 @@ MoteValue<float> result = execution.Result;
 `CurrentExecution`には実行開始時から中断中まで現在の`MoteExecution<T>`が設定され、`Completed`または`Faulted`になると自動的に解除されます。
 
 `yield`は式の一部ではなく、`yield(value);`のように独立した文として記述してください。`yield`を含むスクリプトを直接`script.Evaluate(context)`で実行すると例外になります。必ず`CreateExecution(context)`を使用してください。再開後に例外が発生した実行は`Faulted`となり、再開できません。
+
+#### 複数の実行単位で値を共有
+
+複数の`MoteExecution<T>`で値を共有する場合は、実行ごとに異なる`IExecutionContext<T>`を用意し、共有値を保持するContextを各実行Contextの変数として登録します。
+
+```csharp
+var shared = new Context<float>();
+shared["score"] = new MoteValue<float>(0);
+
+var contextA = new Context<float>();
+var contextB = new Context<float>();
+
+contextA["shared"] = new MoteValue<float>(shared);
+contextB["shared"] = new MoteValue<float>(shared);
+
+var executionA = decoder
+    .Decode("shared.score=shared.score+1;yield(shared.score)")
+    .CreateExecution(contextA);
+var executionB = decoder
+    .Decode("shared.score=shared.score+10;yield(shared.score)")
+    .CreateExecution(contextB);
+
+executionA.Evaluate(); // YieldValueは1
+executionB.Evaluate(); // YieldValueは11
+```
+
+`contextA`と`contextB`はそれぞれの`CurrentExecution`を保持し、`shared`は同じインスタンスを参照します。これにより、ローカル変数と実行状態は分離したまま、`shared.score`などの値だけを共有できます。
+
+共有専用のContext型を定義する場合は、`IExecutionContext<T>`ではなく`IContext<T>`だけを実装すると、誤って`CreateExecution()`の実行用Contextとして使用することを防げます。上の例で`Context<T>`を使用している`shared`も、共有値の格納用途に限定し、`CreateExecution()`には渡さないでください。
+
+同一スレッドで`Evaluate()`と`Resume()`を順番に呼び出す運用では、通常のContextで共有できます。複数スレッドから同時に実行する場合、`shared.score=shared.score+1`のような読み取りと書き込みを組み合わせた処理は原子的ではありません。共有Contextの排他制御、またはC#側に登録した原子的な更新関数を使用してください。
+
+`new shared`を評価すると別の辞書として複製されるため、共有を維持する場合は同じContextインスタンスを`MoteValue<T>`として各実行Contextへ登録します。
 
 ### 数値型の選択
 
