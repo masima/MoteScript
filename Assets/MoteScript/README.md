@@ -490,7 +490,7 @@ sum
 
 `yield(値)`を含むスクリプトは、`CreateExecution(context)`で実行単位となる`MoteExecution<T>`を作成します。最初の`Evaluate()`で実行を開始し、`YieldValue`で渡された値を取得して、`Resume()`で`yield`の次の文から再開できます。
 
-`CreateExecution()`には`IExecutionContext<T>`を実装したContextが必要です。標準の`Context<T>`は`IExecutionContext<T>`を実装済みです。独自のContextを使用する場合は、`IContext<T>`ではなく`IExecutionContext<T>`を実装し、`CurrentExecution`を保持してください。実行中のContextを別の`MoteExecution<T>`で同時に使用することはできません。
+`CreateExecution()`には`IExecutionContext<T>`を実装したContextが必要です。標準の`Context<T>`は`IExecutionContext<T>`を実装済みです。独自のContextを使用する場合は、`IContext<T>`ではなく`IExecutionContext<T>`を実装し、`TryAcquireExecution()`と`ReleaseExecution()`で実行の所有権を管理してください。`CurrentExecution`は読み取り専用です。実行中のContextを別の`MoteExecution<T>`で同時に使用することはできません。
 
 ```csharp
 var script = decoder.Decode(

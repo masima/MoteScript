@@ -192,6 +192,22 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestYield_ResumeRequiresContextOwnership()
+		{
+			var context = new Context();
+			MoteExecution<float> execution = _decoder
+				.Decode("yield(1);2")
+				.CreateExecution(context);
+			execution.Evaluate();
+			((IExecutionContext<float>)context).ReleaseExecution(execution);
+
+			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+				() => execution.Resume());
+			StringAssert.Contains("no longer owns", exception.Message);
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+		}
+
+		[Test]
 		public void TestYield_DirectEvaluateExplainsExecutionRequirement()
 		{
 			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(

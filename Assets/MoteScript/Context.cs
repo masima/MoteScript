@@ -35,7 +35,9 @@ namespace MoteScript
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
-		public MoteExecution<T> CurrentExecution { get; set; }
+		public MoteExecution<T> CurrentExecution { get; }
+		public bool TryAcquireExecution(MoteExecution<T> execution);
+		public void ReleaseExecution(MoteExecution<T> execution);
 	}
 
 	/// <summary>
@@ -49,7 +51,27 @@ namespace MoteScript
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
-		MoteExecution<T> IExecutionContext<T>.CurrentExecution { get; set; }
+		private MoteExecution<T> _currentExecution;
+		MoteExecution<T> IExecutionContext<T>.CurrentExecution => _currentExecution;
+
+		bool IExecutionContext<T>.TryAcquireExecution(MoteExecution<T> execution)
+		{
+			if (_currentExecution is not null
+				&& !ReferenceEquals(_currentExecution, execution))
+			{
+				return false;
+			}
+			_currentExecution = execution;
+			return true;
+		}
+
+		void IExecutionContext<T>.ReleaseExecution(MoteExecution<T> execution)
+		{
+			if (ReferenceEquals(_currentExecution, execution))
+			{
+				_currentExecution = null;
+			}
+		}
 
 		public Context()
 		{

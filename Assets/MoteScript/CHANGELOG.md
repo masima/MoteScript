@@ -2,6 +2,13 @@
 
 このプロジェクトの主な変更を記録します。
 
+## [Unreleased]
+
+### Changed
+
+- `IExecutionContext<T>.CurrentExecution`を読み取り専用にし、実行所有権の取得と解放を`TryAcquireExecution()`／`ReleaseExecution()`へ集約
+- `Resume()`時に実行Contextの所有権を検証
+
 ## [0.4.0] - 2026-07-26
 
 ### Added

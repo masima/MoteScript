@@ -65,6 +65,11 @@ namespace MoteScript
 			{
 				throw new InvalidOperationException("Only a yielded execution can be resumed.");
 			}
+			if (!ReferenceEquals(_context.CurrentExecution, this))
+			{
+				throw new InvalidOperationException(
+					"The execution no longer owns its execution context.");
+			}
 
 			State = MoteExecutionState.Running;
 			YieldValue = default;
@@ -152,21 +157,16 @@ namespace MoteScript
 
 		private void AcquireContext()
 		{
-			if (_context.CurrentExecution is not null
-				&& !ReferenceEquals(_context.CurrentExecution, this))
+			if (!_context.TryAcquireExecution(this))
 			{
 				throw new InvalidOperationException(
 					"The execution context is already being used by another execution.");
 			}
-			_context.CurrentExecution = this;
 		}
 
 		private void ReleaseContext()
 		{
-			if (ReferenceEquals(_context.CurrentExecution, this))
-			{
-				_context.CurrentExecution = null;
-			}
+			_context.ReleaseExecution(this);
 		}
 	}
 }
