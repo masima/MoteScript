@@ -16,9 +16,15 @@ namespace MoteScript.Tests
 			execution.Evaluate();
 
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(
+				((IExecutionContext<float>)context).CurrentExecution,
+				Is.SameAs(execution));
 			Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(1));
 			Assert.That(execution.Resume().IntegerValue, Is.EqualTo(3));
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+			Assert.That(
+				((IExecutionContext<float>)context).CurrentExecution,
+				Is.Null);
 			Assert.That(execution.Result.IntegerValue, Is.EqualTo(3));
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(3));
 		}
@@ -155,8 +161,34 @@ namespace MoteScript.Tests
 				() => execution.Resume());
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Faulted));
 			Assert.That(execution.Exception, Is.SameAs(exception));
+			Assert.That(
+				((IExecutionContext<float>)context).CurrentExecution,
+				Is.Null);
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(100));
 			Assert.Throws<InvalidOperationException>(() => execution.Resume());
+		}
+
+		[Test]
+		public void TestYield_ExecutionContextRejectsConcurrentExecution()
+		{
+			var context = new Context();
+			MoteValue<float> script = _decoder.Decode("yield(1);2");
+			MoteExecution<float> first = script.CreateExecution(context);
+			MoteExecution<float> second = script.CreateExecution(context);
+			first.Evaluate();
+
+			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+				() => second.Evaluate());
+			StringAssert.Contains("already being used", exception.Message);
+			Assert.That(second.State, Is.EqualTo(MoteExecutionState.Faulted));
+			Assert.That(
+				((IExecutionContext<float>)context).CurrentExecution,
+				Is.SameAs(first));
+
+			Assert.That(first.Resume().IntegerValue, Is.EqualTo(2));
+			Assert.That(
+				((IExecutionContext<float>)context).CurrentExecution,
+				Is.Null);
 		}
 
 		[Test]

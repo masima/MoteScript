@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace MoteScript
@@ -24,14 +23,14 @@ namespace MoteScript
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 	{
 		private readonly MoteValue<T> _script;
-		private readonly ExecutionContext _executionContext;
+		private readonly IExecutionContext<T> _context;
 		private List<IExecutionContinuation<T>> _continuations = new(4);
 		private List<IExecutionContinuation<T>> _resumeContinuations = new(4);
 
-		internal MoteExecution(MoteValue<T> script, IContext<T> context)
+		internal MoteExecution(MoteValue<T> script, IExecutionContext<T> context)
 		{
 			_script = script;
-			_executionContext = new ExecutionContext(this, context);
+			_context = context ?? throw new ArgumentNullException(nameof(context));
 			State = MoteExecutionState.Ready;
 		}
 
@@ -50,7 +49,8 @@ namespace MoteScript
 			State = MoteExecutionState.Running;
 			try
 			{
-				return CompleteOrYield(_script.Evaluate(_executionContext));
+				AcquireContext();
+				return CompleteOrYield(_script.Evaluate(_context));
 			}
 			catch (Exception exception)
 			{
@@ -79,7 +79,7 @@ namespace MoteScript
 			{
 				for (; index < current.Count; ++index)
 				{
-					result = current[index].Resume(_executionContext, result);
+					result = current[index].Resume(_context, result);
 					if (State == MoteExecutionState.Yielded)
 					{
 						for (int remaining = index + 1; remaining < current.Count; ++remaining)
@@ -97,7 +97,7 @@ namespace MoteScript
 			{
 				for (; index < current.Count; ++index)
 				{
-					current[index].Cancel(_executionContext);
+					current[index].Cancel(_context);
 				}
 				current.Clear();
 				Fault(exception);
@@ -125,6 +125,7 @@ namespace MoteScript
 			if (State == MoteExecutionState.Yielded) return result;
 			Result = result;
 			State = MoteExecutionState.Completed;
+			ReleaseContext();
 			return result;
 		}
 
@@ -134,47 +135,38 @@ namespace MoteScript
 			State = MoteExecutionState.Faulted;
 			_continuations.Clear();
 			_resumeContinuations.Clear();
+			ReleaseContext();
 		}
 
 		internal static MoteExecution<T> Get(IContext<T> context)
 		{
-			if (context is ExecutionContext executionContext) return executionContext.Execution;
+			if (context is IExecutionContext<T> executionContext
+				&& executionContext.CurrentExecution is MoteExecution<T> execution
+				&& execution.State == MoteExecutionState.Running)
+			{
+				return execution;
+			}
 			throw new InvalidOperationException(
-				"Scripts containing yield must be run through CreateExecution(context).");
+				"Scripts containing yield require an IExecutionContext<T> and must be run through CreateExecution(context).");
 		}
 
-		private sealed class ExecutionContext : IContext<T>, IEnumerable<KeyValuePair<string, MoteValue<T>>>
+		private void AcquireContext()
 		{
-			private readonly IContext<T> _inner;
-
-			public ExecutionContext(MoteExecution<T> execution, IContext<T> inner)
+			if (_context.CurrentExecution is not null
+				&& !ReferenceEquals(_context.CurrentExecution, this))
 			{
-				Execution = execution;
-				_inner = inner ?? throw new ArgumentNullException(nameof(inner));
+				throw new InvalidOperationException(
+					"The execution context is already being used by another execution.");
 			}
+			_context.CurrentExecution = this;
+		}
 
-			public MoteExecution<T> Execution { get; }
-			public MoteValue<T> this[string key]
+		private void ReleaseContext()
+		{
+			if (ReferenceEquals(_context.CurrentExecution, this))
 			{
-				get => _inner[key];
-				set => _inner[key] = value;
+				_context.CurrentExecution = null;
 			}
-			public int Count => _inner.Count;
-			public IContext<T> Instantiate() => _inner.Instantiate();
-			public bool TryGetValue(string key, out MoteValue<T> value) => _inner.TryGetValue(key, out value);
-			public bool Remove(string key) => _inner.Remove(key);
-			public void Clear() => _inner.Clear();
-
-			public IEnumerator<KeyValuePair<string, MoteValue<T>>> GetEnumerator()
-			{
-				if (_inner is IEnumerable<KeyValuePair<string, MoteValue<T>>> values)
-				{
-					return values.GetEnumerator();
-				}
-				return ((IEnumerable<KeyValuePair<string, MoteValue<T>>>)Array.Empty<KeyValuePair<string, MoteValue<T>>>()).GetEnumerator();
-			}
-
-			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 		}
 	}
 }

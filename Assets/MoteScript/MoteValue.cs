@@ -313,7 +313,7 @@ namespace MoteScript
 			return result;
 		}
 
-		public MoteExecution<T> CreateExecution(IContext<T> context)
+		public MoteExecution<T> CreateExecution(IExecutionContext<T> context)
 		{
 			return new MoteExecution<T>(this, context);
 		}

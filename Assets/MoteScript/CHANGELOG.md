@@ -2,6 +2,14 @@
 
 このプロジェクトの主な変更を記録します。
 
+## [Unreleased]
+
+### Changed
+
+- Yield実行に使用するContextを`IExecutionContext<T>`実装に限定
+- 内部のContextラッパーを廃止し、実行中の`MoteExecution<T>`をContext自身が保持する方式へ変更
+- 同じContextを使用する複数の`MoteExecution<T>`の同時実行を禁止
+
 ## [0.3.0] - 2026-07-26
 
 ### Added

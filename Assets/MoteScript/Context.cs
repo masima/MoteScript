@@ -30,6 +30,14 @@ namespace MoteScript
 		public IContext<T> Clone();
 	}
 
+	public interface IExecutionContext<T>
+		: IContext<T>
+		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
+		, IComparable<T>
+	{
+		public MoteExecution<T> CurrentExecution { get; set; }
+	}
+
 	/// <summary>
 	/// デフォルトContext
 	/// </summary>
@@ -37,9 +45,12 @@ namespace MoteScript
 	public class Context<T>
 		: Dictionary<string, MoteValue<T>>
 		, IClonableContext<T>
+		, IExecutionContext<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
+		MoteExecution<T> IExecutionContext<T>.CurrentExecution { get; set; }
+
 		public Context()
 		{
 

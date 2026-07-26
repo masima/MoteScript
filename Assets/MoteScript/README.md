@@ -489,6 +489,8 @@ sum
 
 `yield(値)`を含むスクリプトは、`CreateExecution(context)`で実行単位となる`MoteExecution<T>`を作成します。最初の`Evaluate()`で実行を開始し、`YieldValue`で渡された値を取得して、`Resume()`で`yield`の次の文から再開できます。
 
+`CreateExecution()`には`IExecutionContext<T>`を実装したContextが必要です。標準の`Context<T>`は`IExecutionContext<T>`を実装済みです。独自のContextを使用する場合は、`IContext<T>`ではなく`IExecutionContext<T>`を実装し、`CurrentExecution`を保持してください。実行中のContextを別の`MoteExecution<T>`で同時に使用することはできません。
+
 ```csharp
 var script = decoder.Decode(
     "i=0;while(i<3){i=i+1;yield(i)};i");
@@ -507,6 +509,8 @@ MoteValue<float> result = execution.Result;
 この例では`1`、`2`、`3`を順番に受け取り、最後の`result`は`3`になります。複数回Yieldしても同じ`MoteExecution<T>`を使用するため、Yieldごとに実行オブジェクトは生成されません。中断中も同じ`Context`を保持するため、再開前にC#側で変更した値は再開後の評価へ反映されます。関数内で中断した場合は、関数引数とループ位置も維持されます。
 
 `MoteExecution<T>.State`は`Ready`、`Running`、`Yielded`、`Completed`、`Faulted`のいずれかです。`Resume()`は`Yielded`状態でのみ呼び出せます。完了後の結果は`Result`、例外終了時の例外は`Exception`から取得できます。
+
+`CurrentExecution`には実行開始時から中断中まで現在の`MoteExecution<T>`が設定され、`Completed`または`Faulted`になると自動的に解除されます。
 
 `yield`は式の一部ではなく、`yield(value);`のように独立した文として記述してください。`yield`を含むスクリプトを直接`script.Evaluate(context)`で実行すると例外になります。必ず`CreateExecution(context)`を使用してください。再開後に例外が発生した実行は`Faulted`となり、再開できません。
 
