@@ -47,13 +47,20 @@ namespace MoteScript
 	{
 		private readonly MoteValue<T> _script;
 		private readonly IExecutionContext<T> _context;
+		private readonly MoteExecutionOptions _options;
 		private List<ExecutionContinuation<T>> _continuations = new(4);
 		private List<ExecutionContinuation<T>> _resumeContinuations = new(4);
+		private long _steps;
+		private int _functionDepth;
 
-		internal MoteExecution(MoteValue<T> script, IExecutionContext<T> context)
+		internal MoteExecution(
+			MoteValue<T> script,
+			IExecutionContext<T> context,
+			MoteExecutionOptions options)
 		{
 			_script = script;
 			_context = context ?? throw new ArgumentNullException(nameof(context));
+			_options = options;
 			State = MoteExecutionState.Ready;
 		}
 
@@ -69,7 +76,11 @@ namespace MoteScript
 			try
 			{
 				BeginExecution();
-				return Finish(_script.Evaluate(_context));
+				using (MoteExecutionGuard<T>.EvaluationScope scope =
+					MoteExecutionGuard<T>.Begin(this))
+				{
+					return Finish(_script.Evaluate(_context));
+				}
 			}
 			catch (Exception exception)
 			{
@@ -86,21 +97,25 @@ namespace MoteScript
 			int index = 0;
 			try
 			{
-				for (; index < current.Count; ++index)
+				using (MoteExecutionGuard<T>.EvaluationScope scope =
+					MoteExecutionGuard<T>.Begin(this))
 				{
-					result = current[index].Resume(_context, result);
-					if (State == MoteExecutionState.Yielded)
+					for (; index < current.Count; ++index)
 					{
-						for (int remaining = index + 1; remaining < current.Count; ++remaining)
+						result = current[index].Resume(_context, result);
+						if (State == MoteExecutionState.Yielded)
 						{
-							_continuations.Add(current[remaining]);
+							for (int remaining = index + 1; remaining < current.Count; ++remaining)
+							{
+								_continuations.Add(current[remaining]);
+							}
+							current.Clear();
+							return result;
 						}
-						current.Clear();
-						return result;
 					}
+					current.Clear();
+					return Finish(result);
 				}
-				current.Clear();
-				return Finish(result);
 			}
 			catch (Exception exception)
 			{
@@ -127,6 +142,42 @@ namespace MoteScript
 		internal void AddContinuation(IExecutionContinuation<T> target, int state = 0)
 		{
 			_continuations.Add(new ExecutionContinuation<T>(target, state));
+		}
+
+		internal bool HasExecutionLimits => _options.HasLimits;
+
+		internal void RecordStep()
+		{
+			_options.CancellationToken.ThrowIfCancellationRequested();
+			long actual = ++_steps;
+			long maximum = _options.MaxSteps;
+			if (maximum > 0 && actual > maximum)
+			{
+				throw new MoteExecutionLimitException(
+					MoteExecutionLimit.Steps,
+					actual,
+					maximum);
+			}
+		}
+
+		internal void EnterFunction()
+		{
+			_options.CancellationToken.ThrowIfCancellationRequested();
+			int actual = ++_functionDepth;
+			int maximum = _options.MaxFunctionDepth;
+			if (maximum > 0 && actual > maximum)
+			{
+				--_functionDepth;
+				throw new MoteExecutionLimitException(
+					MoteExecutionLimit.FunctionDepth,
+					actual,
+					maximum);
+			}
+		}
+
+		internal void ExitFunction()
+		{
+			--_functionDepth;
 		}
 
 		private void BeginExecution()

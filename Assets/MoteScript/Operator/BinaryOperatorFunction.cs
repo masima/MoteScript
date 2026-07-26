@@ -21,17 +21,21 @@ namespace MoteScript
 			var func = left.GetObject<MoteValue<T>.Function>();
 			var parameters = right.GetObject<List<MoteValue<T>>>();
 
-			MoteValue<T> result = func.Invoke(context, parameters);
-			if (result.TryGetExecution(out MoteExecution<T> execution))
+			using (MoteExecutionGuard<T>.FunctionScope scope =
+				MoteExecutionGuard<T>.EnterFunction())
 			{
-				execution.AddContinuation(this);
+				MoteValue<T> result = func.Invoke(context, parameters);
+				if (result.TryGetExecution(out MoteExecution<T> execution))
+				{
+					execution.AddContinuation(this);
+					return result;
+				}
+				if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
+				{
+					return operatorReturn.ReturnValue;
+				}
 				return result;
 			}
-			if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
-			{
-				return operatorReturn.ReturnValue;
-			}
-			return result;
 		}
 
 		MoteValue<T> IExecutionContinuation<T>.Resume(

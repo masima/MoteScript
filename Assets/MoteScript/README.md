@@ -28,6 +28,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
 - [C#連携と関数の再利用](#c連携と関数の再利用)
   - [関数定義を先に評価](#関数定義を先に評価)
   - [C#から関数を登録](#cから関数を登録)
+- [実行量の制限](#実行量の制限)
 - [Yield実行管理](#yield実行管理)
   - [yield構文と実行再開](#yield構文と実行再開)
   - [複数の実行単位で値を共有](#複数の実行単位で値を共有)
@@ -520,6 +521,50 @@ float result = decoder.Decode("sum(1,2,3)").Evaluate(context).Value;
 ```
 
 この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evaluate(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
+
+## 実行量の制限
+
+終了条件が外部入力に依存するループや再帰を安全に実行するため、ステップ数と関数呼び出し深度を制限できます。`CancellationToken`によるC#側からの中断にも対応しています。
+
+```csharp
+using System.Threading;
+
+var options = new MoteExecutionOptions(
+    maxSteps: 10000,
+    maxFunctionDepth: 64,
+    cancellationToken: cancellationToken);
+
+try
+{
+    MoteValue<float> result = expression.Evaluate(context, options);
+}
+catch (MoteExecutionLimitException exception)
+{
+    // exception.Limit、Actual、Maximumから超過内容を確認できます。
+}
+catch (OperationCanceledException)
+{
+    // CancellationTokenによって中断されました。
+}
+```
+
+`maxSteps`または`maxFunctionDepth`に`0`を指定すると、対応する制限は無効になります。従来の`Evaluate(context)`は無制限で実行されるため、外部から受け取ったスクリプトにループや再帰が含まれる場合は、制限付きオーバーロードを使用してください。制限状態は関数呼び出しやネストした評価にも引き継がれ、評価完了後または例外発生後にリセットされます。
+
+Yieldを含むスクリプトでは、`CreateExecution(context, options)`へ同じオプションを渡します。
+
+```csharp
+var options = new MoteExecutionOptions(maxSteps: 10000);
+MoteExecution<float> execution =
+    script.CreateExecution(context, options);
+
+execution.Evaluate();
+while (execution.IsYielded)
+{
+    execution.Resume();
+}
+```
+
+ステップ数は最初の`Evaluate()`からすべての`Resume()`まで累積されます。上限超過またはキャンセルが発生すると、`MoteExecution<T>`は`Faulted`状態になり、発生した例外を`Exception`から取得できます。
 
 ## Yield実行管理
 

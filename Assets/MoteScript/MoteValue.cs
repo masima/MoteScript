@@ -313,9 +313,27 @@ namespace MoteScript
 			return result;
 		}
 
+		public MoteValue<T> Evaluate(
+			IContext<T> context,
+			MoteExecutionOptions options)
+		{
+			using (MoteExecutionGuard<T>.EvaluationScope scope =
+				MoteExecutionGuard<T>.Begin(options))
+			{
+				return Evaluate(context);
+			}
+		}
+
 		public MoteExecution<T> CreateExecution(IExecutionContext<T> context)
 		{
-			return new MoteExecution<T>(this, context);
+			return new MoteExecution<T>(this, context, default);
+		}
+
+		public MoteExecution<T> CreateExecution(
+			IExecutionContext<T> context,
+			MoteExecutionOptions options)
+		{
+			return new MoteExecution<T>(this, context, options);
 		}
 		[Obsolete("Use Evaluate instead.")]
 		public MoteValue<T> Evalute(IContext<T> context)
@@ -324,6 +342,7 @@ namespace MoteScript
 		}
 		internal MoteValue<T> EvaluateInner(IContext<T> context)
 		{
+			MoteExecutionGuard<T>.Step();
 			switch ((EValueType)_valueType)
 			{
 			case EValueType.Unknown:

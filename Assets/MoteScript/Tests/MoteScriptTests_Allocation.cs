@@ -65,6 +65,48 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestLimitedEvaluation_DoesNotAllocateAfterWarmup()
+		{
+			MoteValue<float> script = _decoder.Decode("value=value+1");
+			var context = new Context().Set("value", 0);
+			var options = new MoteExecutionOptions(maxSteps: 10);
+
+			script.Evaluate(context, options);
+
+			long before = GC.GetAllocatedBytesForCurrentThread();
+			for (int i = 0; i < 1000; ++i)
+			{
+				script.Evaluate(context, options);
+			}
+			long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+			Assert.That(allocatedBytes, Is.Zero);
+		}
+
+		[Test]
+		public void TestLimitedYieldResume_DoesNotAllocateAfterWarmup()
+		{
+			var context = new Context();
+			MoteExecution<float> execution = _decoder
+				.Decode("i=0;while(i<1000){i=i+1;yield(i)};i")
+				.CreateExecution(
+					context,
+					new MoteExecutionOptions(maxSteps: 100000));
+
+			execution.Evaluate();
+
+			long before = GC.GetAllocatedBytesForCurrentThread();
+			while (execution.IsYielded)
+			{
+				execution.Resume();
+			}
+			long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+			Assert.That(allocatedBytes, Is.Zero);
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(1000));
+		}
+
+		[Test]
 		public void TestDecodeCached_ReusesDecodedScriptWithoutAllocating()
 		{
 			const string sentence = "value=value+1";
