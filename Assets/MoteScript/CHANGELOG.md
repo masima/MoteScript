@@ -13,6 +13,7 @@
 - 内部評価APIの`EvaluteInner`を`EvaluateInner`、RPN構築APIの`Finailze`を`FinalizeOperator`へ修正
 - `UnrayOperator`系の型名を正しい綴りの`UnaryOperator`へ変更
 - `MoteExecution<T>`の開始、再開、中断、完了、例外終了に伴う状態更新を専用メソッドへ集約
+- `MoteDecoder<T>`からデコードキャッシュ、字句読み取り、構造化式の分割判定を専用クラスへ分離
 
 ## [0.4.0] - 2026-07-26
 

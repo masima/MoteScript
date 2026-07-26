@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Linq;
 
@@ -215,7 +214,7 @@ namespace MoteScript
 
 		readonly Queue<MoteValue<T>> _queue = new();
 		readonly List<MoteValue<T>> _rpn = new();
-		readonly Dictionary<string, MoteValue<T>> _decodedCache = new();
+		readonly DecodedScriptCache<T> _decodedCache = new();
 		// MoteDecoder<T> _childDecoder = null;
 
 		/// <summary>
@@ -471,106 +470,22 @@ namespace MoteScript
 
 		private static int FindTopLevelAssignment(string expression)
 		{
-			int round = 0;
-			int square = 0;
-			for (int i = 0; i < expression.Length; ++i)
-			{
-				char c = expression[i];
-				if (c == '"')
-				{
-					i = FindStringLiteralEnd(expression, i);
-					continue;
-				}
-				if (c == '(') ++round;
-				else if (c == ')') --round;
-				else if (c == '[') ++square;
-				else if (c == ']') --square;
-				else if (c == '=' && round == 0 && square == 0
-					&& (i == 0 || expression[i - 1] != '=' && expression[i - 1] != '!' && expression[i - 1] != '<' && expression[i - 1] != '>')
-					&& (i + 1 >= expression.Length || expression[i + 1] != '='))
-				{
-					return i;
-				}
-			}
-			return -1;
+			return StructuredExpressionReader<T>.FindAssignment(expression);
 		}
 
 		private static int FindTopLevelToken(string expression, string token)
 		{
-			int round = 0;
-			int square = 0;
-			int curly = 0;
-			for (int i = 0; i <= expression.Length - token.Length; ++i)
-			{
-				char c = expression[i];
-				if (c == '"')
-				{
-					i = FindStringLiteralEnd(expression, i);
-					continue;
-				}
-				if (c == '(') ++round;
-				else if (c == ')') --round;
-				else if (c == '[') ++square;
-				else if (c == ']') --square;
-				else if (c == '{') ++curly;
-				else if (c == '}') --curly;
-				else if (round == 0 && square == 0 && curly == 0
-					&& string.CompareOrdinal(expression, i, token, 0, token.Length) == 0)
-				{
-					return i;
-				}
-			}
-			return -1;
+			return StructuredExpressionReader<T>.FindToken(expression, token);
 		}
 
 		private static bool IsWrappedInParentheses(string expression)
 		{
-			if (expression.Length < 2 || expression[0] != '(' || expression[expression.Length - 1] != ')')
-			{
-				return false;
-			}
-			int depth = 0;
-			for (int i = 0; i < expression.Length; ++i)
-			{
-				if (expression[i] == '"')
-				{
-					i = FindStringLiteralEnd(expression, i);
-				}
-				else if (expression[i] == '(') ++depth;
-				else if (expression[i] == ')' && --depth == 0 && i != expression.Length - 1) return false;
-			}
-			return depth == 0;
+			return StructuredExpressionReader<T>.IsWrappedInParentheses(expression);
 		}
 
 		private static List<string> SplitTopLevel(string expression, char separator)
 		{
-			var results = new List<string>();
-			int start = 0;
-			int round = 0;
-			int square = 0;
-			int curly = 0;
-			for (int i = 0; i < expression.Length; ++i)
-			{
-				char c = expression[i];
-				if (c == '"')
-				{
-					i = FindStringLiteralEnd(expression, i);
-					continue;
-				}
-				if (c == '(') ++round;
-				else if (c == ')') --round;
-				else if (c == '[') ++square;
-				else if (c == ']') --square;
-				else if (c == '{') ++curly;
-				else if (c == '}') --curly;
-				else if (c == separator && round == 0 && square == 0 && curly == 0)
-				{
-					results.Add(expression.Substring(start, i - start));
-					start = i + 1;
-				}
-			}
-			results.Add(expression.Substring(start));
-			return results;
+			return StructuredExpressionReader<T>.Split(expression, separator);
 		}
 
 		private MoteValue<T> ParseWhile(string source, ref int position)
@@ -687,26 +602,7 @@ namespace MoteScript
 
 		private static int FindStringLiteralEnd(string source, int start)
 		{
-			bool escaped = false;
-			for (int i = start + 1; i < source.Length; ++i)
-			{
-				char c = source[i];
-				if (escaped)
-				{
-					escaped = false;
-					continue;
-				}
-				if (c == '\\')
-				{
-					escaped = true;
-					continue;
-				}
-				if (c == '"')
-				{
-					return i;
-				}
-			}
-			throw new FormatException("unterminated string literal");
+			return ScriptTextReader<T>.FindStringLiteralEnd(source, start);
 		}
 
 		private static bool TryReadStringLiteral(
@@ -714,73 +610,17 @@ namespace MoteScript
 			ref int position,
 			out MoteValue<T> value)
 		{
-			if (position >= source.Length || source[position] != '"')
-			{
-				value = default;
-				return false;
-			}
-
-			int end = FindStringLiteralEnd(source, position);
-			var builder = new StringBuilder(end - position - 1);
-			for (int i = position + 1; i < end; ++i)
-			{
-				char c = source[i];
-				if (c != '\\')
-				{
-					builder.Append(c);
-					continue;
-				}
-
-				if (++i >= end)
-				{
-					throw new FormatException("invalid string escape");
-				}
-				switch (source[i])
-				{
-					case '"': builder.Append('"'); break;
-					case '\\': builder.Append('\\'); break;
-					case 'n': builder.Append('\n'); break;
-					case 'r': builder.Append('\r'); break;
-					case 't': builder.Append('\t'); break;
-					default:
-						throw new FormatException($"unsupported string escape : \\{source[i]}");
-				}
-			}
-
-			position = end + 1;
-			value = new MoteValue<T>(builder.ToString());
-			return true;
+			return ScriptTextReader<T>.TryReadStringLiteral(source, ref position, out value);
 		}
 
 		private static bool IsKeyword(string source, int position, string keyword)
 		{
-			if (position < 0 || position + keyword.Length > source.Length
-				|| string.CompareOrdinal(source, position, keyword, 0, keyword.Length) != 0)
-			{
-				return false;
-			}
-			int end = position + keyword.Length;
-			return (position == 0 || !char.IsLetterOrDigit(source[position - 1]) && source[position - 1] != '_')
-				&& (end == source.Length || !char.IsLetterOrDigit(source[end]) && source[end] != '_');
+			return ScriptTextReader<T>.IsKeyword(source, position, keyword);
 		}
 
 		private static void SkipTrivia(string source, ref int position)
 		{
-			while (position < source.Length)
-			{
-				if (char.IsWhiteSpace(source[position]) || source[position] == ';')
-				{
-					++position;
-					continue;
-				}
-				if (position + 1 < source.Length && source[position] == '/' && source[position + 1] == '/')
-				{
-					position += 2;
-					while (position < source.Length && source[position] != '\n' && source[position] != '\r') ++position;
-					continue;
-				}
-				break;
-			}
+			ScriptTextReader<T>.SkipTrivia(source, ref position);
 		}
 
 
