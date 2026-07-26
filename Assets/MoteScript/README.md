@@ -44,7 +44,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.5.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.5.1
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -52,7 +52,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.5.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.5.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.5.1"
   }
 }
 ```

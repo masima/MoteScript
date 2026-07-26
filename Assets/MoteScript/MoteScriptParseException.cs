@@ -7,7 +7,7 @@ namespace MoteScript
 	/// </summary>
 	public sealed class MoteScriptParseException : FormatException
 	{
-		public string Source { get; }
+		public new string Source { get; }
 		public int Position { get; }
 		public int Line { get; }
 		public int Column { get; }
