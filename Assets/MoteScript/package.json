@@ -1,14 +1,15 @@
 {
   "name": "io.github.masima.motescript",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "displayName": "MoteScript",
-  "description": "A lightweight typed scripting runtime for Unity with numeric, string, and regular expression support.",
+  "description": "A lightweight typed scripting runtime for Unity with resumable yield execution.",
   "unity": "6000.0",
   "keywords": [
     "script",
     "expression",
     "string",
     "regex",
+    "yield",
     "runtime"
   ],
   "author": {

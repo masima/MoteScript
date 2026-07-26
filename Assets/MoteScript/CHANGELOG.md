@@ -2,15 +2,19 @@
 
 このプロジェクトの主な変更を記録します。
 
-## [Unreleased]
+## [0.3.0] - 2026-07-26
 
 ### Added
 
-- `yield(value)`によるスクリプト全体の中断と`MoteExecution<T>.Resume()`による再開
-- 実行単位で1つ生成され、複数回のYieldで再利用される`MoteExecution<T>`
-- `Ready`、`Running`、`Yielded`、`Completed`、`Faulted`による実行状態の公開
-- 中断時にのみ生成される遅延継続フレーム
-- ループ、分岐、関数、再帰呼び出しをまたぐYield状態の保持
+- `yield(value)`によるスクリプト全体の中断
+- `MoteValue<T>.CreateExecution(context)`で作成する`MoteExecution<T>`と、`Resume()`による実行再開
+- `Ready`、`Running`、`Yielded`、`Completed`、`Faulted`による実行状態の取得
+- ループ、分岐、関数、再帰呼び出しをまたいだ中断状態の保持
+- 同一実行内の複数回のYieldで実行オブジェクトを再利用する仕組み
+
+### Changed
+
+- `IOperator<T>.Evalute()`を正しい綴りの`Evaluate()`へ変更
 
 ## [0.2.1] - 2026-07-25
 
