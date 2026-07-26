@@ -1,31 +1,36 @@
 # MoteScript
 
-Unity上で簡単な式、変数、配列、辞書、関数、条件分岐、ループを評価するための軽量スクリプトランタイムです。`float`、`int`、`decimal`向けのCalculatorを同梱しています。
+Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、ループ、Yieldによる中断と再開を扱う軽量スクリプトランタイムです。`float`、`int`、`decimal`向けのCalculatorと標準関数ライブラリを同梱しています。
 
 ## 目次
 
 - [Git URLからインストール](#git-urlからインストール)
-- [使用例](#使用例)
+- [基本的な使い方](#基本的な使い方)
+  - [クイックスタート](#クイックスタート)
+  - [数値型の選択](#数値型の選択)
   - [デコーダーの再利用](#デコーダーの再利用)
   - [デコード済みの式を再評価](#デコード済みの式を再評価)
-  - [関数定義を先に評価](#関数定義を先に評価)
-  - [C#から関数を登録](#cから関数を登録)
-- [構文サンプル](#構文サンプル)
+- [基本構文](#基本構文)
   - [数値演算](#数値演算)
   - [比較・論理演算](#比較論理演算)
   - [変数](#変数)
+- [標準ライブラリ](#標準ライブラリ)
   - [文字列](#文字列)
   - [正規表現](#正規表現)
   - [数値関数](#数値関数)
+- [コレクションと制御構文](#コレクションと制御構文)
   - [配列](#配列)
     - [多次元配列](#多次元配列)
   - [辞書](#辞書)
   - [関数](#関数)
   - [条件分岐](#条件分岐)
   - [ループ](#ループ)
-  - [処理の中断と再開](#処理の中断と再開)
-    - [複数の実行単位で値を共有](#複数の実行単位で値を共有)
-  - [数値型の選択](#数値型の選択)
+- [C#連携と関数の再利用](#c連携と関数の再利用)
+  - [関数定義を先に評価](#関数定義を先に評価)
+  - [C#から関数を登録](#cから関数を登録)
+- [Yield実行管理](#yield実行管理)
+  - [yield構文と実行再開](#yield構文と実行再開)
+  - [複数の実行単位で値を共有](#複数の実行単位で値を共有)
 - [開発](#開発)
 
 ## Git URLからインストール
@@ -52,7 +57,9 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.5.0
 }
 ```
 
-## 使用例
+## 基本的な使い方
+
+### クイックスタート
 
 ```csharp
 MoteDecoder<float>.Setup();
@@ -62,12 +69,30 @@ var context = new Context<float>()
     .Set("a", 1f)
     .Set("b", 2f);
 
-float result = decoder.DecodeCached("a+b").Evaluate(context).Value;
+float result = decoder.Decode("a+b").Evaluate(context).Value;
 ```
 
 従来の`Evalute()`は互換性のため残されていますが非推奨です。新しいコードでは`Evaluate()`を使用してください。
 
 `decimal`を使用する場合は、`MoteDecoder<decimal>.Setup()`と`Context<decimal>`を使用します。
+
+### 数値型の選択
+
+用途に応じて`float`、`int`、`decimal`のCalculatorを選択できます。型ごとに最初の評価前に`Setup()`を呼び出します。
+
+```csharp
+MoteDecoder<float>.Setup();
+var floatDecoder = new MoteDecoder<float>();
+
+MoteDecoder<int>.Setup();
+var intDecoder = new MoteDecoder<int>();
+
+MoteDecoder<decimal>.Setup();
+var decimalDecoder = new MoteDecoder<decimal>();
+decimal result = decimalDecoder.Decode("0.1+0.2").Evaluate(new Context<decimal>()).Value;
+```
+
+MoteScriptの値は数値、文字列、配列、辞書、関数を扱えます。
 
 ### デコーダーの再利用
 
@@ -111,59 +136,7 @@ float second = expression.Evaluate(context).Value;
 
 この例では、`first`は`200`、`second`は`360`です。`expression`は同じインスタンスを再利用し、2回目は値の評価だけを行います。
 
-### 関数定義を先に評価
-
-同じ`Context`を使い回すことで、初期化時に関数定義だけを評価しておき、その関数が定義済みであることを前提とした別のスクリプトを後からデコードして実行できます。
-
-```csharp
-MoteDecoder<float>.Setup();
-
-var decoder = new MoteDecoder<float>();
-var context = new Context<float>();
-
-var definitions = decoder.Decode("double=(value)=>{value*2}");
-definitions.Evaluate(context);
-
-var expression = decoder.Decode("double(3)+double(4)");
-float result = expression.Evaluate(context).Value;
-```
-
-この例では、最初のスクリプトを評価した時点で`double`関数が`context`に保持されます。そのため、後からデコードした別のスクリプトでも`double`を定義済みの関数として呼び出すことができ、`result`は`14`になります。C#側から引数の値を`Context`へ設定する必要はありません。
-
-関数定義をデコードするだけでは`Context`へ登録されないため、定義スクリプトは一度`Evalute(context)`してください。また、関数の定義時と呼び出し時には同じ`Context`インスタンスを使用してください。
-
-### C#から関数を登録
-
-C#で実装した関数を`MoteValue<T>`に変換して`Context`へ登録すると、スクリプトから通常の関数と同じ構文で呼び出せます。
-
-```csharp
-using System.Collections.Generic;
-using MoteScript;
-
-static MoteValue<float> Sum(
-    IContext<float> context,
-    List<MoteValue<float>> parameters)
-{
-    float result = 0f;
-    foreach (var parameter in parameters)
-    {
-        result += parameter.Evaluate(context).Value;
-    }
-    return new MoteValue<float>(result);
-}
-
-MoteDecoder<float>.Setup();
-
-var decoder = new MoteDecoder<float>();
-var context = new Context<float>();
-context["sum"] = new MoteValue<float>(Sum);
-
-float result = decoder.Decode("sum(1,2,3)").Evaluate(context).Value;
-```
-
-この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evalute(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
-
-## 構文サンプル
+## 基本構文
 
 各サンプルは、最後に評価した式の値を結果として返します。複数の文は`;`で区切ります。
 
@@ -212,6 +185,10 @@ float result = decoder.DecodeCached("price*count").Evaluate(context).Value;
 ```
 
 変数の型は最初の代入で確定します。同じ型の値は再代入できますが、数値、文字列、配列、辞書、関数など異なる型の値で上書きすると`InvalidOperationException`が発生します。この規則は通常変数、既存の配列要素、既存の辞書メンバーに適用されます。
+
+## 標準ライブラリ
+
+文字列リテラルは組み込み構文です。文字列操作、正規表現、数値関数は、対応する標準ライブラリをContextへ登録して使用します。
 
 ### 文字列
 
@@ -356,6 +333,8 @@ area=math.pi()*math.pow(radius,2)
 
 `CalculatorInteger`では`abs`、`min`、`max`、`clamp`、`sign`、非負整数指数の`pow`、各丸め関数を使用できます。小数結果を必要とする平方根、指数対数、三角関数、負数指数の`pow`、`pi`は`NotImplementedException`を送出します。
 
+## コレクションと制御構文
+
 ### 配列
 
 `(...)`で配列を作成し、`[index]`で要素を参照または更新します。
@@ -486,7 +465,65 @@ sum
 
 結果は`12`です。
 
-### 処理の中断と再開
+## C#連携と関数の再利用
+
+この節では、スクリプト関数の定義をContextへ保持する方法と、C#で実装した関数をスクリプトへ公開する方法を説明します。先に「[関数](#関数)」でスクリプト側の関数構文を確認してください。
+
+### 関数定義を先に評価
+
+同じ`Context`を使い回すことで、初期化時に関数定義だけを評価しておき、その関数が定義済みであることを前提とした別のスクリプトを後からデコードして実行できます。
+
+```csharp
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+var context = new Context<float>();
+
+var definitions = decoder.Decode("double=(value)=>{value*2}");
+definitions.Evaluate(context);
+
+var expression = decoder.Decode("double(3)+double(4)");
+float result = expression.Evaluate(context).Value;
+```
+
+この例では、最初のスクリプトを評価した時点で`double`関数が`context`に保持されます。そのため、後からデコードした別のスクリプトでも`double`を定義済みの関数として呼び出すことができ、`result`は`14`になります。C#側から引数の値を`Context`へ設定する必要はありません。
+
+関数定義をデコードするだけでは`Context`へ登録されないため、定義スクリプトは一度`Evaluate(context)`してください。また、関数の定義時と呼び出し時には同じ`Context`インスタンスを使用してください。
+
+### C#から関数を登録
+
+C#で実装した関数を`MoteValue<T>`に変換して`Context`へ登録すると、スクリプトから通常の関数と同じ構文で呼び出せます。
+
+```csharp
+using System.Collections.Generic;
+using MoteScript;
+
+static MoteValue<float> Sum(
+    IContext<float> context,
+    List<MoteValue<float>> parameters)
+{
+    float result = 0f;
+    foreach (var parameter in parameters)
+    {
+        result += parameter.Evaluate(context).Value;
+    }
+    return new MoteValue<float>(result);
+}
+
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+var context = new Context<float>();
+context["sum"] = new MoteValue<float>(Sum);
+
+float result = decoder.Decode("sum(1,2,3)").Evaluate(context).Value;
+```
+
+この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evaluate(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
+
+## Yield実行管理
+
+### yield構文と実行再開
 
 `yield(値)`を含むスクリプトは、`CreateExecution(context)`で実行単位となる`MoteExecution<T>`を作成します。最初の`Evaluate()`で実行を開始し、`YieldValue`で渡された値を取得して、`Resume()`で`yield`の次の文から再開できます。
 
@@ -515,7 +552,7 @@ MoteValue<float> result = execution.Result;
 
 `yield`は式の一部ではなく、`yield(value);`のように独立した文として記述してください。`yield`を含むスクリプトを直接`script.Evaluate(context)`で実行すると例外になります。必ず`CreateExecution(context)`を使用してください。再開後に例外が発生した実行は`Faulted`となり、再開できません。
 
-#### 複数の実行単位で値を共有
+### 複数の実行単位で値を共有
 
 複数の`MoteExecution<T>`で値を共有する場合は、実行ごとに異なる`IExecutionContext<T>`を用意し、共有値を保持するContextを各実行Contextの変数として登録します。
 
@@ -547,24 +584,6 @@ executionB.Evaluate(); // YieldValueは11
 同一スレッドで`Evaluate()`と`Resume()`を順番に呼び出す運用では、通常のContextで共有できます。複数スレッドから同時に実行する場合、`shared.score=shared.score+1`のような読み取りと書き込みを組み合わせた処理は原子的ではありません。共有Contextの排他制御、またはC#側に登録した原子的な更新関数を使用してください。
 
 `new shared`を評価すると別の辞書として複製されるため、共有を維持する場合は同じContextインスタンスを`MoteValue<T>`として各実行Contextへ登録します。
-
-### 数値型の選択
-
-用途に応じて`float`、`int`、`decimal`のCalculatorを選択できます。型ごとに最初の評価前に`Setup()`を呼び出します。
-
-```csharp
-MoteDecoder<float>.Setup();
-var floatDecoder = new MoteDecoder<float>();
-
-MoteDecoder<int>.Setup();
-var intDecoder = new MoteDecoder<int>();
-
-MoteDecoder<decimal>.Setup();
-var decimalDecoder = new MoteDecoder<decimal>();
-decimal result = decimalDecoder.Decode("0.1+0.2").Evaluate(new Context<decimal>()).Value;
-```
-
-MoteScriptの値は数値、文字列、配列、辞書、関数を扱えます。
 
 ## 開発
 
