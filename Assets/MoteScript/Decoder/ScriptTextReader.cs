@@ -3,8 +3,7 @@ using System.Text;
 
 namespace MoteScript
 {
-	internal static class ScriptTextReader<T>
-		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
+	internal static class ScriptTextReader
 	{
 		public static int FindStringLiteralEnd(string source, int start)
 		{
@@ -30,7 +29,7 @@ namespace MoteScript
 		public static bool TryReadStringLiteral(
 			string source,
 			ref int position,
-			out MoteValue<T> value)
+			out string value)
 		{
 			if (position >= source.Length || source[position] != '"')
 			{
@@ -62,7 +61,7 @@ namespace MoteScript
 			}
 
 			position = end + 1;
-			value = new MoteValue<T>(builder.ToString());
+			value = builder.ToString();
 			return true;
 		}
 

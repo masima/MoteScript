@@ -470,22 +470,22 @@ namespace MoteScript
 
 		private static int FindTopLevelAssignment(string expression)
 		{
-			return StructuredExpressionReader<T>.FindAssignment(expression);
+			return StructuredExpressionReader.FindAssignment(expression);
 		}
 
 		private static int FindTopLevelToken(string expression, string token)
 		{
-			return StructuredExpressionReader<T>.FindToken(expression, token);
+			return StructuredExpressionReader.FindToken(expression, token);
 		}
 
 		private static bool IsWrappedInParentheses(string expression)
 		{
-			return StructuredExpressionReader<T>.IsWrappedInParentheses(expression);
+			return StructuredExpressionReader.IsWrappedInParentheses(expression);
 		}
 
 		private static List<string> SplitTopLevel(string expression, char separator)
 		{
-			return StructuredExpressionReader<T>.Split(expression, separator);
+			return StructuredExpressionReader.Split(expression, separator);
 		}
 
 		private MoteValue<T> ParseWhile(string source, ref int position)
@@ -602,7 +602,7 @@ namespace MoteScript
 
 		private static int FindStringLiteralEnd(string source, int start)
 		{
-			return ScriptTextReader<T>.FindStringLiteralEnd(source, start);
+			return ScriptTextReader.FindStringLiteralEnd(source, start);
 		}
 
 		private static bool TryReadStringLiteral(
@@ -610,17 +610,23 @@ namespace MoteScript
 			ref int position,
 			out MoteValue<T> value)
 		{
-			return ScriptTextReader<T>.TryReadStringLiteral(source, ref position, out value);
+			if (!ScriptTextReader.TryReadStringLiteral(source, ref position, out string stringValue))
+			{
+				value = default;
+				return false;
+			}
+			value = new MoteValue<T>(stringValue);
+			return true;
 		}
 
 		private static bool IsKeyword(string source, int position, string keyword)
 		{
-			return ScriptTextReader<T>.IsKeyword(source, position, keyword);
+			return ScriptTextReader.IsKeyword(source, position, keyword);
 		}
 
 		private static void SkipTrivia(string source, ref int position)
 		{
-			ScriptTextReader<T>.SkipTrivia(source, ref position);
+			ScriptTextReader.SkipTrivia(source, ref position);
 		}
 
 

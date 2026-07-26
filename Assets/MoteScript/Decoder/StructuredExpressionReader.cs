@@ -3,8 +3,7 @@ using System.Collections.Generic;
 
 namespace MoteScript
 {
-	internal static class StructuredExpressionReader<T>
-		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
+	internal static class StructuredExpressionReader
 	{
 		public static int FindAssignment(string expression)
 		{
@@ -15,7 +14,7 @@ namespace MoteScript
 				char c = expression[i];
 				if (c == '"')
 				{
-					i = ScriptTextReader<T>.FindStringLiteralEnd(expression, i);
+					i = ScriptTextReader.FindStringLiteralEnd(expression, i);
 					continue;
 				}
 				if (c == '(') ++round;
@@ -42,7 +41,7 @@ namespace MoteScript
 				char c = expression[i];
 				if (c == '"')
 				{
-					i = ScriptTextReader<T>.FindStringLiteralEnd(expression, i);
+					i = ScriptTextReader.FindStringLiteralEnd(expression, i);
 					continue;
 				}
 				if (c == '(') ++round;
@@ -71,7 +70,7 @@ namespace MoteScript
 			{
 				if (expression[i] == '"')
 				{
-					i = ScriptTextReader<T>.FindStringLiteralEnd(expression, i);
+					i = ScriptTextReader.FindStringLiteralEnd(expression, i);
 				}
 				else if (expression[i] == '(') ++depth;
 				else if (expression[i] == ')' && --depth == 0 && i != expression.Length - 1) return false;
@@ -91,7 +90,7 @@ namespace MoteScript
 				char c = expression[i];
 				if (c == '"')
 				{
-					i = ScriptTextReader<T>.FindStringLiteralEnd(expression, i);
+					i = ScriptTextReader.FindStringLiteralEnd(expression, i);
 					continue;
 				}
 				if (c == '(') ++round;

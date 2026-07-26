@@ -2,18 +2,22 @@
 
 このプロジェクトの主な変更を記録します。
 
-## [Unreleased]
+## [0.5.0] - 2026-07-26
 
 ### Changed
 
 - `IExecutionContext<T>.CurrentExecution`を読み取り専用にし、実行所有権の取得と解放を`TryAcquireExecution()`／`ReleaseExecution()`へ集約
 - `Resume()`時に実行Contextの所有権を検証
-- ブロック、while、代入、関数呼び出し、returnのYield継続情報を構造体バッファへ格納し、再開時のオブジェクト生成を削減
 - ビットフラグだった`FlowControlFlag`を排他的な`FlowControlType`へ変更し、continue、break、returnの判定を明確化
 - 内部評価APIの`EvaluteInner`を`EvaluateInner`、RPN構築APIの`Finailze`を`FinalizeOperator`へ修正
 - `UnrayOperator`系の型名を正しい綴りの`UnaryOperator`へ変更
 - `MoteExecution<T>`の開始、再開、中断、完了、例外終了に伴う状態更新を専用メソッドへ集約
 - `MoteDecoder<T>`からデコードキャッシュ、字句読み取り、構造化式の分割判定を専用クラスへ分離
+- 数値型に依存しない`ScriptTextReader`と`StructuredExpressionReader`を非ジェネリック化し、文字列解析と`MoteValue<T>`生成を分離
+
+### Performance
+
+- ブロック、while、代入、関数呼び出し、returnのYield継続情報を構造体バッファへ格納し、初回バッファ確保後の`Resume()`におけるGC割り当てを削減
 
 ## [0.4.0] - 2026-07-26
 
