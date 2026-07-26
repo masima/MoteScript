@@ -487,23 +487,28 @@ sum
 
 ### 処理の中断と再開
 
-`yield(値)`を文として実行すると、スクリプト全体をその位置で中断し、評価結果として`MoteYield<T>`を返します。`MoteYield<T>.Value`で渡された値を取得し、`Evaluate()`で`yield`の次の文から再開できます。
+`yield(値)`を含むスクリプトは、`CreateExecution(context)`で実行単位となる`MoteExecution<T>`を作成します。最初の`Evaluate()`で実行を開始し、`YieldValue`で渡された値を取得して、`Resume()`で`yield`の次の文から再開できます。
 
 ```csharp
 var script = decoder.Decode(
     "i=0;while(i<3){i=i+1;yield(i)};i");
-MoteValue<float> result = script.Evaluate(context);
+MoteExecution<float> execution = script.CreateExecution(context);
+execution.Evaluate();
 
-while (result.TryGetYield(out MoteYield<float> yielded))
+while (execution.IsYielded)
 {
-    Debug.Log(yielded.Value.Value);
-    result = yielded.Evaluate();
+    Debug.Log(execution.YieldValue.Value);
+    execution.Resume();
 }
+
+MoteValue<float> result = execution.Result;
 ```
 
-この例では`1`、`2`、`3`を順番に受け取り、最後の`result`は`3`になります。中断中も同じ`Context`を保持するため、再開前にC#側で変更した値は再開後の評価へ反映されます。関数内で中断した場合は、関数引数とループ位置も維持されます。
+この例では`1`、`2`、`3`を順番に受け取り、最後の`result`は`3`になります。複数回Yieldしても同じ`MoteExecution<T>`を使用するため、Yieldごとに実行オブジェクトは生成されません。中断中も同じ`Context`を保持するため、再開前にC#側で変更した値は再開後の評価へ反映されます。関数内で中断した場合は、関数引数とループ位置も維持されます。
 
-各`MoteYield<T>`は一度だけ再開できます。複数回`yield`するスクリプトでは、再開結果として新しい`MoteYield<T>`が返ります。`yield`は式の一部ではなく、`yield(value);`のように独立した文として記述してください。再開後に例外が発生した場合、その継続は無効になり、もう一度再開することはできません。
+`MoteExecution<T>.State`は`Ready`、`Running`、`Yielded`、`Completed`、`Faulted`のいずれかです。`Resume()`は`Yielded`状態でのみ呼び出せます。完了後の結果は`Result`、例外終了時の例外は`Exception`から取得できます。
+
+`yield`は式の一部ではなく、`yield(value);`のように独立した文として記述してください。`yield`を含むスクリプトを直接`script.Evaluate(context)`で実行すると例外になります。必ず`CreateExecution(context)`を使用してください。再開後に例外が発生した実行は`Faulted`となり、再開できません。
 
 ### 数値型の選択
 

@@ -11,7 +11,9 @@ namespace MoteScript
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> value = Statement.EvaluteInner(context);
-			return new MoteValue<T>(new MoteYield<T>(value, context));
+			MoteExecution<T> execution = MoteExecution<T>.Get(context);
+			execution.Yield(value);
+			return new MoteValue<T>(execution);
 		}
 	}
 }

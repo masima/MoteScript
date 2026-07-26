@@ -70,10 +70,10 @@ namespace MoteScript
 				try
 				{
 					MoteValue<T> result = Statement.EvaluteInner(context);
-					if (result.TryGetYield(out MoteYield<T> yield))
+					if (result.TryGetExecution(out MoteExecution<T> execution))
 					{
 						suspended = true;
-						yield.AddContinuation(new ParameterRestoreContinuation(this));
+						execution.AddContinuation(new ParameterRestoreContinuation(this));
 					}
 					return result;
 				}
@@ -86,7 +86,7 @@ namespace MoteScript
 				}
 			}
 
-			private sealed class ParameterRestoreContinuation : IYieldContinuation<T>
+			private sealed class ParameterRestoreContinuation : IExecutionContinuation<T>
 			{
 				private readonly DelegateInfo _owner;
 				private bool _restored;

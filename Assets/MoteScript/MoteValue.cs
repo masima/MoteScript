@@ -125,10 +125,10 @@ namespace MoteScript
 			return _object as MoteList<T>;
 		}
 
-		public bool TryGetYield(out MoteYield<T> yield)
+		internal bool TryGetExecution(out MoteExecution<T> execution)
 		{
-			yield = _object as MoteYield<T>;
-			return yield is not null;
+			execution = _object as MoteExecution<T>;
+			return execution is not null && execution.IsYielded;
 		}
 
 
@@ -276,11 +276,11 @@ namespace MoteScript
 			_object = value;
 		}
 
-		public MoteValue(MoteYield<T> yield)
+		internal MoteValue(MoteExecution<T> execution)
 		{
 			_valueType = (ValueTypeType)EValueType.Yield;
 			_value = default;
-			_object = yield;
+			_object = execution;
 		}
 
 		public MoteValue(EValueType valueType, object value)
@@ -311,6 +311,11 @@ namespace MoteScript
 				return returnOperator.ReturnValue;
 			}
 			return result;
+		}
+
+		public MoteExecution<T> CreateExecution(IContext<T> context)
+		{
+			return new MoteExecution<T>(this, context);
 		}
 		[Obsolete("Use Evaluate instead.")]
 		public MoteValue<T> Evalute(IContext<T> context)

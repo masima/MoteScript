@@ -44,15 +44,15 @@ namespace MoteScript
 			}
 
 			ReturnValue = Statement.EvaluteInner(context);
-			if (ReturnValue.TryGetYield(out MoteYield<T> yield))
+			if (ReturnValue.TryGetExecution(out MoteExecution<T> execution))
 			{
-				yield.AddContinuation(new ReturnContinuation(this));
+				execution.AddContinuation(new ReturnContinuation(this));
 				return ReturnValue;
 			}
 			return new MoteValue<T>(this);
 		}
 
-		private sealed class ReturnContinuation : IYieldContinuation<T>
+		private sealed class ReturnContinuation : IExecutionContinuation<T>
 		{
 			private readonly FlowControlOperatorReturn<T> _owner;
 

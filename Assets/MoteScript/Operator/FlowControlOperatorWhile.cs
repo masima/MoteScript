@@ -31,9 +31,9 @@ namespace MoteScript
 			while (Judge.EvaluteInner(context).ToBool())
 			{
 				result = Statement.EvaluteInner(context);
-				if (result.TryGetYield(out MoteYield<T> yield))
+				if (result.TryGetExecution(out MoteExecution<T> execution))
 				{
-					yield.AddContinuation(new Continuation(this));
+					execution.AddContinuation(new Continuation(this));
 					return result;
 				}
 				if (result.ValueType.IsLoopControl())
@@ -48,7 +48,7 @@ namespace MoteScript
 			return default;
 		}
 
-		private sealed class Continuation : IYieldContinuation<T>
+		private sealed class Continuation : IExecutionContinuation<T>
 		{
 			private readonly FlowControlOperatorWhile<T> _owner;
 

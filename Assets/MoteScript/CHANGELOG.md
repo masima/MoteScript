@@ -6,7 +6,9 @@
 
 ### Added
 
-- `yield(value)`によるスクリプト全体の中断と`MoteYield<T>.Evaluate()`による一度限りの再開
+- `yield(value)`によるスクリプト全体の中断と`MoteExecution<T>.Resume()`による再開
+- 実行単位で1つ生成され、複数回のYieldで再利用される`MoteExecution<T>`
+- `Ready`、`Running`、`Yielded`、`Completed`、`Faulted`による実行状態の公開
 - 中断時にのみ生成される遅延継続フレーム
 - ループ、分岐、関数、再帰呼び出しをまたぐYield状態の保持
 

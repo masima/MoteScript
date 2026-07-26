@@ -13,9 +13,9 @@ namespace MoteScript
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
 			MoteValue<T> right = Right.EvaluteInner(context);
-			if (right.TryGetYield(out MoteYield<T> yield))
+			if (right.TryGetExecution(out MoteExecution<T> execution))
 			{
-				yield.AddContinuation(new AssignmentContinuation(Left));
+				execution.AddContinuation(new AssignmentContinuation(Left));
 				return right;
 			}
 			Left.AssignmentTo(context, right);
@@ -23,7 +23,7 @@ namespace MoteScript
 			return right;
 		}
 
-		private sealed class AssignmentContinuation : IYieldContinuation<T>
+		private sealed class AssignmentContinuation : IExecutionContinuation<T>
 		{
 			private readonly MoteValue<T> _target;
 

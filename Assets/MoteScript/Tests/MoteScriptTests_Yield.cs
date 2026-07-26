@@ -9,13 +9,17 @@ namespace MoteScript.Tests
 		public void TestYield_ResumesFollowingStatements()
 		{
 			var context = new Context();
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("value=1;yield(value);value=value+2;value")
-				.Evaluate(context);
+				.CreateExecution(context);
 
-			Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
-			Assert.That(yield.Value.IntegerValue, Is.EqualTo(1));
-			Assert.That(yield.Evaluate().IntegerValue, Is.EqualTo(3));
+			execution.Evaluate();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(1));
+			Assert.That(execution.Resume().IntegerValue, Is.EqualTo(3));
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(3));
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(3));
 		}
 
@@ -23,61 +27,67 @@ namespace MoteScript.Tests
 		public void TestYield_UsesChangedContextWhenResumed()
 		{
 			var context = new Context();
-			MoteValue<float> result = _decoder.Decode("value=1;yield(value);value+1").Evaluate(context);
-			Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
+			MoteExecution<float> execution = _decoder
+				.Decode("value=1;yield(value);value+1")
+				.CreateExecution(context);
+			execution.Evaluate();
 
 			context["value"] = new MoteValue<float>(10);
 
-			Assert.That(yield.Evaluate().IntegerValue, Is.EqualTo(11));
+			Assert.That(execution.Resume().IntegerValue, Is.EqualTo(11));
 		}
 
 		[Test]
-		public void TestYield_MultipleYieldsAreSeparateOneShotContinuations()
+		public void TestYield_MultipleYieldsReuseOneExecution()
 		{
-			MoteValue<float> result = _decoder.Decode("yield(1);yield(2);3").Evaluate(new Context());
-			Assert.That(result.TryGetYield(out MoteYield<float> first), Is.True);
-			Assert.That(first.Value.IntegerValue, Is.EqualTo(1));
+			MoteExecution<float> execution = _decoder
+				.Decode("yield(1);yield(2);3")
+				.CreateExecution(new Context());
 
-			result = first.Evaluate();
-			Assert.That(result.TryGetYield(out MoteYield<float> second), Is.True);
-			Assert.That(second.Value.IntegerValue, Is.EqualTo(2));
-			Assert.Throws<InvalidOperationException>(() => first.Evaluate());
-			Assert.That(second.Evaluate().IntegerValue, Is.EqualTo(3));
-			Assert.Throws<InvalidOperationException>(() => second.Evaluate());
+			execution.Evaluate();
+			Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(1));
+
+			execution.Resume();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(2));
+
+			Assert.That(execution.Resume().IntegerValue, Is.EqualTo(3));
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+			Assert.Throws<InvalidOperationException>(() => execution.Resume());
+			Assert.Throws<InvalidOperationException>(() => execution.Evaluate());
 		}
 
 		[Test]
 		public void TestYield_WhilePreservesLoopState()
 		{
-			var context = new Context();
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("i=0;while(i<3){i=i+1;yield(i)};i")
-				.Evaluate(context);
+				.CreateExecution(new Context());
+			execution.Evaluate();
 
 			for (int expected = 1; expected <= 3; ++expected)
 			{
-				Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
-				Assert.That(yield.Value.IntegerValue, Is.EqualTo(expected));
-				result = yield.Evaluate();
+				Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+				Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(expected));
+				execution.Resume();
 			}
-			Assert.That(result.IntegerValue, Is.EqualTo(3));
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(3));
 		}
 
 		[Test]
 		public void TestYield_ContinueAndBreakApplyAfterResume()
 		{
-			var context = new Context();
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("i=0;sum=0;while(i<4){i=i+1;yield(i);if(i<3){continue};sum=sum+i;if(i==3){break}};sum")
-				.Evaluate(context);
+				.CreateExecution(new Context());
+			execution.Evaluate();
 
 			for (int expected = 1; expected <= 3; ++expected)
 			{
-				Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
-				Assert.That(yield.Value.IntegerValue, Is.EqualTo(expected));
-				result = yield.Evaluate();
+				Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(expected));
+				execution.Resume();
 			}
-			Assert.That(result.IntegerValue, Is.EqualTo(3));
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(3));
 		}
 
 		[Test]
@@ -85,32 +95,31 @@ namespace MoteScript.Tests
 		{
 			var context = new Context();
 			context["value"] = new MoteValue<float>(100);
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("func=(value)=>{yield(value);return value+1};answer=func(4);answer+value")
-				.Evaluate(context);
+				.CreateExecution(context);
+			execution.Evaluate();
 
-			Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
-			Assert.That(yield.Value.IntegerValue, Is.EqualTo(4));
+			Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(4));
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(4));
-
-			Assert.That(yield.Evaluate().IntegerValue, Is.EqualTo(105));
+			Assert.That(execution.Resume().IntegerValue, Is.EqualTo(105));
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(100));
 		}
 
 		[Test]
 		public void TestYield_NestedLoopsOnlyBreaksInnerLoop()
 		{
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("outer=0;count=0;while(outer<2){outer=outer+1;inner=0;while(inner<3){inner=inner+1;yield(inner);break};count=count+1};count")
-				.Evaluate(new Context());
+				.CreateExecution(new Context());
+			execution.Evaluate();
 
 			for (int i = 0; i < 2; ++i)
 			{
-				Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
-				Assert.That(yield.Value.IntegerValue, Is.EqualTo(1));
-				result = yield.Evaluate();
+				Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(1));
+				execution.Resume();
 			}
-			Assert.That(result.IntegerValue, Is.EqualTo(2));
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(2));
 		}
 
 		[Test]
@@ -118,17 +127,17 @@ namespace MoteScript.Tests
 		{
 			var context = new Context();
 			context["value"] = new MoteValue<float>(100);
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("recurse=(value)=>{yield(value);if(value>0){return recurse(value-1)};return value};answer=recurse(2);answer+value")
-				.Evaluate(context);
+				.CreateExecution(context);
+			execution.Evaluate();
 
 			for (int expected = 2; expected >= 0; --expected)
 			{
-				Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
-				Assert.That(yield.Value.IntegerValue, Is.EqualTo(expected));
-				result = yield.Evaluate();
+				Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(expected));
+				execution.Resume();
 			}
-			Assert.That(result.IntegerValue, Is.EqualTo(100));
+			Assert.That(execution.Result.IntegerValue, Is.EqualTo(100));
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(100));
 		}
 
@@ -137,14 +146,25 @@ namespace MoteScript.Tests
 		{
 			var context = new Context();
 			context["value"] = new MoteValue<float>(100);
-			MoteValue<float> result = _decoder
+			MoteExecution<float> execution = _decoder
 				.Decode("func=(value)=>{yield(value);missing};func(4)")
-				.Evaluate(context);
-			Assert.That(result.TryGetYield(out MoteYield<float> yield), Is.True);
+				.CreateExecution(context);
+			execution.Evaluate();
 
-			Assert.Throws<InvalidOperationException>(() => yield.Evaluate());
+			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+				() => execution.Resume());
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Faulted));
+			Assert.That(execution.Exception, Is.SameAs(exception));
 			Assert.That(context["value"].IntegerValue, Is.EqualTo(100));
-			Assert.Throws<InvalidOperationException>(() => yield.Evaluate());
+			Assert.Throws<InvalidOperationException>(() => execution.Resume());
+		}
+
+		[Test]
+		public void TestYield_DirectEvaluateExplainsExecutionRequirement()
+		{
+			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+				() => _decoder.Decode("yield(1)").Evaluate(new Context()));
+			StringAssert.Contains("CreateExecution", exception.Message);
 		}
 
 		[Test]

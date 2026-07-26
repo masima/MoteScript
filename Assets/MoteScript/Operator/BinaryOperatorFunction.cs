@@ -22,9 +22,9 @@ namespace MoteScript
 			var parameters = right.GetObject<List<MoteValue<T>>>();
 
 			MoteValue<T> result = func.Invoke(context, parameters);
-			if (result.TryGetYield(out MoteYield<T> yield))
+			if (result.TryGetExecution(out MoteExecution<T> execution))
 			{
-				yield.AddContinuation(new FunctionResultContinuation());
+				execution.AddContinuation(new FunctionResultContinuation());
 				return result;
 			}
 			if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
@@ -34,7 +34,7 @@ namespace MoteScript
 			return result;
 		}
 
-		private sealed class FunctionResultContinuation : IYieldContinuation<T>
+		private sealed class FunctionResultContinuation : IExecutionContinuation<T>
 		{
 			public MoteValue<T> Resume(IContext<T> context, MoteValue<T> result)
 			{

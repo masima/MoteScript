@@ -31,9 +31,9 @@ namespace MoteScript
 			for (int index = start; index < _statements.Count; ++index)
 			{
 				result = _statements[index].EvaluteInner(context);
-				if (result.TryGetYield(out MoteYield<T> yield))
+				if (result.TryGetExecution(out MoteExecution<T> execution))
 				{
-					yield.AddContinuation(new Continuation(this, index + 1));
+					execution.AddContinuation(new Continuation(this, index + 1));
 					return result;
 				}
 				if (result.ValueType.IsLoopControl()) return result;
@@ -41,7 +41,7 @@ namespace MoteScript
 			return result;
 		}
 
-		private sealed class Continuation : IYieldContinuation<T>
+		private sealed class Continuation : IExecutionContinuation<T>
 		{
 			private readonly ScriptBlockOperator<T> _owner;
 			private readonly int _nextStatement;
