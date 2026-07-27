@@ -12,29 +12,13 @@ namespace MoteScript
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
-		/// <summary>
-		/// 演算子リスト
-		/// </summary>
-		private static readonly List<OperatorInfo> s_unrayOperators = new();
-		private static readonly List<OperatorInfo> s_flowControlOperators = new();
-		private static readonly List<OperatorInfo> s_binaryOperators = new();
-		private static readonly List<OperatorInfo> s_bracketOperators = new();
-		private static Type s_contextType;
-
 		public static void Setup(
 			Assembly assembly = null
 			, Type contextType = null
 			)
 		{
-			s_flowControlOperators.Clear();
-			s_binaryOperators.Clear();
-
 			Assembly moteDecoderAssembly = typeof(MoteDecoder<T>).Assembly;
-			RegisterOperators(moteDecoderAssembly);
-			if (assembly is not null && moteDecoderAssembly != assembly)
-			{
-				RegisterOperators(assembly);
-			}
+			OperatorRegistry<T>.Setup(moteDecoderAssembly, assembly);
 
 			// Calculatorがセットされていなければ検索
 			if (MoteValue<T>.Calculator is null)
@@ -51,74 +35,6 @@ namespace MoteScript
 				}
 			}
 
-			if (contextType == null)
-			{
-				s_contextType = typeof(Context<T>);
-			}
-			else
-			{
-				s_contextType = contextType;
-			}
-		}
-		private static void RegisterOperators(Assembly assembly)
-		{
-			Type[] binaryOperatorTypes = assembly.GetTypes()
-				.Where(_ =>
-					_.BaseType != null
-					&& !_.IsAbstract
-					&& _.BaseType.IsGenericType
-					// && _.BaseType.GetGenericTypeDefinition() == typeof(IOperator<>)
-					)
-				.ToArray();
-
-			foreach (Type type in binaryOperatorTypes)
-			{
-				List<OperatorInfo> infos;
-				var genericTypeDefinition = type.BaseType.GetGenericTypeDefinition();
-				if (genericTypeDefinition == typeof(UnaryOperatorOpenBracket<>)
-					|| genericTypeDefinition == typeof(UnaryOperatorCloseBracket<>)
-					)
-				{
-					infos = s_bracketOperators;
-				}
-				else if (genericTypeDefinition == typeof(FlowControlOperator<>))
-				{
-					infos = s_flowControlOperators;
-				}
-				else if (genericTypeDefinition == typeof(BinaryOperator<>))
-				{
-					infos = s_binaryOperators;
-				}
-				else if (genericTypeDefinition == typeof(UnaryOperator<>))
-				{
-					infos = s_unrayOperators;
-				}
-				else
-				{
-					continue;
-				}
-				var genericType = type.MakeGenericType(typeof(T));
-				var propertyInfo = genericType.GetProperty(nameof(IOperator<T>.OperatorCode));
-				if (null == propertyInfo)
-				{
-					continue;
-				}
-				var opInstance = Activator.CreateInstance(genericType) as IOperator;
-				string code = opInstance.OperatorCode;
-				if (!string.IsNullOrEmpty(code))
-				{
-					infos.Add(new OperatorInfo
-					{
-						Type = genericType,
-						OperatorCode = code,
-						Priority = opInstance.Priority,
-					});
-				}
-			}
-			// 文字数の多い順に並べる
-			s_flowControlOperators.Sort((left, right) => right.OperatorCode.Length - left.OperatorCode.Length);
-			s_binaryOperators.Sort((left, right) => right.OperatorCode.Length - left.OperatorCode.Length);
-			s_unrayOperators.Sort((left, right) => right.OperatorCode.Length - left.OperatorCode.Length);
 		}
 
 		/// <summary>
@@ -195,7 +111,6 @@ namespace MoteScript
 
 		static readonly Regex s_regexConstValue = new Regex(@"-?\d+(\.\d*)?");
 		static readonly Regex s_regexWord = new Regex(@"[a-zA-Z0-9_]+");
-		static readonly Regex s_regexIdentifier = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_]*$");
 		static readonly Regex s_regexStructuredStatement = new Regex(@"\b(if|while|return|break|continue|yield)\b|=>");
 		const string CommentCode = "//";
 
@@ -396,7 +311,7 @@ namespace MoteScript
 			{
 				throw new FormatException("delegate parameters are invalid");
 			}
-			ParseFunctionHeader(
+			FunctionHeaderParser.Parse(
 				parametersText.Substring(1, parametersText.Length - 2),
 				out string[] parameterNames,
 				out string[] localNames);
@@ -417,84 +332,6 @@ namespace MoteScript
 				Left = new MoteValue<T>(variableName).ConvertToVariable(),
 				Right = function,
 			});
-		}
-
-		private static void ParseFunctionHeader(
-			string header,
-			out string[] parameterNames,
-			out string[] localNames)
-		{
-			List<string> sections = SplitTopLevel(header, ';');
-			if (sections.Count > 2)
-			{
-				throw new FormatException("delegate local declaration is invalid");
-			}
-
-			parameterNames = ParseIdentifierList(
-				sections.Count > 0 ? sections[0] : string.Empty,
-				"delegate parameters",
-				allowEmpty: true);
-			localNames = Array.Empty<string>();
-
-			if (sections.Count == 2)
-			{
-				string localSection = sections[1].Trim();
-				if (!IsKeyword(localSection, 0, "local"))
-				{
-					throw new FormatException(
-						"delegate local declaration must start with local");
-				}
-				localNames = ParseIdentifierList(
-					localSection.Substring("local".Length),
-					"delegate local variables",
-					allowEmpty: false);
-			}
-
-			var names = new HashSet<string>(StringComparer.Ordinal);
-			foreach (string parameterName in parameterNames)
-			{
-				if (!names.Add(parameterName))
-				{
-					throw new FormatException(
-						$"duplicate delegate variable : {parameterName}");
-				}
-			}
-			foreach (string localName in localNames)
-			{
-				if (!names.Add(localName))
-				{
-					throw new FormatException(
-						$"duplicate delegate variable : {localName}");
-				}
-			}
-		}
-
-		private static string[] ParseIdentifierList(
-			string text,
-			string description,
-			bool allowEmpty)
-		{
-			string trimmed = text.Trim();
-			if (trimmed.Length == 0)
-			{
-				if (allowEmpty)
-				{
-					return Array.Empty<string>();
-				}
-				throw new FormatException($"{description} are required");
-			}
-
-			string[] names = trimmed.Split(',');
-			for (int i = 0; i < names.Length; ++i)
-			{
-				names[i] = names[i].Trim();
-				if (!s_regexIdentifier.IsMatch(names[i]))
-				{
-					throw new FormatException(
-						$"{description} contain an invalid identifier : {names[i]}");
-				}
-			}
-			return names;
 		}
 
 		private MoteValue<T> DecodeStructuredValue(string expression)
@@ -950,7 +787,7 @@ namespace MoteScript
 				value = default;
 				return false;
 			}
-			foreach (OperatorInfo op in s_flowControlOperators)
+			foreach (OperatorInfo op in OperatorRegistry<T>.FlowControlOperators)
 			{
 				if (0 == string.CompareOrdinal(
 						sentence, startat
@@ -967,7 +804,7 @@ namespace MoteScript
 
 		internal bool TryGetBinaryOperator(string sentence, int startat, out OperatorInfo value)
 		{
-			foreach (OperatorInfo op in s_binaryOperators)
+			foreach (OperatorInfo op in OperatorRegistry<T>.BinaryOperators)
 			{
 				if (0 == string.CompareOrdinal(
 						sentence, startat
@@ -984,7 +821,7 @@ namespace MoteScript
 
 		internal bool TryGetUnaryOperator(string sentence, int startat, out OperatorInfo value)
 		{
-			foreach (OperatorInfo op in s_unrayOperators)
+			foreach (OperatorInfo op in OperatorRegistry<T>.UnaryOperators)
 			{
 				if (0 == string.CompareOrdinal(
 						sentence, startat
@@ -1000,7 +837,7 @@ namespace MoteScript
 		}
 		internal bool TryGetBracketOperator(string sentence, int startat, out OperatorInfo value)
 		{
-			foreach (OperatorInfo op in s_bracketOperators)
+			foreach (OperatorInfo op in OperatorRegistry<T>.BracketOperators)
 			{
 				if (0 == string.CompareOrdinal(
 						sentence, startat
