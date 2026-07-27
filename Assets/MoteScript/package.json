@@ -23,7 +23,7 @@
   "samples": [
     {
       "displayName": "Basic Usage",
-      "description": "A basic MoteScript setup and evaluation example.",
+      "description": "Basic C# setup, evaluation, and a debuggable .mote script example.",
       "path": "Samples~/BasicUsage"
     }
   ]

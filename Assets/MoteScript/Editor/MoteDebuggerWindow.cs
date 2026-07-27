@@ -24,11 +24,23 @@ namespace MoteScript.Editor
 		private Vector2 _variablesScroll;
 		private GUIStyle _lineStyle;
 		private GUIStyle _currentLineStyle;
+		private int _selectedLine = -1;
 
 		[MenuItem("Window/MoteScript/Debugger")]
 		public static void Open()
 		{
 			GetWindow<MoteDebuggerWindow>("MoteScript Debugger");
+		}
+
+		internal static void OpenAsset(TextAsset asset, int line)
+		{
+			MoteDebuggerWindow window =
+				GetWindow<MoteDebuggerWindow>("MoteScript Debugger");
+			window._sourceAsset = asset;
+			window._execution = null;
+			window._document = null;
+			window._selectedLine = Math.Max(1, line);
+			window.Repaint();
 		}
 
 		private void OnEnable()
@@ -70,6 +82,7 @@ namespace MoteScript.Editor
 				StopCurrentExecution();
 				_execution = null;
 				_document = null;
+				_selectedLine = -1;
 				_breakpoints.Clear();
 			}
 		}
@@ -81,11 +94,11 @@ namespace MoteScript.Editor
 				EditorGUI.BeginDisabledGroup(_sourceAsset == null);
 				if (GUILayout.Button("Run"))
 				{
-					Start(stepInto: false);
+					StartDebugging(stepInto: false);
 				}
 				if (GUILayout.Button("Start && Step Into"))
 				{
-					Start(stepInto: true);
+					StartDebugging(stepInto: true);
 				}
 				EditorGUI.EndDisabledGroup();
 
@@ -142,7 +155,8 @@ namespace MoteScript.Editor
 			}
 
 			string[] lines = source.Replace("\r\n", "\n").Split('\n');
-			int currentLine = _execution?.CurrentLocation?.StartLine ?? -1;
+			int currentLine =
+				_execution?.CurrentLocation?.StartLine ?? _selectedLine;
 			_sourceScroll = EditorGUILayout.BeginScrollView(
 				_sourceScroll,
 				GUILayout.MinHeight(220));
@@ -225,20 +239,20 @@ namespace MoteScript.Editor
 			}
 		}
 
-		private void Start(bool stepInto)
+		private void StartDebugging(bool stepInto)
 		{
 			try
 			{
 				switch (_numericType)
 				{
 					case NumericType.Integer:
-						Start<int>(stepInto);
+						StartDebugging<int>(stepInto);
 						break;
 					case NumericType.Decimal:
-						Start<decimal>(stepInto);
+						StartDebugging<decimal>(stepInto);
 						break;
 					default:
-						Start<float>(stepInto);
+						StartDebugging<float>(stepInto);
 						break;
 				}
 			}
@@ -248,7 +262,7 @@ namespace MoteScript.Editor
 			}
 		}
 
-		private void Start<T>(bool stepInto)
+		private void StartDebugging<T>(bool stepInto)
 			where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 		{
 			MoteDecoder<T>.Setup();
@@ -275,6 +289,7 @@ namespace MoteScript.Editor
 				script.CreateDebugExecution(context, session);
 			_execution = execution;
 			_document = document;
+			_selectedLine = -1;
 			NormalizeBreakpoints();
 
 			if (stepInto)

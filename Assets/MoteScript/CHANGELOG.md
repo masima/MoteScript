@@ -12,6 +12,9 @@
 - デバッグ停止をYieldと区別する`MoteExecutionState.Paused`と、停止完了を表す`Stopped`
 - 元ソースの行情報を保持する`DecodeDebug()`、`MoteDebugDocument`、`MoteDebugSession<T>`
 - スクリプト位置付きの例外通知とUnity Console出力
+- `.mote`ファイルをTextAssetとして取り込む`MoteScriptImporter`
+- ProjectビューおよびUnity Consoleから`.mote`の該当行をDebugger Windowで開く連携
+- `Basic Usage`へデバッグ操作を確認できる`BasicUsage.mote`サンプル
 
 ### Changed
 

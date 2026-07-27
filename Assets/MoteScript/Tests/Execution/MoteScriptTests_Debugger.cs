@@ -1,6 +1,9 @@
 #if MOTESCRIPT_DEBUGGER
 using System;
+using System.IO;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 
 namespace MoteScript.Tests
 {
@@ -27,6 +30,35 @@ namespace MoteScript.Tests
 
 			Assert.That(document.NormalizeBreakpointLine(2), Is.EqualTo(1));
 			Assert.That(document.NormalizeBreakpointLine(3), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void MoteFileIsImportedAsTextAsset()
+		{
+			const string path =
+				"Assets/MoteScript/Tests/Execution/DebuggerImportFixture.mote";
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+
+			Assert.That(asset, Is.Not.Null);
+			Assert.That(asset.text, Does.Contain("value=value+1;"));
+			AssetImporter importer = AssetImporter.GetAtPath(path);
+			Assert.That(
+				importer.GetType().FullName,
+				Is.EqualTo("MoteScript.Editor.MoteScriptImporter"));
+		}
+
+		[Test]
+		public void BasicUsageMoteSampleExecutes()
+		{
+			string source = File.ReadAllText(
+				"Assets/MoteScript/Samples~/BasicUsage/BasicUsage.mote");
+			var decoder = new MoteDecoder<float>();
+
+			MoteValue<float> result = decoder
+				.Decode(source)
+				.Evaluate(new Context<float>());
+
+			Assert.That(result.Value, Is.EqualTo(10f));
 		}
 
 		[Test]

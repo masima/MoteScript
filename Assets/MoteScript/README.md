@@ -35,6 +35,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
   - [複数の実行単位で値を共有](#複数の実行単位で値を共有)
 - [Unity Editorデバッガ](#unity-editorデバッガ)
   - [デバッガを有効化](#デバッガを有効化)
+  - [.moteアセット](#moteアセット)
   - [EditorWindowから実行](#editorwindowから実行)
   - [C#からデバッグ実行](#cからデバッグ実行)
   - [行番号と実行状態](#行番号と実行状態)
@@ -674,6 +675,14 @@ executionB.Evaluate(); // YieldValueは11
 
 Defineを外すと、デバッグ用Runtime API、行情報、停止判定、および`MoteScript.Debugger.Editor`アセンブリ全体がコンパイル対象から外れます。リリースビルドへデバッガを含めない場合は、このDefineを削除してください。このリポジトリのStandalone設定では、開発とテストのためにDefineを有効にしています。
 
+### .moteアセット
+
+Defineが有効な場合、`.mote`ファイルは`MoteScriptImporter`によってTextAssetとしてインポートされます。通常のTextAssetと同様にC#から参照でき、Debugger Windowの`Script`欄にも指定できます。
+
+Projectビューで`.mote`アセットをダブルクリックするとDebugger Windowで開きます。スクリプト例外がUnity Consoleへ`(at Assets/example.mote:3)`形式で出力された場合も、Consoleの項目をダブルクリックすると同じアセットの該当行を表示します。
+
+Package Managerから`Basic Usage`サンプルをインポートすると、関数、ローカル変数、複数行の処理を含む`BasicUsage.mote`を確認できます。
+
 ### EditorWindowから実行
 
 Defineを有効にすると、Unityの **Window > MoteScript > Debugger** から専用ウィンドウを開けます。
@@ -685,7 +694,7 @@ Defineを有効にすると、Unityの **Window > MoteScript > Debugger** から
 
 停止中は`Continue`、`Step Into`、`Step Over`、`Step Out`、`Stop`を使用できます。現在行、Context内の通常変数・関数引数・ローカル変数、関数コールスタックが表示されます。ウォッチ式の評価機能はありません。
 
-例外はスクリプト名と行番号を含めてUnity Consoleへ出力されます。Project内のTextAssetを使用した場合は、Consoleの位置情報から対象アセットを確認できます。
+例外はスクリプト名と行番号を含めてUnity Consoleへ出力されます。`.mote`アセットを使用した場合は、Consoleの位置情報からDebugger Windowの対象行を開けます。
 
 ### C#からデバッグ実行
 
