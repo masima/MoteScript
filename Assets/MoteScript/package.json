@@ -1,14 +1,15 @@
 {
   "name": "io.github.masima.motescript",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "displayName": "MoteScript",
-  "description": "A lightweight typed scripting runtime for Unity with resumable yield execution and configurable execution limits.",
+  "description": "A lightweight typed scripting runtime for Unity with function-local variables, resumable yield execution, and configurable execution limits.",
   "unity": "6000.0",
   "keywords": [
     "script",
     "expression",
     "string",
     "regex",
+    "local-variable",
     "yield",
     "execution-limit",
     "runtime"
