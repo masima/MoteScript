@@ -2,6 +2,21 @@
 
 このプロジェクトの主な変更を記録します。
 
+## [Unreleased]
+
+### Added
+
+- `MOTESCRIPT_DEBUGGER`でコンパイル対象を切り替えられるUnity Editorデバッガ
+- 行単位のブレークポイント、Continue、Step Into、Step Over、Step Out、Stop
+- 停止中のContext変数、関数ローカル変数、コールスタック表示
+- デバッグ停止をYieldと区別する`MoteExecutionState.Paused`と、停止完了を表す`Stopped`
+- 元ソースの行情報を保持する`DecodeDebug()`、`MoteDebugDocument`、`MoteDebugSession<T>`
+- スクリプト位置付きの例外通知とUnity Console出力
+
+### Changed
+
+- 複数行にまたがる文のブレークポイントを、文頭を含む行へ正規化
+
 ## [0.8.0] - 2026-07-28
 
 ### Added
