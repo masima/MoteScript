@@ -2,6 +2,14 @@
 
 このプロジェクトの主な変更を記録します。
 
+## [Unreleased]
+
+### Changed
+
+- パッケージ内を`Runtime`、`Libraries`、`Tests`、`Samples~`の責務別構成に整理
+- 数値型に依存しない標準ライブラリを`MoteScript.StandardLibraries`アセンブリへ分離
+- Context、実行継続、関数ヘッダー解析、演算子登録を個別クラス・ファイルへ分離
+
 ## [0.7.0] - 2026-07-27
 
 ### Added
