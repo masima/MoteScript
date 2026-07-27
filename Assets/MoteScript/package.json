@@ -19,5 +19,12 @@
     "url": "https://github.com/masima"
   },
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "Basic Usage",
+      "description": "A basic MoteScript setup and evaluation example.",
+      "path": "Samples~/BasicUsage"
+    }
+  ]
 }
