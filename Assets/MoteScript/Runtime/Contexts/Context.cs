@@ -4,42 +4,6 @@ using System.Collections.Generic;
 
 namespace MoteScript
 {
-	public interface IContext<T>
-		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
-		, IComparable<T>
-	{
-		public MoteValue<T> this[string key]
-		{
-			get;
-			set;
-		}
-
-		public IContext<T> Instantiate();
-		public int Count { get; }
-		public bool TryGetValue(string key, out MoteValue<T> value);
-		public bool Remove(string key);
-		public void Clear();
-	}
-
-
-	public interface IClonableContext<T>
-		: IContext<T>
-		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
-		, IComparable<T>
-	{
-		public IContext<T> Clone();
-	}
-
-	public interface IExecutionContext<T>
-		: IContext<T>
-		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
-		, IComparable<T>
-	{
-		public MoteExecution<T> CurrentExecution { get; }
-		public bool TryAcquireExecution(MoteExecution<T> execution);
-		public void ReleaseExecution(MoteExecution<T> execution);
-	}
-
 	/// <summary>
 	/// デフォルトContext
 	/// </summary>
