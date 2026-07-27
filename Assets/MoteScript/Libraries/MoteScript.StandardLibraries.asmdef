@@ -1,0 +1,7 @@
+{
+	"name": "MoteScript.StandardLibraries",
+	"rootNamespace": "MoteScript",
+	"references": [
+		"MoteScript"
+	]
+}
