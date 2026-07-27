@@ -46,7 +46,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.7.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.8.0
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -54,7 +54,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.7.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.7.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.8.0"
   }
 }
 ```
@@ -664,3 +664,7 @@ executionB.Evaluate(); // YieldValueは11
 ## 開発
 
 このリポジトリ自体はUnityプロジェクトです。パッケージルートを`Assets/MoteScript`に置くことで、従来どおりプロジェクト内で開発・テストしながら、Git URLではサブフォルダパッケージとして利用できます。
+
+パッケージ内は、最小実行機能を収めた`Runtime`、数値・文字列・正規表現の標準関数を収めた`Libraries`、責務別の`Tests`、Package Managerから導入できる`Samples~`に分かれています。実行コアは`MoteScript`、標準関数群は`MoteScript.StandardLibraries`の独立したアセンブリです。
+
+Package ManagerのSamples欄から`Basic Usage`をインポートすると、基本的なセットアップと評価を確認できます。

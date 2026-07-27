@@ -2,7 +2,11 @@
 
 このプロジェクトの主な変更を記録します。
 
-## [Unreleased]
+## [0.8.0] - 2026-07-28
+
+### Added
+
+- Package Managerからインポートできる`Basic Usage`サンプル
 
 ### Changed
 
