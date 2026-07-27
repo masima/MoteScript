@@ -33,33 +33,52 @@ namespace MoteScript
 			IEnumerable<string> parameterNames,
 			MoteValue<T> statement)
 		{
+			return CreateFunction(
+				parameterNames,
+				Array.Empty<string>(),
+				statement);
+		}
+
+		internal static MoteValue<T> CreateFunction(
+			IEnumerable<string> parameterNames,
+			IEnumerable<string> localNames,
+			MoteValue<T> statement)
+		{
 			DelegateInfo delegateInfo = new()
 			{
-				Parameters = parameterNames
-					.Select(name => new Parameter
-					{
-						Name = name,
-						SavedValues = new Stack<SavedParameter>(4),
-					})
-					.ToArray(),
+				Parameters = CreateVariables(parameterNames),
+				Locals = CreateVariables(localNames),
 				Statement = statement,
 			};
 			return new MoteValue<T>(delegateInfo.Func);
 		}
 
-		private struct Parameter
+		private static ScopedVariable[] CreateVariables(
+			IEnumerable<string> names)
+		{
+			return names
+				.Select(name => new ScopedVariable
+				{
+					Name = name,
+					SavedValues = new Stack<SavedValue>(4),
+				})
+				.ToArray();
+		}
+
+		private struct ScopedVariable
 		{
 			public string Name;
-			public Stack<SavedParameter> SavedValues;
+			public Stack<SavedValue> SavedValues;
 		}
-		private struct SavedParameter
+		private struct SavedValue
 		{
 			public MoteValue<T> Value;
 			public bool HadValue;
 		}
 		private class DelegateInfo
 		{
-			public Parameter[] Parameters;
+			public ScopedVariable[] Parameters;
+			public ScopedVariable[] Locals;
 
 			public MoteValue<T> Statement;
 
@@ -117,27 +136,52 @@ namespace MoteScript
 
 			private void SetupValues(IContext<T> context, List<MoteValue<T>> parameters)
 			{
+				SaveValues(context, Parameters);
+				SaveValues(context, Locals);
+
+				for (int i = 0; i < Locals.Length; ++i)
+				{
+					context.Remove(Locals[i].Name);
+				}
 				for	(int i = 0; i < Parameters.Length; i++)
 				{
-					string name = Parameters[i].Name;
+					if (i < parameters.Count)
+					{
+						context[Parameters[i].Name] = parameters[i];
+					}
+				}
+			}
+
+			private static void SaveValues(
+				IContext<T> context,
+				ScopedVariable[] variables)
+			{
+				for (int i = 0; i < variables.Length; ++i)
+				{
+					string name = variables[i].Name;
 					bool hadValue = context.TryGetValue(name, out MoteValue<T> value);
-					Parameters[i].SavedValues.Push(new SavedParameter
+					variables[i].SavedValues.Push(new SavedValue
 					{
 						HadValue = hadValue,
 						Value = value,
 					});
-					if (i < parameters.Count)
-					{
-						context[name] = parameters[i];
-					}
 				}
 			}
+
 			private void RestoreValues(IContext<T> context)
 			{
-				for	(int i = 0; i < Parameters.Length; i++)
+				RestoreValues(context, Locals);
+				RestoreValues(context, Parameters);
+			}
+
+			private static void RestoreValues(
+				IContext<T> context,
+				ScopedVariable[] variables)
+			{
+				for	(int i = 0; i < variables.Length; i++)
 				{
-					string name = Parameters[i].Name;
-					SavedParameter saved = Parameters[i].SavedValues.Pop();
+					string name = variables[i].Name;
+					SavedValue saved = variables[i].SavedValues.Pop();
 					if (saved.HadValue)
 					{
 						context[name] = saved.Value;

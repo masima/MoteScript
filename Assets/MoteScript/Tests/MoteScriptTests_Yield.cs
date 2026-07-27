@@ -113,6 +113,23 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestYield_FunctionRetainsAndRestoresLocalVariables()
+		{
+			var context = new Context();
+			context["temporary"] = new MoteValue<float>(100);
+			MoteExecution<float> execution = _decoder
+				.Decode("func=(value;local temporary)=>{temporary=value*2;yield(temporary);return temporary+1};func(4)")
+				.CreateExecution(context);
+
+			execution.Evaluate();
+
+			Assert.That(execution.YieldValue.IntegerValue, Is.EqualTo(8));
+			Assert.That(context["temporary"].IntegerValue, Is.EqualTo(8));
+			Assert.That(execution.Resume().IntegerValue, Is.EqualTo(9));
+			Assert.That(context["temporary"].IntegerValue, Is.EqualTo(100));
+		}
+
+		[Test]
 		public void TestYield_NestedLoopsOnlyBreaksInnerLoop()
 		{
 			MoteExecution<float> execution = _decoder

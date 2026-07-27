@@ -69,6 +69,74 @@ namespace MoteScript.Tests
 			Assert.AreEqual(120, script.Evaluate(context).IntegerValue);
 			Assert.AreEqual(10, context["value"].IntegerValue);
 		}
+
+		[Test]
+		public void TestFunction_LocalVariablesDoNotLeak()
+		{
+			MoteValue script = _decoder.Decode(
+				"calculate=(value;local doubled,result)=>{doubled=value*2;result=doubled+1;return result};calculate(4)");
+			var context = new Context();
+
+			Assert.AreEqual(9, script.Evaluate(context).IntegerValue);
+			Assert.IsFalse(context.ContainsKey("doubled"));
+			Assert.IsFalse(context.ContainsKey("result"));
+		}
+
+		[Test]
+		public void TestFunction_LocalVariablesShadowAndRestoreContextValues()
+		{
+			MoteValue script = _decoder.Decode(
+				"function=(value;local result)=>{result=value*2;return result};function(5)");
+			var context = new Context().Set("result", 100);
+
+			Assert.AreEqual(10, script.Evaluate(context).IntegerValue);
+			Assert.AreEqual(100, context["result"].IntegerValue);
+		}
+
+		[Test]
+		public void TestFunction_LocalVariablesRestoreAfterException()
+		{
+			MoteValue script = _decoder.Decode(
+				"function=(;local temporary)=>{temporary=20;missing};function()");
+			var context = new Context().Set("temporary", 10);
+
+			Assert.Throws<InvalidOperationException>(() => script.Evaluate(context));
+			Assert.AreEqual(10, context["temporary"].IntegerValue);
+		}
+
+		[Test]
+		public void TestFunction_UnassignedLocalDoesNotReadGlobalValue()
+		{
+			MoteValue script = _decoder.Decode(
+				"function=(;local value)=>{return value};function()");
+			var context = new Context().Set("value", 10);
+
+			Assert.Throws<InvalidOperationException>(() => script.Evaluate(context));
+			Assert.AreEqual(10, context["value"].IntegerValue);
+		}
+
+		[Test]
+		public void TestFunction_LocalVariablesSupportRecursion()
+		{
+			MoteValue script = _decoder.Decode(
+				"sum=(value;local current)=>{current=value;if(value<=1){return current};return sum(value-1)+current};sum(4)");
+			var context = new Context().Set("current", 100);
+
+			Assert.AreEqual(10, script.Evaluate(context).IntegerValue);
+			Assert.AreEqual(100, context["current"].IntegerValue);
+		}
+
+		[TestCase("function=(value;value)=>{value}")]
+		[TestCase("function=(value;local)=>{value}")]
+		[TestCase("function=(value;local value)=>{value}")]
+		[TestCase("function=(value,value)=>{value}")]
+		[TestCase("function=(value;local temporary,temporary)=>{value}")]
+		[TestCase("function=(value;local 1temporary)=>{value}")]
+		public void TestFunction_RejectsInvalidLocalDeclarations(string sentence)
+		{
+			Assert.Throws<MoteScriptParseException>(() => _decoder.Decode(sentence));
+		}
+
 		[Test]
 		public void TestCustomFunction(
 			[Values(1,2,3,5,7,11)] float a

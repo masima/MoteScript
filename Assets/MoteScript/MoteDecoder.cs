@@ -195,6 +195,7 @@ namespace MoteScript
 
 		static readonly Regex s_regexConstValue = new Regex(@"-?\d+(\.\d*)?");
 		static readonly Regex s_regexWord = new Regex(@"[a-zA-Z0-9_]+");
+		static readonly Regex s_regexIdentifier = new Regex(@"^[a-zA-Z_][a-zA-Z0-9_]*$");
 		static readonly Regex s_regexStructuredStatement = new Regex(@"\b(if|while|return|break|continue|yield)\b|=>");
 		const string CommentCode = "//";
 
@@ -395,10 +396,10 @@ namespace MoteScript
 			{
 				throw new FormatException("delegate parameters are invalid");
 			}
-			string[] parameterNames = parametersText.Substring(1, parametersText.Length - 2)
-				.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-				.Select(name => name.Trim())
-				.ToArray();
+			ParseFunctionHeader(
+				parametersText.Substring(1, parametersText.Length - 2),
+				out string[] parameterNames,
+				out string[] localNames);
 
 			string bodyText = expression.Substring(arrowIndex + 2).Trim();
 			if (bodyText.Length < 2 || bodyText[0] != '{' || bodyText[bodyText.Length - 1] != '}')
@@ -407,12 +408,93 @@ namespace MoteScript
 			}
 			int bodyPosition = 1;
 			MoteValue<T> body = DecodeStructuredScript(bodyText, ref bodyPosition, '}');
-			MoteValue<T> function = BinaryOperatorDelegate<T>.CreateFunction(parameterNames, body);
+			MoteValue<T> function = BinaryOperatorDelegate<T>.CreateFunction(
+				parameterNames,
+				localNames,
+				body);
 			return new MoteValue<T>(new BinaryOperatorAssignment<T>
 			{
 				Left = new MoteValue<T>(variableName).ConvertToVariable(),
 				Right = function,
 			});
+		}
+
+		private static void ParseFunctionHeader(
+			string header,
+			out string[] parameterNames,
+			out string[] localNames)
+		{
+			List<string> sections = SplitTopLevel(header, ';');
+			if (sections.Count > 2)
+			{
+				throw new FormatException("delegate local declaration is invalid");
+			}
+
+			parameterNames = ParseIdentifierList(
+				sections.Count > 0 ? sections[0] : string.Empty,
+				"delegate parameters",
+				allowEmpty: true);
+			localNames = Array.Empty<string>();
+
+			if (sections.Count == 2)
+			{
+				string localSection = sections[1].Trim();
+				if (!IsKeyword(localSection, 0, "local"))
+				{
+					throw new FormatException(
+						"delegate local declaration must start with local");
+				}
+				localNames = ParseIdentifierList(
+					localSection.Substring("local".Length),
+					"delegate local variables",
+					allowEmpty: false);
+			}
+
+			var names = new HashSet<string>(StringComparer.Ordinal);
+			foreach (string parameterName in parameterNames)
+			{
+				if (!names.Add(parameterName))
+				{
+					throw new FormatException(
+						$"duplicate delegate variable : {parameterName}");
+				}
+			}
+			foreach (string localName in localNames)
+			{
+				if (!names.Add(localName))
+				{
+					throw new FormatException(
+						$"duplicate delegate variable : {localName}");
+				}
+			}
+		}
+
+		private static string[] ParseIdentifierList(
+			string text,
+			string description,
+			bool allowEmpty)
+		{
+			string trimmed = text.Trim();
+			if (trimmed.Length == 0)
+			{
+				if (allowEmpty)
+				{
+					return Array.Empty<string>();
+				}
+				throw new FormatException($"{description} are required");
+			}
+
+			string[] names = trimmed.Split(',');
+			for (int i = 0; i < names.Length; ++i)
+			{
+				names[i] = names[i].Trim();
+				if (!s_regexIdentifier.IsMatch(names[i]))
+				{
+					throw new FormatException(
+						$"{description} contain an invalid identifier : {names[i]}");
+				}
+			}
+			return names;
 		}
 
 		private MoteValue<T> DecodeStructuredValue(string expression)
