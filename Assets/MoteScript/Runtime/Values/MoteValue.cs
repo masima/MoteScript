@@ -276,6 +276,14 @@ namespace MoteScript
 			_object = value;
 		}
 
+		internal MoteValue(IMoteReference<T> reference)
+		{
+			_valueType = (ValueTypeType)EValueType.Reference;
+			_value = default;
+			_object = reference
+				?? throw new ArgumentNullException(nameof(reference));
+		}
+
 		internal MoteValue(MoteExecution<T> execution)
 		{
 			_valueType = (ValueTypeType)EValueType.Yield;
@@ -352,12 +360,18 @@ namespace MoteScript
 			case EValueType.Dictionary:
 			case EValueType.Function:
 			case EValueType.Yield:
+			case EValueType.Reference:
 				return this;
 			case EValueType.Variable:
 			{
 				var key = AssignmentKey;
 				if (context.TryGetValue(key, out MoteValue<T> value))
 				{
+					if (value.TryGetReference(
+						out IMoteReference<T> reference))
+					{
+						return reference.Get();
+					}
 					return value;
 				}
 				string availableVariables = context is IEnumerable<KeyValuePair<string, MoteValue<T>>> values
@@ -388,6 +402,12 @@ namespace MoteScript
 				case EValueType.Variable:
 					if (context.TryGetValue(AssignmentKey, out MoteValue<T> current))
 					{
+						if (current.TryGetReference(
+							out IMoteReference<T> reference))
+						{
+							reference.Set(value);
+							return;
+						}
 						ValidateAssignment(current, value, AssignmentKey);
 					}
 					context[AssignmentKey] = value;
@@ -406,6 +426,43 @@ namespace MoteScript
 		{
 			_valueType = (ValueTypeType)EValueType.Variable;
 			return this;
+		}
+
+		internal bool TryGetReference(
+			out IMoteReference<T> reference)
+		{
+			reference = _object as IMoteReference<T>;
+			return ValueType == EValueType.Reference
+				&& reference is not null;
+		}
+
+		internal IMoteReference<T> CreateReference(
+			IContext<T> context)
+		{
+			if (ValueType == EValueType.Variable)
+			{
+				if (!context.TryGetValue(
+					AssignmentKey,
+					out MoteValue<T> current))
+				{
+					throw new InvalidOperationException(
+						$"ref requires an existing variable : {AssignmentKey}");
+				}
+				if (current.TryGetReference(
+					out IMoteReference<T> existingReference))
+				{
+					return existingReference;
+				}
+				return new VariableMoteReference<T>(
+					context,
+					AssignmentKey);
+			}
+			if (_object is IMoteReferenceSource<T> source)
+			{
+				return source.CreateReference(context);
+			}
+			throw new InvalidOperationException(
+				"ref requires an assignable variable, array element, or dictionary member.");
 		}
 	}
 
