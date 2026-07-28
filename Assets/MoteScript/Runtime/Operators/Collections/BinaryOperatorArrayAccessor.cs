@@ -11,6 +11,7 @@ namespace MoteScript
 	public class BinaryOperatorArrayAccessor<T>
 		: BinaryOperator<T>
 		, IAssignmentTo<T>
+		, IMoteReferenceSource<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -80,6 +81,39 @@ namespace MoteScript
 				}
 			default:
 				throw new Exception($"not support type:{left.GetObject().GetType().ToString()}");
+			}
+		}
+
+		IMoteReference<T> IMoteReferenceSource<T>.CreateReference(
+			IContext<T> context)
+		{
+			MoteValue<T> left = Left.EvaluateInner(context);
+			MoteValue<T> right = Right.EvaluateInner(context);
+			switch (left.GetObject())
+			{
+				case List<MoteValue<T>> array:
+				right.ThrowIfNotNumeric(OperatorCode);
+				int index = right.IntegerValue;
+				_ = array[index];
+				return new ArrayElementMoteReference<T>(
+					array,
+					index);
+				case IContext<T> targetContext
+					when right.ValueType == EValueType.String:
+				string memberName = right.StringValue;
+				if (!targetContext.TryGetValue(
+					memberName,
+					out MoteValue<T> _))
+				{
+					throw new InvalidOperationException(
+						$"ref requires an existing member : {memberName}");
+				}
+				return new DictionaryMemberMoteReference<T>(
+					targetContext,
+					memberName);
+				default:
+					throw new InvalidOperationException(
+						"ref requires an existing array element or dictionary member.");
 			}
 		}
 	}

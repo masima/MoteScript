@@ -23,6 +23,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
     - [多次元配列](#多次元配列)
   - [辞書](#辞書)
   - [関数](#関数)
+    - [参照引数](#参照引数)
     - [ローカル変数](#ローカル変数)
   - [条件分岐](#条件分岐)
   - [ループ](#ループ)
@@ -52,7 +53,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.8.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.9.0
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -60,7 +61,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.8.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.8.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.9.0"
   }
 }
 ```
@@ -432,6 +433,35 @@ factorial=(n)=>{if(n<=1){return 1};return factorial(n-1)*n};factorial(5)
 ```
 
 結果は`120`です。
+
+#### 参照引数
+
+関数定義と呼び出しの両方で`ref`を指定すると、呼び出し元の変数を関数内から直接更新できます。
+
+```text
+swap=(ref left,ref right;local temporary)=>{
+    temporary=left;
+    left=right;
+    right=temporary
+};
+a=10;
+b=20;
+swap(ref a,ref b)
+```
+
+実行後の`a`は`20`、`b`は`10`です。通常変数に加えて、既存の配列要素と辞書メンバーも参照として渡せます。
+
+```text
+set=(ref target)=>{target=9};
+values=(1,2,3);
+data.value=1;
+set(ref values[1]);
+set(ref data.value)
+```
+
+対象は呼び出し時に存在する代入可能な値に限られます。未定義変数、存在しない配列要素・辞書メンバー、定数、計算式は渡せません。参照先の型は通常の代入規則に従い、異なる型への上書きや暗黙変換は行われません。定義側または呼び出し側の一方だけに`ref`を指定した場合も例外になります。
+
+同じ対象を複数の参照引数へ渡すエイリアスは許容されます。再帰では`ref`を付けて参照をそのまま転送でき、関数がYieldした場合も参照先を保持したまま再開します。配列要素と辞書メンバーは呼び出した時点のコンテナを捕捉します。
 
 #### ローカル変数
 

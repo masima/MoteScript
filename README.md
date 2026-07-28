@@ -4,7 +4,7 @@ Unity向けの軽量スクリプトランタイムです。
 
 ## 特徴
 
-- 数値・文字列、配列、辞書、関数ローカル変数、条件分岐、ループを扱うコンパクトなスクリプト構文
+- 数値・文字列、配列、辞書、関数ローカル変数、`ref`参照引数、条件分岐、ループを扱うコンパクトなスクリプト構文
 - `float`、`int`、`decimal`から用途に合う数値型を選択可能
 - デコード済みスクリプトとContextを再利用でき、繰り返し評価時のGC割り当てを抑制
 - `yield`による中断・再開と、ステップ数、関数呼び出し深度、キャンセルによる実行制限
@@ -22,7 +22,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 タグを指定して導入する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.8.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.9.0
 ```
 
 詳しい使用方法は[パッケージREADME](Assets/MoteScript/README.md)を参照してください。

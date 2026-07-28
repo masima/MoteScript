@@ -44,22 +44,41 @@ namespace MoteScript
 			IEnumerable<string> localNames,
 			MoteValue<T> statement)
 		{
+			return CreateFunction(
+				parameterNames.Select(
+					name => new FunctionParameterDefinition(
+						name,
+						isReference: false)),
+				localNames,
+				statement);
+		}
+
+		internal static MoteValue<T> CreateFunction(
+			IEnumerable<FunctionParameterDefinition> parameters,
+			IEnumerable<string> localNames,
+			MoteValue<T> statement)
+		{
 			DelegateInfo delegateInfo = new()
 			{
-				Parameters = CreateVariables(parameterNames),
-				Locals = CreateVariables(localNames),
+				Parameters = CreateVariables(parameters),
+				Locals = CreateVariables(
+					localNames.Select(
+						name => new FunctionParameterDefinition(
+							name,
+							isReference: false))),
 				Statement = statement,
 			};
 			return new MoteValue<T>(delegateInfo.Func);
 		}
 
 		private static ScopedVariable[] CreateVariables(
-			IEnumerable<string> names)
+			IEnumerable<FunctionParameterDefinition> parameters)
 		{
-			return names
-				.Select(name => new ScopedVariable
+			return parameters
+				.Select(parameter => new ScopedVariable
 				{
-					Name = name,
+					Name = parameter.Name,
+					IsReference = parameter.IsReference,
 					SavedValues = new Stack<SavedValue>(4),
 				})
 				.ToArray();
@@ -68,6 +87,7 @@ namespace MoteScript
 		private struct ScopedVariable
 		{
 			public string Name;
+			public bool IsReference;
 			public Stack<SavedValue> SavedValues;
 		}
 		private struct SavedValue
@@ -84,6 +104,7 @@ namespace MoteScript
 
 			public MoteValue<T> Func(IContext<T> context, List<MoteValue<T>> parameters)
 			{
+				ValidateParameters(parameters);
 				SetupValues(context, parameters);
 				bool suspended = false;
 				try
@@ -101,6 +122,28 @@ namespace MoteScript
 					if (!suspended)
 					{
 						RestoreValues(context);
+					}
+				}
+			}
+
+			private void ValidateParameters(
+				List<MoteValue<T>> parameters)
+			{
+				for (int i = 0; i < Parameters.Length; ++i)
+				{
+					ScopedVariable parameter = Parameters[i];
+					bool hasArgument = i < parameters.Count;
+					bool isReference = hasArgument
+						&& parameters[i].ValueType == EValueType.Reference;
+					if (parameter.IsReference && !isReference)
+					{
+						throw new InvalidOperationException(
+							$"ref parameter '{parameter.Name}' requires a ref argument.");
+					}
+					if (!parameter.IsReference && isReference)
+					{
+						throw new InvalidOperationException(
+							$"value parameter '{parameter.Name}' cannot receive a ref argument.");
 					}
 				}
 			}

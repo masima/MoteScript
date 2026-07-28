@@ -23,6 +23,7 @@ namespace MoteScript
 		Function,
 		LoopControl,
 		Yield,
+		Reference = 0x40,
 
 		/// <summary>
 		/// ()

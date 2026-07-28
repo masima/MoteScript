@@ -372,7 +372,7 @@ namespace MoteScript
 			}
 			FunctionHeaderParser.Parse(
 				parametersText.Substring(1, parametersText.Length - 2),
-				out string[] parameterNames,
+				out FunctionParameterDefinition[] parameters,
 				out string[] localNames);
 
 			string untrimmedBody = expression.Substring(arrowIndex + 2);
@@ -394,7 +394,7 @@ namespace MoteScript
 				'}',
 				sourceOffset + arrowIndex + 2 + bodyLeadingWhitespace);
 			MoteValue<T> function = BinaryOperatorDelegate<T>.CreateFunction(
-				parameterNames,
+				parameters,
 				localNames,
 				body);
 			return new MoteValue<T>(new BinaryOperatorAssignment<T>
@@ -906,6 +906,14 @@ namespace MoteScript
 		{
 			foreach (OperatorInfo op in OperatorRegistry<T>.UnaryOperators)
 			{
+				if (char.IsLetter(op.OperatorCode[0])
+					&& !ScriptTextReader.IsKeyword(
+						sentence,
+						startat,
+						op.OperatorCode))
+				{
+					continue;
+				}
 				if (0 == string.CompareOrdinal(
 						sentence, startat
 						, op.OperatorCode, 0, op.OperatorCode.Length))
@@ -1041,7 +1049,9 @@ namespace MoteScript
 					&& (childRpn[childRpn.Count - 1]
 							.TryGetOperator(out OperatorOpenSquareBracket<T> _)
 						|| childRpn[childRpn.Count - 1]
-							.TryGetOperator(out UnaryOperatorNew<T> _));
+							.TryGetOperator(out UnaryOperatorNew<T> _)
+						|| childRpn[childRpn.Count - 1]
+							.TryGetOperator(out UnaryOperatorRef<T> _));
 				if (isCompoundRightValue)
 				{
 					insertIndex += childRpn.Count;

@@ -11,7 +11,7 @@ namespace MoteScript
 
 		public static void Parse(
 			string header,
-			out string[] parameterNames,
+			out FunctionParameterDefinition[] parameters,
 			out string[] localNames)
 		{
 			List<string> sections = StructuredExpressionReader.Split(header, ';');
@@ -20,9 +20,8 @@ namespace MoteScript
 				throw new FormatException("delegate local declaration is invalid");
 			}
 
-			parameterNames = ParseIdentifierList(
+			parameters = ParseParameterList(
 				sections.Count > 0 ? sections[0] : string.Empty,
-				"delegate parameters",
 				allowEmpty: true);
 			localNames = Array.Empty<string>();
 
@@ -41,9 +40,9 @@ namespace MoteScript
 			}
 
 			var names = new HashSet<string>(StringComparer.Ordinal);
-			foreach (string parameterName in parameterNames)
+			foreach (FunctionParameterDefinition parameter in parameters)
 			{
-				EnsureUnique(names, parameterName);
+				EnsureUnique(names, parameter.Name);
 			}
 			foreach (string localName in localNames)
 			{
@@ -51,9 +50,49 @@ namespace MoteScript
 			}
 		}
 
+		private static FunctionParameterDefinition[] ParseParameterList(
+			string text,
+			bool allowEmpty)
+		{
+			string trimmed = text.Trim();
+			if (trimmed.Length == 0)
+			{
+				if (allowEmpty)
+				{
+					return Array.Empty<FunctionParameterDefinition>();
+				}
+				throw new FormatException("delegate parameters are required");
+			}
+
+			string[] entries = trimmed.Split(',');
+			var parameters =
+				new FunctionParameterDefinition[entries.Length];
+			for (int i = 0; i < entries.Length; ++i)
+			{
+				string entry = entries[i].Trim();
+				bool isReference = IsKeyword(entry, "ref");
+				string name = isReference
+					? entry.Substring("ref".Length).Trim()
+					: entry;
+				if (!s_identifier.IsMatch(name))
+				{
+					throw new FormatException(
+						$"delegate parameters contain an invalid identifier : {name}");
+				}
+				parameters[i] = new FunctionParameterDefinition(
+					name,
+					isReference);
+			}
+			return parameters;
+		}
+
 		private static bool IsLocalDeclaration(string text)
 		{
-			const string keyword = "local";
+			return IsKeyword(text, "local");
+		}
+
+		private static bool IsKeyword(string text, string keyword)
+		{
 			return text.StartsWith(keyword, StringComparison.Ordinal)
 				&& (text.Length == keyword.Length
 					|| char.IsWhiteSpace(text[keyword.Length]));

@@ -7,6 +7,7 @@ namespace MoteScript
 		: BinaryOperator<T>
 		, IOperatorOnFinalized
 		, IAssignmentTo<T>
+		, IMoteReferenceSource<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -158,6 +159,58 @@ namespace MoteScript
 				MoteValue<T>.ValidateAssignment(currentValue, value, memberName);
 			}
 			dictionary[memberName] = value;
+		}
+
+		IMoteReference<T> IMoteReferenceSource<T>.CreateReference(
+			IContext<T> context)
+		{
+			if (_isDynamicTarget)
+			{
+				IContext<T> targetContext =
+					_target.EvaluateInner(context).GetDictionary();
+				return CreateMemberReference(
+					targetContext,
+					_memberName);
+			}
+
+			IContext<T> dictionary = context;
+			int lastIndex = _splitedPath.Length - 1;
+			for (int i = 0; i < lastIndex; ++i)
+			{
+				if (!dictionary.TryGetValue(
+					_splitedPath[i],
+					out MoteValue<T> child))
+				{
+					throw new InvalidOperationException(
+						$"ref requires an existing member : {string.Join(ConstOperationCode, _splitedPath)}");
+				}
+				dictionary = child.GetDictionary();
+				if (dictionary is null)
+				{
+					throw new InvalidOperationException(
+						$"ref target is not a dictionary : {_splitedPath[i]}");
+				}
+			}
+			return CreateMemberReference(
+				dictionary,
+				_splitedPath[lastIndex]);
+		}
+
+		private static IMoteReference<T> CreateMemberReference(
+			IContext<T> dictionary,
+			string memberName)
+		{
+			if (dictionary is null
+				|| !dictionary.TryGetValue(
+					memberName,
+					out MoteValue<T> _))
+			{
+				throw new InvalidOperationException(
+					$"ref requires an existing member : {memberName}");
+			}
+			return new DictionaryMemberMoteReference<T>(
+				dictionary,
+				memberName);
 		}
 	}
 
