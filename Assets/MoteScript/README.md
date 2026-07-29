@@ -598,6 +598,7 @@ using MoteScript;
 
 static MoteValue<float> Sum(
     IContext<float> context,
+    IContext<float> receiver,
     List<MoteValue<float>> parameters)
 {
     float result = 0f;
@@ -617,7 +618,33 @@ context["sum"] = new MoteValue<float>(Sum);
 float result = decoder.Decode("sum(1,2,3)").Evaluate(context).Value;
 ```
 
-この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evaluate(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
+この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evaluate(context)`して値を取得します。通常変数から呼び出した場合、`receiver`は`null`です。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
+
+辞書メンバーとして呼び出された場合、同じ`Function`の`receiver`引数から所有辞書を取得できます。
+
+```csharp
+static MoteValue<float> AddScore(
+    IContext<float> context,
+    IContext<float> receiver,
+    List<MoteValue<float>> parameters)
+{
+    float amount = parameters[0].Evaluate(context).Value;
+    float score = receiver["score"].Value + amount;
+    receiver["score"] = new MoteValue<float>(score);
+    return receiver["score"];
+}
+
+MoteValue<float>.Function addScore = AddScore;
+context["addScore"] = new MoteValue<float>(addScore);
+
+decoder.Decode(
+    "player.score=10;"
+    + "player.addScore=addScore;"
+    + "player.addScore(5)")
+    .Evaluate(context);
+```
+
+`receiver`には`player.addScore()`なら`player`、`player["addScore"]()`でも同じ`player`が渡されます。関数を別の辞書へコピーした場合は呼び出し先の辞書が渡されます。`addScore()`のように通常変数から直接呼び出した場合、`receiver`は`null`です。所有辞書を必須とするC#関数では、`null`を検査して用途に合った例外を送出してください。
 
 ## 実行量の制限
 

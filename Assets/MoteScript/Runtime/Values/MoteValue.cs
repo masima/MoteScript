@@ -143,7 +143,10 @@ namespace MoteScript
 			return Calculator.Convert(value);
 		}
 
-		public delegate MoteValue<T> Function(IContext<T> context, List<MoteValue<T>> values);
+		public delegate MoteValue<T> Function(
+			IContext<T> context,
+			IContext<T> receiver,
+			List<MoteValue<T>> values);
 
 		internal MoteValue<T> InvokeFunction(
 			IContext<T> context,
@@ -153,7 +156,7 @@ namespace MoteScript
 			switch (_object)
 			{
 				case Function function:
-					return function.Invoke(context, values);
+					return function.Invoke(context, receiver, values);
 				case IMoteFunction<T> function:
 					return function.Invoke(context, values, receiver);
 				default:

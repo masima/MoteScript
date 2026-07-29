@@ -169,9 +169,13 @@ namespace MoteScript.Tests
 		/// 合計値を求める
 		/// </summary>
 		/// <param name="context"></param>
+		/// <param name="receiver"></param>
 		/// <param name="parameters"></param>
 		/// <returns></returns>
-		private static MoteValue Sum(IContext<float> context, List<MoteValue> parameters)
+		private static MoteValue Sum(
+			IContext<float> context,
+			IContext<float> receiver,
+			List<MoteValue> parameters)
 		{
 			float sum = 0;
 			foreach	(var value in parameters)

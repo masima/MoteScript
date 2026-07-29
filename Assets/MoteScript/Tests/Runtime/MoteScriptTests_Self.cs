@@ -221,5 +221,97 @@ namespace MoteScript.Tests
 			Assert.That(replacement["value"].IntegerValue, Is.EqualTo(100));
 			Assert.That(context.ContainsKey("owner"), Is.False);
 		}
+
+		[Test]
+		public void TestCSharpFunction_ReceivesOwningDictionary()
+		{
+			IContext<float> capturedReceiver = null;
+			MoteValue.Function add =
+				(executionContext, receiver, parameters) =>
+				{
+					capturedReceiver = receiver;
+					int value = receiver["value"].IntegerValue
+						+ parameters[0].Evaluate(executionContext).IntegerValue;
+					receiver["value"] = new MoteValue(value);
+					return receiver["value"];
+				};
+			var context = new Context();
+			context["add"] = new MoteValue(add);
+			MoteValue script = _decoder.Decode(
+				"dictionary.value=10;dictionary.add=add;"
+				+ "dictionary.add(5);dictionary.value");
+
+			Assert.That(script.Evaluate(context).IntegerValue, Is.EqualTo(15));
+			Assert.That(
+				capturedReceiver,
+				Is.SameAs(context["dictionary"].GetDictionary()));
+		}
+
+		[Test]
+		public void TestCSharpFunction_SupportsBracketCall()
+		{
+			IContext<float> capturedReceiver = null;
+			MoteValue.Function inspect =
+				(executionContext, receiver, parameters) =>
+				{
+					capturedReceiver = receiver;
+					return receiver["value"];
+				};
+			var context = new Context();
+			context["inspect"] = new MoteValue(inspect);
+			MoteValue script = _decoder.Decode(
+				"dictionary.value=7;dictionary.inspect=inspect;"
+				+ "dictionary[\"inspect\"]()");
+
+			Assert.That(script.Evaluate(context).IntegerValue, Is.EqualTo(7));
+			Assert.That(
+				capturedReceiver,
+				Is.SameAs(context["dictionary"].GetDictionary()));
+		}
+
+		[Test]
+		public void TestCSharpFunction_CopyUsesCallSiteReceiver()
+		{
+			IContext<float> capturedReceiver = null;
+			MoteValue.Function inspect =
+				(executionContext, receiver, parameters) =>
+				{
+					capturedReceiver = receiver;
+					return receiver["value"];
+				};
+			var context = new Context();
+			context["inspect"] = new MoteValue(inspect);
+			MoteValue script = _decoder.Decode(
+				"first.value=1;first.inspect=inspect;"
+				+ "second.value=2;second.inspect=first.inspect;"
+				+ "second.inspect()");
+
+			Assert.That(script.Evaluate(context).IntegerValue, Is.EqualTo(2));
+			Assert.That(
+				capturedReceiver,
+				Is.SameAs(context["second"].GetDictionary()));
+		}
+
+		[Test]
+		public void TestCSharpFunction_DirectCallReceivesNull()
+		{
+			IContext<float> capturedReceiver = null;
+			bool invoked = false;
+			MoteValue.Function inspect =
+				(executionContext, receiver, parameters) =>
+				{
+					invoked = true;
+					capturedReceiver = receiver;
+					return new MoteValue(1);
+				};
+			var context = new Context();
+			context["inspect"] = new MoteValue(inspect);
+
+			Assert.That(
+				_decoder.Decode("inspect()").Evaluate(context).IntegerValue,
+				Is.EqualTo(1));
+			Assert.That(invoked, Is.True);
+			Assert.That(capturedReceiver, Is.Null);
+		}
 	}
 }

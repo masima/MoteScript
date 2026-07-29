@@ -53,9 +53,15 @@ namespace MoteScript
 			context[libraryName] = libraryValue;
 		}
 
-		private static MoteValue<T> Function(MoteValue<T>.Function function)
+		private delegate MoteValue<T> LibraryFunction(
+			IContext<T> context,
+			List<MoteValue<T>> values);
+
+		private static MoteValue<T> Function(LibraryFunction function)
 		{
-			return new MoteValue<T>(function);
+			return new MoteValue<T>(
+				(context, receiver, values) =>
+					function(context, values));
 		}
 
 		private static MoteValue<T> Abs(IContext<T> context, List<MoteValue<T>> values)
