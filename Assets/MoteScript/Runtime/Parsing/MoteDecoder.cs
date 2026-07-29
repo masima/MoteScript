@@ -56,8 +56,9 @@ namespace MoteScript
 
 			try
 			{
-				if (s_regexStructuredStatement.IsMatch(sentence, startat)
-					|| sentence.IndexOf(';', startat) >= 0)
+				if (ScriptTextReader.RequiresStructuredParsing(
+					sentence,
+					startat))
 				{
 					return DecodeStructuredScript(sentence, ref startat);
 				}
@@ -109,11 +110,6 @@ namespace MoteScript
 		}
 
 
-		static readonly Regex s_regexConstValue = new Regex(@"-?\d+(\.\d*)?");
-		static readonly Regex s_regexWord = new Regex(@"[a-zA-Z0-9_]+");
-		static readonly Regex s_regexStructuredStatement = new Regex(@"\b(if|while|return|break|continue|yield)\b|=>");
-		const string CommentCode = "//";
-
 		static bool CanStartSignedConst(MoteValue<T> lastValue)
 		{
 			if (!lastValue.ValueType.IsValid())
@@ -161,42 +157,46 @@ namespace MoteScript
 			List<MoteValue<T>> statements = new();
 			while (position < source.Length)
 			{
-				SkipTrivia(source, ref position);
+				ScriptTextReader.SkipTrivia(source, ref position);
 				if (position >= source.Length || (terminator != '\0' && source[position] == terminator))
 				{
 					break;
 				}
 
 				MoteValue<T> statement;
-				if (IsKeyword(source, position, "if"))
+				if (ScriptTextReader.IsKeyword(source, position, "if"))
 				{
 					statement = ParseIf(source, ref position);
 				}
-				else if (IsKeyword(source, position, "while"))
+				else if (ScriptTextReader.IsKeyword(source, position, "while"))
 				{
 					statement = ParseWhile(source, ref position);
 				}
-				else if (IsKeyword(source, position, "return"))
+				else if (ScriptTextReader.IsKeyword(source, position, "return"))
 				{
 					statement = ParseReturn(source, ref position, terminator);
 				}
-				else if (IsKeyword(source, position, "yield"))
+				else if (ScriptTextReader.IsKeyword(source, position, "yield"))
 				{
 					statement = ParseYield(source, ref position);
 				}
-				else if (IsKeyword(source, position, "break"))
+				else if (ScriptTextReader.IsKeyword(source, position, "break"))
 				{
 					position += "break".Length;
 					statement = new MoteValue<T>(new FlowControlOperatorBreak<T>());
 				}
-				else if (IsKeyword(source, position, "continue"))
+				else if (ScriptTextReader.IsKeyword(source, position, "continue"))
 				{
 					position += "continue".Length;
 					statement = new MoteValue<T>(new FlowControlOperatorContinue<T>());
 				}
 				else
 				{
-					string expression = ReadStatementExpression(source, ref position, terminator);
+					string expression =
+						ScriptTextReader.ReadStatementExpression(
+							source,
+							ref position,
+							terminator);
 					if (string.IsNullOrWhiteSpace(expression))
 					{
 						continue;
@@ -204,7 +204,7 @@ namespace MoteScript
 					statement = DecodeStructuredExpression(expression);
 				}
 				statements.Add(statement);
-				SkipTrivia(source, ref position);
+				ScriptTextReader.SkipTrivia(source, ref position);
 			}
 
 			if (terminator != '\0')
@@ -230,7 +230,12 @@ namespace MoteScript
 		private MoteValue<T> ParseIf(string source, ref int position)
 		{
 			position += "if".Length;
-			MoteValue<T> judge = DecodeExpression(ReadEnclosed(source, ref position, '(', ')'));
+			MoteValue<T> judge = DecodeExpression(
+				ScriptTextReader.ReadEnclosed(
+					source,
+					ref position,
+					'(',
+					')'));
 			MoteValue<T> body = ParseRequiredBlock(source, ref position);
 			MoteValue<T> ifValue = new MoteValue<T>(new FlowControlOperatorIf<T>
 			{
@@ -238,14 +243,15 @@ namespace MoteScript
 				Statement = body,
 			});
 
-			SkipTrivia(source, ref position);
-			if (!IsKeyword(source, position, "else"))
+			ScriptTextReader.SkipTrivia(source, ref position);
+			if (!ScriptTextReader.IsKeyword(source, position, "else"))
 			{
 				return ifValue;
 			}
 			position += "else".Length;
-			SkipTrivia(source, ref position);
-			MoteValue<T> elseBody = IsKeyword(source, position, "if")
+			ScriptTextReader.SkipTrivia(source, ref position);
+			MoteValue<T> elseBody =
+				ScriptTextReader.IsKeyword(source, position, "if")
 				? ParseIf(source, ref position)
 				: ParseRequiredBlock(source, ref position);
 			return new MoteValue<T>(new FlowControlOperatorElse<T>
@@ -257,10 +263,12 @@ namespace MoteScript
 
 		private MoteValue<T> DecodeStructuredExpression(string expression)
 		{
-			int arrowIndex = FindTopLevelToken(expression, "=>");
+			int arrowIndex =
+				StructuredExpressionReader.FindToken(expression, "=>");
 			if (arrowIndex < 0)
 			{
-				int topLevelAssignment = FindTopLevelAssignment(expression);
+				int topLevelAssignment =
+					StructuredExpressionReader.FindAssignment(expression);
 				if (topLevelAssignment >= 0)
 				{
 					string leftText = expression.Substring(0, topLevelAssignment).Trim();
@@ -283,10 +291,12 @@ namespace MoteScript
 					});
 				}
 				string trimmedExpression = expression.Trim();
-				if (IsWrappedInParentheses(trimmedExpression))
+				if (StructuredExpressionReader.IsWrappedInParentheses(
+					trimmedExpression))
 				{
 					string inner = trimmedExpression.Substring(1, trimmedExpression.Length - 2);
-					List<string> elements = SplitTopLevel(inner, ',');
+					List<string> elements =
+						StructuredExpressionReader.Split(inner, ',');
 					if (elements.Count > 1)
 					{
 						return BinaryOperatorArraySeparater<T>.InstantiateParameters(
@@ -297,7 +307,8 @@ namespace MoteScript
 				return DecodeStructuredValue(expression);
 			}
 
-			int assignmentIndex = FindTopLevelToken(expression, "=");
+			int assignmentIndex =
+				StructuredExpressionReader.FindToken(expression, "=");
 			if (assignmentIndex < 0 || assignmentIndex >= arrowIndex)
 			{
 				throw new FormatException("delegate assignment is required");
@@ -370,9 +381,11 @@ namespace MoteScript
 				List<MoteValue<T>> pairs = new();
 				if (!string.IsNullOrWhiteSpace(inner))
 				{
-					foreach (string item in SplitTopLevel(inner, ','))
+					foreach (string item in
+						StructuredExpressionReader.Split(inner, ','))
 					{
-						List<string> parts = SplitTopLevel(item, ':');
+						List<string> parts =
+							StructuredExpressionReader.Split(item, ':');
 						if (parts.Count != 2) throw new FormatException("dictionary entry is invalid");
 						pairs.Add(new MoteValue<T>(new BinaryOperatorKeyValuePair<T>
 						{
@@ -389,32 +402,17 @@ namespace MoteScript
 			return DecodeExpression(trimmed);
 		}
 
-		private static int FindTopLevelAssignment(string expression)
-		{
-			return StructuredExpressionReader.FindAssignment(expression);
-		}
-
-		private static int FindTopLevelToken(string expression, string token)
-		{
-			return StructuredExpressionReader.FindToken(expression, token);
-		}
-
-		private static bool IsWrappedInParentheses(string expression)
-		{
-			return StructuredExpressionReader.IsWrappedInParentheses(expression);
-		}
-
-		private static List<string> SplitTopLevel(string expression, char separator)
-		{
-			return StructuredExpressionReader.Split(expression, separator);
-		}
-
 		private MoteValue<T> ParseWhile(string source, ref int position)
 		{
 			position += "while".Length;
 			return new MoteValue<T>(new FlowControlOperatorWhile<T>
 			{
-				Judge = DecodeExpression(ReadEnclosed(source, ref position, '(', ')')),
+				Judge = DecodeExpression(
+					ScriptTextReader.ReadEnclosed(
+						source,
+						ref position,
+						'(',
+						')')),
 				Statement = ParseRequiredBlock(source, ref position),
 			});
 		}
@@ -422,7 +420,11 @@ namespace MoteScript
 		private MoteValue<T> ParseReturn(string source, ref int position, char terminator)
 		{
 			position += "return".Length;
-			string expression = ReadStatementExpression(source, ref position, terminator);
+			string expression =
+				ScriptTextReader.ReadStatementExpression(
+					source,
+					ref position,
+					terminator);
 			if (string.IsNullOrWhiteSpace(expression))
 			{
 				throw new FormatException("return value is required");
@@ -436,12 +438,17 @@ namespace MoteScript
 		private MoteValue<T> ParseYield(string source, ref int position)
 		{
 			position += "yield".Length;
-			string expression = ReadEnclosed(source, ref position, '(', ')');
+			string expression =
+				ScriptTextReader.ReadEnclosed(
+					source,
+					ref position,
+					'(',
+					')');
 			if (string.IsNullOrWhiteSpace(expression))
 			{
 				throw new FormatException("yield value is required");
 			}
-			SkipTrivia(source, ref position);
+			ScriptTextReader.SkipTrivia(source, ref position);
 			if (position < source.Length && source[position] == ';')
 			{
 				++position;
@@ -454,76 +461,13 @@ namespace MoteScript
 
 		private MoteValue<T> ParseRequiredBlock(string source, ref int position)
 		{
-			SkipTrivia(source, ref position);
+			ScriptTextReader.SkipTrivia(source, ref position);
 			if (position >= source.Length || source[position] != '{')
 			{
 				throw new FormatException("expected block");
 			}
 			++position;
 			return DecodeStructuredScript(source, ref position, '}');
-		}
-
-		private static string ReadEnclosed(string source, ref int position, char open, char close)
-		{
-			SkipTrivia(source, ref position);
-			if (position >= source.Length || source[position] != open)
-			{
-				throw new FormatException($"expected {open}");
-			}
-			int start = ++position;
-			int depth = 1;
-			while (position < source.Length && depth > 0)
-			{
-				char c = source[position++];
-				if (c == '"')
-				{
-					position = FindStringLiteralEnd(source, position - 1) + 1;
-				}
-				else if (c == open) ++depth;
-				else if (c == close) --depth;
-			}
-			if (depth != 0) throw new FormatException($"expected {close}");
-			return source.Substring(start, position - start - 1);
-		}
-
-		private static string ReadStatementExpression(string source, ref int position, char terminator)
-		{
-			int start = position;
-			int round = 0;
-			int square = 0;
-			int curly = 0;
-			while (position < source.Length)
-			{
-				char c = source[position];
-				if (c == '"')
-				{
-					position = FindStringLiteralEnd(source, position) + 1;
-					continue;
-				}
-				if (c == '(') ++round;
-				else if (c == ')') --round;
-				else if (c == '[') ++square;
-				else if (c == ']') --square;
-				else if (c == '{') ++curly;
-				else if (c == '}')
-				{
-					if (curly == 0 && terminator == '}') break;
-					--curly;
-				}
-				else if (c == ';' && round == 0 && square == 0 && curly == 0)
-				{
-					string result = source.Substring(start, position - start);
-					++position;
-					return result;
-				}
-				++position;
-			}
-			return source.Substring(start, position - start);
-		}
-
-		private static int FindStringLiteralEnd(string source, int start)
-		{
-			return ScriptTextReader.FindStringLiteralEnd(source, start);
 		}
 
 		private static bool TryReadStringLiteral(
@@ -540,17 +484,6 @@ namespace MoteScript
 			return true;
 		}
 
-		private static bool IsKeyword(string source, int position, string keyword)
-		{
-			return ScriptTextReader.IsKeyword(source, position, keyword);
-		}
-
-		private static void SkipTrivia(string source, ref int position)
-		{
-			ScriptTextReader.SkipTrivia(source, ref position);
-		}
-
-
 		internal void SplitSentence(
 			Queue<MoteValue<T>> queue
 			, string sentence
@@ -562,7 +495,7 @@ namespace MoteScript
 			while (startat < sentence.Length)
 			{
 				char c = sentence[startat];
-				if (IsSpace(c))
+				if (ScriptTextReader.IsSpace(c))
 				{
 					++startat;
 					continue;
@@ -575,7 +508,9 @@ namespace MoteScript
 					continue;
 				}
 
-				if (TrimComment(sentence, ref startat))
+				if (ScriptTextReader.TrySkipComment(
+					sentence,
+					ref startat))
 				{
 					continue;
 				}
@@ -593,7 +528,10 @@ namespace MoteScript
 				// 	)
 				{
 					// 定数？
-					if (TryGetConstValue(sentence, startat, out string value)
+					if (ScriptTextReader.TryReadConstValue(
+							sentence,
+							startat,
+							out string value)
 						&& (value[0] != '-' || CanStartSignedConst(lastValue)))
 					{
 						// 値
@@ -621,7 +559,10 @@ namespace MoteScript
 						continue;
 					}
 					// 英数字？					
-					if (TryGetWord(sentence, startat, out string word))
+					if (ScriptTextReader.TryReadWord(
+						sentence,
+						startat,
+						out string word))
 					{
 						if (word == "null")
 						{
@@ -670,31 +611,6 @@ namespace MoteScript
 		// 	var childValue = _childDecoder.DecodeInner(sentence, ref startat);
 		// 	return childValue;
 		// }
-		static bool IsSpace(char c)
-		{
-			switch (c)
-			{
-			case ' ':
-			case '\t':
-			case '　':
-			case '\n':
-			case '\r':
-				return true;
-			default:
-				return false;
-			}
-		}
-		static bool IsReturnCode(char c)
-		{
-			switch (c)
-			{
-			case '\r':
-			case '\n':
-				return true;
-			default:
-				return false;
-			}
-		}
 		// static bool TryGetChar(string sentence, ref int startat, out char c)
 		// {
 		// 	if (sentence.Length <= startat)
@@ -715,76 +631,11 @@ namespace MoteScript
 		// 	c = sentence[startat];
 		// 	return true;
 		// }
-		static bool TrimStart(string sentence, ref int startat)
-		{
-			while (startat < sentence.Length)
-			{
-				if (!IsSpace(sentence[startat]))
-				{
-					return true;
-				}
-				++startat;
-			}
-			return false;
-		}
-		static bool TrimComment(string sentence, ref int startat)
-		{
-			if (sentence.Length < startat + CommentCode.Length)
-			{
-				return false;
-			}
-			if (sentence[startat..(startat + CommentCode.Length)] == CommentCode)
-			{
-				startat += CommentCode.Length;
-				// コメント部分スキップ
-				do
-				{
-					if (sentence.Length <= startat)
-					{
-						return true;
-					}
-				} while (!IsReturnCode(sentence[startat++]));
-				// 改行削除
-				while (IsReturnCode(sentence[startat++]));
-				return true;
-			}
-			return false;
-		}
-		static bool TryGetConstValue(string sentence, int startat, out string value)
-		{
-			Match match = s_regexConstValue.Match(sentence, startat);
-			if (match.Success)
-			{
-				Group group = match.Groups[0];
-				if (startat == group.Index)
-				{
-					value = sentence.Substring(startat, group.Length);
-					return true;
-				}
-			}
-			value = default;
-			return false;
-		}
-		static bool TryGetWord(string sentence, int startat, out string value)
-		{
-			Match match = s_regexWord.Match(sentence, startat);
-			if (match.Success)
-			{
-				Group group = match.Groups[0];
-				if (startat == group.Index)
-				{
-					value = sentence.Substring(startat, group.Length);
-					return true;
-				}
-			}
-			value = default;
-			return false;
-		}
-
-
 		internal bool TryGetFlowControlOperator(string sentence, ref int startat, out OperatorInfo value)
 		{
-			if (!TrimStart(sentence, ref startat))
+			if (!ScriptTextReader.TrimStart(
+				sentence,
+				ref startat))
 			{
 				value = default;
 				return false;
