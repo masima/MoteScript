@@ -8,6 +8,7 @@ namespace MoteScript
 		, IOperatorOnFinalized
 		, IAssignmentTo<T>
 		, IMoteReferenceSource<T>
+		, IFunctionCallTarget<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -70,6 +71,52 @@ namespace MoteScript
 			}
 			return GetByPath(context, _splitedPath);
 		}
+
+		MoteValue<T> IFunctionCallTarget<T>.ResolveFunction(
+			IContext<T> context,
+			out IContext<T> receiver)
+		{
+			if (_isDynamicTarget)
+			{
+				receiver = _target.EvaluateInner(context).GetDictionary();
+				if (receiver is not null
+					&& receiver.TryGetValue(
+						_memberName,
+						out MoteValue<T> value))
+				{
+					return value;
+				}
+				throw new InvalidOperationException($"undefined {_memberName}");
+			}
+
+			receiver = context;
+			int lastIndex = _splitedPath.Length - 1;
+			for (int i = 0; i < lastIndex; ++i)
+			{
+				if (!receiver.TryGetValue(
+					_splitedPath[i],
+					out MoteValue<T> child))
+				{
+					throw new InvalidOperationException(
+						$"undefined {string.Join(ConstOperationCode, _splitedPath)}");
+				}
+				receiver = child.Dereference().GetDictionary();
+				if (receiver is null)
+				{
+					throw new InvalidOperationException(
+						$"{_splitedPath[i]} is not a dictionary");
+				}
+			}
+			if (receiver.TryGetValue(
+				_splitedPath[lastIndex],
+				out MoteValue<T> function))
+			{
+				return function;
+			}
+			throw new InvalidOperationException(
+				$"undefined {string.Join(ConstOperationCode, _splitedPath)}");
+		}
+
 		public static MoteValue<T> GetByPath(IContext<T> context, IReadOnlyList<string> hierarchy)
 		{
 			MoteValue<T> moteValue = default;
@@ -78,7 +125,7 @@ namespace MoteScript
 			{
 				if (context.TryGetValue(hierarchy[i], out MoteValue<T> childValue))
 				{
-					moteValue = childValue;
+					moteValue = childValue.Dereference();
 					context = moteValue.GetDictionary();
 				}
 				else
@@ -114,11 +161,12 @@ namespace MoteScript
 			string contextKey = _splitedPath[0];
 			if (context.TryGetValue(contextKey, out MoteValue<T> moteValue))
 			{
-				dictionary = moteValue.GetDictionary();
+				MoteValue<T> resolved = moteValue.Dereference();
+				dictionary = resolved.GetDictionary();
 				if (dictionary is null)
 				{
 					MoteValue<T>.ValidateAssignment(
-						moteValue,
+						resolved,
 						new MoteValue<T>(context.Instantiate()),
 						contextKey);
 				}
@@ -136,7 +184,7 @@ namespace MoteScript
 				string key = _splitedPath[i];
 				if (dictionary.TryGetValue(key, out MoteValue<T> childValue))
 				{
-					moteValue = childValue;
+					moteValue = childValue.Dereference();
 					dictionary = moteValue.GetDictionary();
 					if (dictionary is null)
 					{
@@ -184,7 +232,7 @@ namespace MoteScript
 					throw new InvalidOperationException(
 						$"ref requires an existing member : {string.Join(ConstOperationCode, _splitedPath)}");
 				}
-				dictionary = child.GetDictionary();
+				dictionary = child.Dereference().GetDictionary();
 				if (dictionary is null)
 				{
 					throw new InvalidOperationException(

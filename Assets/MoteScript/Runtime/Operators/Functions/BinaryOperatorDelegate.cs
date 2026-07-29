@@ -49,26 +49,40 @@ namespace MoteScript
 					name => new FunctionParameterDefinition(
 						name,
 						isReference: false)),
+				null,
 				localNames,
 				statement);
 		}
 
 		internal static MoteValue<T> CreateFunction(
 			IEnumerable<FunctionParameterDefinition> parameters,
+			string selfName,
 			IEnumerable<string> localNames,
 			MoteValue<T> statement)
 		{
 			DelegateInfo delegateInfo = new()
 			{
 				Parameters = CreateVariables(parameters),
+				Self = string.IsNullOrEmpty(selfName)
+					? Array.Empty<ScopedVariable>()
+					: CreateVariables(new[]
+					{
+						new FunctionParameterDefinition(
+							selfName,
+							isReference: false),
+					}),
 				Locals = CreateVariables(
 					localNames.Select(
 						name => new FunctionParameterDefinition(
 							name,
 							isReference: false))),
 				Statement = statement,
+				ActiveSelfReferences =
+					new Stack<ReadOnlyMoteReference<T>>(4),
+				SelfReferencePool =
+					new Stack<ReadOnlyMoteReference<T>>(4),
 			};
-			return new MoteValue<T>(delegateInfo.Func);
+			return new MoteValue<T>(delegateInfo);
 		}
 
 		private static ScopedVariable[] CreateVariables(
@@ -95,17 +109,23 @@ namespace MoteScript
 			public MoteValue<T> Value;
 			public bool HadValue;
 		}
-		private class DelegateInfo
+		private class DelegateInfo : IMoteFunction<T>
 		{
 			public ScopedVariable[] Parameters;
+			public ScopedVariable[] Self;
 			public ScopedVariable[] Locals;
+			public Stack<ReadOnlyMoteReference<T>> ActiveSelfReferences;
+			public Stack<ReadOnlyMoteReference<T>> SelfReferencePool;
 
 			public MoteValue<T> Statement;
 
-			public MoteValue<T> Func(IContext<T> context, List<MoteValue<T>> parameters)
+			public MoteValue<T> Invoke(
+				IContext<T> context,
+				List<MoteValue<T>> parameters,
+				IContext<T> receiver)
 			{
-				ValidateParameters(parameters);
-				SetupValues(context, parameters);
+				ValidateInvocation(parameters, receiver);
+				SetupValues(context, parameters, receiver);
 				bool suspended = false;
 				try
 				{
@@ -126,9 +146,15 @@ namespace MoteScript
 				}
 			}
 
-			private void ValidateParameters(
-				List<MoteValue<T>> parameters)
+			private void ValidateInvocation(
+				List<MoteValue<T>> parameters,
+				IContext<T> receiver)
 			{
+				if (Self.Length != 0 && receiver is null)
+				{
+					throw new InvalidOperationException(
+						$"Function requires a dictionary receiver for 'self {Self[0].Name}'.");
+				}
 				for (int i = 0; i < Parameters.Length; ++i)
 				{
 					ScopedVariable parameter = Parameters[i];
@@ -177,9 +203,13 @@ namespace MoteScript
 				}
 			}
 
-			private void SetupValues(IContext<T> context, List<MoteValue<T>> parameters)
+			private void SetupValues(
+				IContext<T> context,
+				List<MoteValue<T>> parameters,
+				IContext<T> receiver)
 			{
 				SaveValues(context, Parameters);
+				SaveValues(context, Self);
 				SaveValues(context, Locals);
 
 				for (int i = 0; i < Locals.Length; ++i)
@@ -192,6 +222,21 @@ namespace MoteScript
 					{
 						context[Parameters[i].Name] = parameters[i];
 					}
+				}
+				if (Self.Length != 0)
+				{
+					ReadOnlyMoteReference<T> selfReference =
+						SelfReferencePool.Count != 0
+							? SelfReferencePool.Pop()
+							: new ReadOnlyMoteReference<T>(
+								default,
+								Self[0].Name);
+					selfReference.Reset(
+						new MoteValue<T>(receiver),
+						Self[0].Name);
+					ActiveSelfReferences.Push(selfReference);
+					context[Self[0].Name] = new MoteValue<T>(
+						selfReference);
 				}
 			}
 
@@ -214,6 +259,12 @@ namespace MoteScript
 			private void RestoreValues(IContext<T> context)
 			{
 				RestoreValues(context, Locals);
+				RestoreValues(context, Self);
+				if (Self.Length != 0)
+				{
+					SelfReferencePool.Push(
+						ActiveSelfReferences.Pop());
+				}
 				RestoreValues(context, Parameters);
 			}
 

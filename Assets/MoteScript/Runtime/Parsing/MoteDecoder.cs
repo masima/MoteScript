@@ -314,6 +314,7 @@ namespace MoteScript
 			FunctionHeaderParser.Parse(
 				parametersText.Substring(1, parametersText.Length - 2),
 				out FunctionParameterDefinition[] parameters,
+				out string selfName,
 				out string[] localNames);
 
 			string bodyText = expression.Substring(arrowIndex + 2).Trim();
@@ -325,6 +326,7 @@ namespace MoteScript
 			MoteValue<T> body = DecodeStructuredScript(bodyText, ref bodyPosition, '}');
 			MoteValue<T> function = BinaryOperatorDelegate<T>.CreateFunction(
 				parameters,
+				selfName,
 				localNames,
 				body);
 			return new MoteValue<T>(new BinaryOperatorAssignment<T>
