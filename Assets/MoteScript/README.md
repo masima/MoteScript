@@ -764,13 +764,13 @@ executionB.Evaluate(); // YieldValueは11
 
 ### デバッガを有効化
 
-デバッグ機能は、Scripting Define Symbolsに`MOTESCRIPT_DEBUGGER`が定義されている場合だけコンパイルされます。Unityの **Project Settings > Player > Other Settings > Scripting Define Symbols** へ追加してください。
+Unity Editorでは追加設定なしでデバッガが常に有効です。`MoteScript.Debugger.Editor`アセンブリ、デバッグ用Runtime API、行情報、停止判定、`.mote`アセット連携が自動的にコンパイルされます。
 
-Defineを外すと、デバッグ用Runtime API、行情報、停止判定、および`MoteScript.Debugger.Editor`アセンブリ全体がコンパイル対象から外れます。リリースビルドへデバッガを含めない場合は、このDefineを削除してください。このリポジトリのStandalone設定では、開発とテストのためにDefineを有効にしています。
+Playerビルドでは、デバッグ用Runtime APIと停止判定は標準ではコンパイル対象から外れます。Development Buildなどへ含める場合だけ、Unityの **Project Settings > Player > Other Settings > Scripting Define Symbols**へ`MOTESCRIPT_DEBUGGER`を追加してください。通常のリリースビルドではDefineを追加する必要はありません。
 
 ### .moteアセット
 
-Defineが有効な場合、`.mote`ファイルは`MoteScriptImporter`によってTextAssetとしてインポートされます。通常のTextAssetと同様にC#から参照でき、Debugger Windowの`Script`欄にも指定できます。
+Unity Editorでは、`.mote`ファイルは`MoteScriptImporter`によってTextAssetとしてインポートされます。通常のTextAssetと同様にC#から参照でき、Debugger Windowの`Script`欄にも指定できます。
 
 Projectビューで`.mote`アセットをダブルクリックするとDebugger Windowで開きます。スクリプト例外がUnity Consoleへ`(at Assets/example.mote:3)`形式で出力された場合も、Consoleの項目をダブルクリックすると同じアセットの該当行を表示します。
 

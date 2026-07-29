@@ -1,4 +1,4 @@
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 using System;
 using System.Collections.Generic;
 using System.Globalization;

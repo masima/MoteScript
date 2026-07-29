@@ -6,7 +6,7 @@
 
 ### Added
 
-- `MOTESCRIPT_DEBUGGER`でコンパイル対象を切り替えられるUnity Editorデバッガ
+- Unity Editorで追加設定なしに常時利用でき、Playerビルドでは`MOTESCRIPT_DEBUGGER`で切り替えられるデバッガ
 - 行単位のブレークポイント、Continue、Step Into、Step Over、Step Out、Stop
 - 停止中のContext変数、関数ローカル変数、コールスタック表示
 - デバッグ停止をYieldと区別する`MoteExecutionState.Paused`と、停止完了を表す`Stopped`
@@ -18,6 +18,7 @@
 
 ### Changed
 
+- `MoteScript.Debugger.Editor`のDefine制約を削除し、Editor上ではデバッガを常時コンパイル
 - 複数行にまたがる文のブレークポイントを、文頭を含む行へ正規化
 
 ## [0.10.0] - 2026-07-29

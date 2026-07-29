@@ -5,7 +5,7 @@ namespace MoteScript
 		Ready,
 		Running,
 		Yielded,
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		Paused,
 		Stopped,
 #endif

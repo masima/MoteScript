@@ -59,7 +59,7 @@ namespace MoteScript
 				if (ScriptTextReader.RequiresStructuredParsing(
 						sentence,
 						startat)
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 					|| _debugDocumentBuilder is not null
 #endif
 					)
@@ -131,12 +131,12 @@ namespace MoteScript
 		readonly Queue<MoteValue<T>> _queue = new();
 		readonly List<MoteValue<T>> _rpn = new();
 		readonly DecodedScriptCache<T> _decodedCache = new();
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		private MoteDebugDocument.Builder _debugDocumentBuilder;
 #endif
 		// MoteDecoder<T> _childDecoder = null;
 
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		public MoteValue<T> DecodeDebug(
 			string source,
 			string sourceName,
@@ -244,7 +244,7 @@ namespace MoteScript
 						expression,
 						sourceOffset + statementStart);
 				}
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 				if (_debugDocumentBuilder is not null)
 				{
 					MoteSourceSpan location = _debugDocumentBuilder.AddStatement(

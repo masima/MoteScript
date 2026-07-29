@@ -27,7 +27,7 @@ namespace MoteScript
 
 		public MoteExecutionState State { get; private set; }
 		public bool IsYielded => State == MoteExecutionState.Yielded;
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		public bool IsPaused => State == MoteExecutionState.Paused;
 		internal bool IsSuspended => IsYielded || IsPaused;
 #else
@@ -209,7 +209,7 @@ namespace MoteScript
 			_continuations.Clear();
 			_resumeContinuations.Clear();
 			_context.ReleaseExecution(this);
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 			_debugSession?.NotifyException(this, exception);
 #endif
 		}

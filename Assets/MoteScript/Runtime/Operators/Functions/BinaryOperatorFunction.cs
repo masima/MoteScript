@@ -24,7 +24,7 @@ namespace MoteScript
 
 			var parameters = right.GetObject<List<MoteValue<T>>>();
 
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 			MoteExecution<T>.TryGet(
 				context,
 				out MoteExecution<T> debugExecution);
@@ -43,7 +43,7 @@ namespace MoteScript
 							receiver);
 					if (result.TryGetExecution(out MoteExecution<T> execution))
 					{
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 						debugSuspended = true;
 #endif
 						execution.AddContinuation(this);
@@ -57,7 +57,7 @@ namespace MoteScript
 				}
 				finally
 				{
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 					if (!debugSuspended)
 					{
 						debugExecution?.DebugExitFunction();
@@ -72,7 +72,7 @@ namespace MoteScript
 			MoteValue<T> result,
 			int state)
 		{
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 			MoteExecution<T>.TryGet(
 				context,
 				out MoteExecution<T> debugExecution);
@@ -87,7 +87,7 @@ namespace MoteScript
 
 		void IExecutionContinuation<T>.Cancel(IContext<T> context)
 		{
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 			MoteExecution<T>.TryGet(
 				context,
 				out MoteExecution<T> debugExecution);

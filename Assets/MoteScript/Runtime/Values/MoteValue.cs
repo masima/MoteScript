@@ -371,7 +371,7 @@ namespace MoteScript
 		{
 			return new MoteExecution<T>(this, context, options);
 		}
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		public MoteExecution<T> CreateDebugExecution(
 			IExecutionContext<T> context,
 			MoteDebugSession<T> debugSession)

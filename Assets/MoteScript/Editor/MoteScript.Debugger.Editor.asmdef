@@ -8,8 +8,6 @@
 	"includePlatforms": [
 		"Editor"
 	],
-	"defineConstraints": [
-		"MOTESCRIPT_DEBUGGER"
-	],
+	"defineConstraints": [],
 	"autoReferenced": true
 }

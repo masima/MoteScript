@@ -1,4 +1,4 @@
-#if MOTESCRIPT_DEBUGGER
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 using System;
 
 namespace MoteScript
