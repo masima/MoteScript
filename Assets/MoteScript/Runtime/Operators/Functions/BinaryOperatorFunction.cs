@@ -15,10 +15,13 @@ namespace MoteScript
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{
-			MoteValue<T> left = Left.EvaluateInner(context);
+			IContext<T> receiver = null;
+			MoteValue<T> left =
+				Left.GetObject() is IFunctionCallTarget<T> callTarget
+					? callTarget.ResolveFunction(context, out receiver)
+					: Left.EvaluateInner(context);
 			MoteValue<T> right = Right.EvaluateInner(context);
 
-			var func = left.GetObject<MoteValue<T>.Function>();
 			var parameters = right.GetObject<List<MoteValue<T>>>();
 
 #if MOTESCRIPT_DEBUGGER
@@ -33,7 +36,11 @@ namespace MoteScript
 			{
 				try
 				{
-					MoteValue<T> result = func.Invoke(context, parameters);
+					MoteValue<T> result =
+						left.InvokeFunction(
+							context,
+							parameters,
+							receiver);
 					if (result.TryGetExecution(out MoteExecution<T> execution))
 					{
 #if MOTESCRIPT_DEBUGGER

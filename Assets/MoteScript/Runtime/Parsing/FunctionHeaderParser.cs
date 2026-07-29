@@ -12,37 +12,64 @@ namespace MoteScript
 		public static void Parse(
 			string header,
 			out FunctionParameterDefinition[] parameters,
+			out string selfName,
 			out string[] localNames)
 		{
 			List<string> sections = StructuredExpressionReader.Split(header, ';');
-			if (sections.Count > 2)
-			{
-				throw new FormatException("delegate local declaration is invalid");
-			}
 
 			parameters = ParseParameterList(
 				sections.Count > 0 ? sections[0] : string.Empty,
 				allowEmpty: true);
+			selfName = null;
 			localNames = Array.Empty<string>();
 
-			if (sections.Count == 2)
+			for (int i = 1; i < sections.Count; ++i)
 			{
-				string localSection = sections[1].Trim();
-				if (!IsLocalDeclaration(localSection))
+				string section = sections[i].Trim();
+				if (IsKeyword(section, "local"))
 				{
-					throw new FormatException(
-						"delegate local declaration must start with local");
+					if (localNames.Length != 0)
+					{
+						throw new FormatException(
+							"delegate local declaration is duplicated");
+					}
+					localNames = ParseIdentifierList(
+						section.Substring("local".Length),
+						"delegate local variables",
+						allowEmpty: false);
+					continue;
 				}
-				localNames = ParseIdentifierList(
-					localSection.Substring("local".Length),
-					"delegate local variables",
-					allowEmpty: false);
+				if (IsKeyword(section, "self"))
+				{
+					if (selfName is not null)
+					{
+						throw new FormatException(
+							"delegate self declaration is duplicated");
+					}
+					string[] selfNames = ParseIdentifierList(
+						section.Substring("self".Length),
+						"delegate self variable",
+						allowEmpty: false);
+					if (selfNames.Length != 1)
+					{
+						throw new FormatException(
+							"delegate self declaration requires one identifier");
+					}
+					selfName = selfNames[0];
+					continue;
+				}
+				throw new FormatException(
+					"delegate declaration must start with self or local");
 			}
 
 			var names = new HashSet<string>(StringComparer.Ordinal);
 			foreach (FunctionParameterDefinition parameter in parameters)
 			{
 				EnsureUnique(names, parameter.Name);
+			}
+			if (selfName is not null)
+			{
+				EnsureUnique(names, selfName);
 			}
 			foreach (string localName in localNames)
 			{
@@ -84,11 +111,6 @@ namespace MoteScript
 					isReference);
 			}
 			return parameters;
-		}
-
-		private static bool IsLocalDeclaration(string text)
-		{
-			return IsKeyword(text, "local");
 		}
 
 		private static bool IsKeyword(string text, string keyword)

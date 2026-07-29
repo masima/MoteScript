@@ -23,6 +23,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
     - [多次元配列](#多次元配列)
   - [辞書](#辞書)
   - [関数](#関数)
+    - [辞書をselfとして受け取る](#辞書をselfとして受け取る)
     - [参照引数](#参照引数)
     - [ローカル変数](#ローカル変数)
   - [条件分岐](#条件分岐)
@@ -53,7 +54,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.9.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -61,7 +62,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.9.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.9.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0"
   }
 }
 ```
@@ -434,6 +435,41 @@ factorial=(n)=>{if(n<=1){return 1};return factorial(n-1)*n};factorial(5)
 
 結果は`120`です。
 
+#### 辞書をselfとして受け取る
+
+関数宣言へ`;self 名前`を加え、その関数を辞書メンバーとして呼び出すと、関数を保持している辞書を指定した名前で受け取れます。
+
+```text
+addScore=(value;self owner)=>{
+    owner.score=owner.score+value
+};
+player.score=10;
+player.addScore=addScore;
+player.addScore(5)
+```
+
+実行後の`player.score`は`15`です。`self`の名前は`owner`、`player`など任意の有効な識別子を指定できます。角括弧による`player["addScore"](5)`でも同じ辞書が渡されます。
+
+`root.child.run()`では、関数メンバーを直接保持する`root.child`が渡されます。関数を別の辞書へコピーした場合は、定義元ではなく呼び出し先の辞書が渡されます。
+
+```text
+second.run=first.run;
+second.run()
+```
+
+`self`を宣言した関数を通常変数から直接呼び出すと`InvalidOperationException`が発生します。`self`変数自体は読み取り専用のため再代入できませんが、`owner.value=1`のようなメンバーの追加・更新は通常の型固定規則に従って実行できます。
+
+通常引数、`self`、ローカル変数は次のように併用できます。
+
+```text
+calculate=(value;self owner;local result)=>{
+    result=owner.base+value;
+    owner.result=result
+}
+```
+
+再帰呼び出しでは呼び出しごとの所有辞書が保持されます。関数がYieldした場合も呼び出し時の辞書を捕捉したまま再開し、呼び出し元の変数へ別の辞書を代入しても`self`の参照先は変わりません。
+
 #### 参照引数
 
 関数定義と呼び出しの両方で`ref`を指定すると、呼び出し元の変数を関数内から直接更新できます。
@@ -568,6 +604,7 @@ using MoteScript;
 
 static MoteValue<float> Sum(
     IContext<float> context,
+    IContext<float> receiver,
     List<MoteValue<float>> parameters)
 {
     float result = 0f;
@@ -587,7 +624,33 @@ context["sum"] = new MoteValue<float>(Sum);
 float result = decoder.Decode("sum(1,2,3)").Evaluate(context).Value;
 ```
 
-この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evaluate(context)`して値を取得します。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
+この例では、C#で登録した`sum`がスクリプトから呼び出され、`result`は`6`になります。`parameters`には引数の式が渡されるため、それぞれを`Evaluate(context)`して値を取得します。通常変数から呼び出した場合、`receiver`は`null`です。登録後は同じ`Context`を使い回すことで、別途デコードしたスクリプトからも`sum`を呼び出せます。
+
+辞書メンバーとして呼び出された場合、同じ`Function`の`receiver`引数から所有辞書を取得できます。
+
+```csharp
+static MoteValue<float> AddScore(
+    IContext<float> context,
+    IContext<float> receiver,
+    List<MoteValue<float>> parameters)
+{
+    float amount = parameters[0].Evaluate(context).Value;
+    float score = receiver["score"].Value + amount;
+    receiver["score"] = new MoteValue<float>(score);
+    return receiver["score"];
+}
+
+MoteValue<float>.Function addScore = AddScore;
+context["addScore"] = new MoteValue<float>(addScore);
+
+decoder.Decode(
+    "player.score=10;"
+    + "player.addScore=addScore;"
+    + "player.addScore(5)")
+    .Evaluate(context);
+```
+
+`receiver`には`player.addScore()`なら`player`、`player["addScore"]()`でも同じ`player`が渡されます。関数を別の辞書へコピーした場合は呼び出し先の辞書が渡されます。`addScore()`のように通常変数から直接呼び出した場合、`receiver`は`null`です。所有辞書を必須とするC#関数では、`null`を検査して用途に合った例外を送出してください。
 
 ## 実行量の制限
 

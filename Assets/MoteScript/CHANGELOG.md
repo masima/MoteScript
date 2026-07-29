@@ -20,6 +20,24 @@
 
 - 複数行にまたがる文のブレークポイントを、文頭を含む行へ正規化
 
+## [0.10.0] - 2026-07-29
+
+### Added
+
+- 辞書メンバー関数へ呼び出し元の辞書を渡す`;self 名前`宣言
+- C#登録関数で呼び出し元の辞書を取得できる3引数形式の`MoteValue<T>.Function`
+- ドット・角括弧によるメンバー呼び出し、関数コピー、再帰、例外、Yieldにおける`self`のテスト
+
+### Changed
+
+- `MoteDecoder<T>`内の型非依存な文・囲み式・トークン読取処理を`ScriptTextReader`と`StructuredExpressionReader`へ集約
+- `self`変数自体を読み取り専用とし、辞書メンバーの追加・更新だけを許可
+- `self`参照オブジェクトを関数ごとに再利用し、ウォームアップ後の呼び出し時割り当てを抑制
+
+### Breaking Changes
+
+- C#関数登録を`Function(context, receiver, parameters)`形式へ統一し、旧2引数形式を削除
+
 ## [0.9.0] - 2026-07-28
 
 ### Added

@@ -143,7 +143,27 @@ namespace MoteScript
 			return Calculator.Convert(value);
 		}
 
-		public delegate MoteValue<T> Function(IContext<T> context, List<MoteValue<T>> values);
+		public delegate MoteValue<T> Function(
+			IContext<T> context,
+			IContext<T> receiver,
+			List<MoteValue<T>> values);
+
+		internal MoteValue<T> InvokeFunction(
+			IContext<T> context,
+			List<MoteValue<T>> values,
+			IContext<T> receiver)
+		{
+			switch (_object)
+			{
+				case Function function:
+					return function.Invoke(context, receiver, values);
+				case IMoteFunction<T> function:
+					return function.Invoke(context, values, receiver);
+				default:
+					throw new InvalidOperationException(
+						$"Cannot invoke {GetDiagnosticTypeName(ValueType)} as a function.");
+			}
+		}
 
 
 		/// <summary>
@@ -267,6 +287,14 @@ namespace MoteScript
 			_valueType = (ValueTypeType)EValueType.Function;
 			_value = default;
 			_object = function;
+		}
+
+		internal MoteValue(IMoteFunction<T> function)
+		{
+			_valueType = (ValueTypeType)EValueType.Function;
+			_value = default;
+			_object = function
+				?? throw new ArgumentNullException(nameof(function));
 		}
 
 		public MoteValue(string value)
@@ -458,6 +486,14 @@ namespace MoteScript
 			reference = _object as IMoteReference<T>;
 			return ValueType == EValueType.Reference
 				&& reference is not null;
+		}
+
+		internal MoteValue<T> Dereference()
+		{
+			return TryGetReference(
+				out IMoteReference<T> reference)
+					? reference.Get()
+					: this;
 		}
 
 		internal IMoteReference<T> CreateReference(

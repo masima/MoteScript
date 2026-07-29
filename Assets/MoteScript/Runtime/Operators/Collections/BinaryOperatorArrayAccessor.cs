@@ -12,6 +12,7 @@ namespace MoteScript
 		: BinaryOperator<T>
 		, IAssignmentTo<T>
 		, IMoteReferenceSource<T>
+		, IFunctionCallTarget<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -82,6 +83,33 @@ namespace MoteScript
 			default:
 				throw new Exception($"not support type:{left.GetObject().GetType().ToString()}");
 			}
+		}
+
+		MoteValue<T> IFunctionCallTarget<T>.ResolveFunction(
+			IContext<T> context,
+			out IContext<T> receiver)
+		{
+			MoteValue<T> left = Left.EvaluateInner(context);
+			receiver = left.GetDictionary();
+			if (receiver is null)
+			{
+				throw new InvalidOperationException(
+					"function receiver is not a dictionary");
+			}
+			MoteValue<T> right = Right.EvaluateInner(context);
+			if (right.ValueType != EValueType.String)
+			{
+				throw new InvalidOperationException(
+					$"invalid value type : {right.ValueType}");
+			}
+			if (receiver.TryGetValue(
+				right.StringValue,
+				out MoteValue<T> function))
+			{
+				return function;
+			}
+			throw new InvalidOperationException(
+				$"undefined {right.StringValue}");
 		}
 
 		IMoteReference<T> IMoteReferenceSource<T>.CreateReference(

@@ -111,4 +111,38 @@ namespace MoteScript
 			_dictionary[_memberName] = value;
 		}
 	}
+
+	internal sealed class ReadOnlyMoteReference<T> : IMoteReference<T>
+		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
+	{
+		private MoteValue<T> _value;
+		private string _name;
+
+		public ReadOnlyMoteReference(
+			MoteValue<T> value,
+			string name)
+		{
+			_value = value;
+			_name = name;
+		}
+
+		public void Reset(
+			MoteValue<T> value,
+			string name)
+		{
+			_value = value;
+			_name = name;
+		}
+
+		public MoteValue<T> Get()
+		{
+			return _value;
+		}
+
+		public void Set(MoteValue<T> value)
+		{
+			throw new InvalidOperationException(
+				$"self variable '{_name}' is read-only.");
+		}
+	}
 }

@@ -17,6 +17,7 @@ namespace MoteScript.Tests
 		[TestCase("dictionary=[a:1,b:2];dictionary.a=dictionary.a+1;dictionary.a")]
 		[TestCase("increment=(value)=>{value+1};increment(1)")]
 		[TestCase("increment=(value;local result)=>{result=value+1;result};increment(1)")]
+		[TestCase("increment=(;self owner)=>{owner.value=owner.value+1};dictionary.value=0;dictionary.increment=increment;dictionary.increment()")]
 		[TestCase("value=0;while(value<10){value=value+1};value")]
 		[TestCase("double=(value)=>{value*2};increment=(value)=>{double(value)+1};increment(3)")]
 		[TestCase("root.branch.leaf=value;root.branch.leaf")]

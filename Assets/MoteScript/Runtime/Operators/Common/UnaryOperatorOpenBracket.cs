@@ -74,7 +74,8 @@ namespace MoteScript
 				MoteValue<T> left = rpnStack.Peek();
 					if (left.ValueType == EValueType.Variable
 						|| left.ValueType == EValueType.Function
-						|| left.TryGetOperator(out BinaryOperatorDictionaryAccessor<T> _))
+						|| left.TryGetOperator(out BinaryOperatorDictionaryAccessor<T> _)
+						|| left.TryGetOperator(out BinaryOperatorArrayAccessor<T> _))
 					{
 						if (!Right.TryGetOperator(out BinaryOperatorArraySeparater<T> _))
 						{
