@@ -2,7 +2,7 @@
 
 このプロジェクトの主な変更を記録します。
 
-## [Unreleased]
+## [0.10.0] - 2026-07-29
 
 ### Added
 
@@ -13,9 +13,12 @@
 ### Changed
 
 - `MoteDecoder<T>`内の型非依存な文・囲み式・トークン読取処理を`ScriptTextReader`と`StructuredExpressionReader`へ集約
-- C#関数登録を`Function(context, receiver, parameters)`形式へ統一し、旧2引数形式を削除
 - `self`変数自体を読み取り専用とし、辞書メンバーの追加・更新だけを許可
 - `self`参照オブジェクトを関数ごとに再利用し、ウォームアップ後の呼び出し時割り当てを抑制
+
+### Breaking Changes
+
+- C#関数登録を`Function(context, receiver, parameters)`形式へ統一し、旧2引数形式を削除
 
 ## [0.9.0] - 2026-07-28
 
