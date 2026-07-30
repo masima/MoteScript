@@ -536,9 +536,35 @@ namespace MoteScript.Editor
 					new Rect(68f, y, codeWidth + 4f, rowHeight),
 					lines[index],
 					_lineStyle);
+				Event current = Event.current;
+				if (current.type == EventType.MouseDown
+					&& current.button == 0
+					&& current.clickCount == 2
+					&& row.Contains(current.mousePosition))
+				{
+					OpenSourceInExternalEditor(line);
+					current.Use();
+				}
 			}
 			GUI.EndScrollView();
 			GUI.EndGroup();
+		}
+
+		private void OpenSourceInExternalEditor(int line)
+		{
+			TextAsset asset = _sourceAsset;
+			if (asset is null && _document is not null)
+			{
+				asset = AssetDatabase.LoadAssetAtPath<TextAsset>(
+					_document.SourceName);
+			}
+			if (asset is null)
+			{
+				ShowNotification(
+					new GUIContent("The source asset could not be opened."));
+				return;
+			}
+			AssetDatabase.OpenAsset(asset, Math.Max(1, line));
 		}
 
 		private void DrawVariablesPane(Rect rect)

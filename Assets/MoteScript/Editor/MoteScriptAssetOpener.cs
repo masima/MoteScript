@@ -1,33 +1,42 @@
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 using System;
 using UnityEditor;
-using UnityEditor.Callbacks;
 using UnityEngine;
 
 namespace MoteScript.Editor
 {
 	internal static class MoteScriptAssetOpener
 	{
-		[OnOpenAsset]
-		private static bool OnOpenAsset(int instanceId, int line)
+		private const string OpenDebuggerMenu =
+			"Assets/Open in MoteScript Debugger";
+
+		[MenuItem(OpenDebuggerMenu, false, 2000)]
+		private static void OpenInDebugger()
 		{
-#pragma warning disable CS0618
-			// OnOpenAsset still supplies the legacy integer ID.
-			string path = AssetDatabase.GetAssetPath(instanceId);
-#pragma warning restore CS0618
-			if (!path.EndsWith(".mote", StringComparison.OrdinalIgnoreCase))
+			if (!TryGetSelectedMoteAsset(out TextAsset asset))
+			{
+				return;
+			}
+			MoteDebuggerWindow.OpenAsset(asset, 1);
+		}
+
+		[MenuItem(OpenDebuggerMenu, true)]
+		private static bool ValidateOpenInDebugger()
+		{
+			return TryGetSelectedMoteAsset(out _);
+		}
+
+		private static bool TryGetSelectedMoteAsset(out TextAsset asset)
+		{
+			asset = Selection.activeObject as TextAsset;
+			if (asset is null)
 			{
 				return false;
 			}
-
-			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
-			if (asset == null)
-			{
-				return false;
-			}
-
-			MoteDebuggerWindow.OpenAsset(asset, Math.Max(1, line));
-			return true;
+			string path = AssetDatabase.GetAssetPath(asset);
+			return path.EndsWith(
+				".mote",
+				StringComparison.OrdinalIgnoreCase);
 		}
 	}
 }
