@@ -81,6 +81,7 @@ namespace MoteScript.Editor
 		private void OnGUI()
 		{
 			EnsureStyles();
+			HandleKeyboardShortcuts();
 			DrawSourceSelection();
 			DrawControls();
 			EditorGUILayout.Space();
@@ -92,6 +93,78 @@ namespace MoteScript.Editor
 				GUILayout.ExpandWidth(true),
 				GUILayout.ExpandHeight(true));
 			DrawPanes(content);
+		}
+
+		private void HandleKeyboardShortcuts()
+		{
+			Event current = Event.current;
+			if (current.type != EventType.KeyDown
+				|| EditorGUIUtility.editingTextField
+				|| current.alt
+				|| current.control
+				|| current.command)
+			{
+				return;
+			}
+
+			bool paused = _execution?.State == MoteExecutionState.Paused;
+			bool yielded = _execution?.State == MoteExecutionState.Yielded;
+			bool canStep = paused || yielded;
+			bool canStart = _sourceAsset is not null
+				&& CanStartNewExecution();
+			switch (current.keyCode)
+			{
+				case KeyCode.F5 when current.shift:
+					if (canStep)
+					{
+						current.Use();
+						Execute(_execution.Stop);
+					}
+					break;
+				case KeyCode.F5:
+					if (canStep)
+					{
+						current.Use();
+						Execute(_execution.Continue);
+					}
+					else if (canStart)
+					{
+						current.Use();
+						StartDebugging(startPaused: false);
+					}
+					break;
+				case KeyCode.F10:
+					if (canStep)
+					{
+						current.Use();
+						Execute(_execution.StepOver);
+					}
+					else if (canStart)
+					{
+						current.Use();
+						StartDebugging(startPaused: true);
+					}
+					break;
+				case KeyCode.F11 when current.shift:
+					if (canStep)
+					{
+						current.Use();
+						Execute(_execution.StepOut);
+					}
+					break;
+				case KeyCode.F11:
+					if (canStep)
+					{
+						current.Use();
+						Execute(_execution.StepInto);
+					}
+					else if (canStart)
+					{
+						current.Use();
+						StartDebugging(startPaused: true);
+					}
+					break;
+			}
 		}
 
 		private void DrawPanes(Rect content)
@@ -374,7 +447,10 @@ namespace MoteScript.Editor
 				bool stoppable = _execution?.State == MoteExecutionState.Paused
 					|| _execution?.State == MoteExecutionState.Yielded;
 				EditorGUI.BeginDisabledGroup(_sourceAsset == null && !stoppable);
-				if (GUILayout.Button(stoppable ? "Stop" : "Run"))
+				GUIContent runContent = stoppable
+					? new GUIContent("Stop", "Shift+F5")
+					: new GUIContent("Run", "F5");
+				if (GUILayout.Button(runContent))
 				{
 					if (stoppable)
 					{
@@ -393,14 +469,14 @@ namespace MoteScript.Editor
 				bool canStartDebugging = _sourceAsset != null
 					&& CanStartNewExecution();
 				EditorGUI.BeginDisabledGroup(!paused && !yielded);
-				if (GUILayout.Button("Continue"))
+				if (GUILayout.Button(new GUIContent("Continue", "F5")))
 				{
 					Execute(_execution.Continue);
 				}
 				EditorGUI.EndDisabledGroup();
 
 				EditorGUI.BeginDisabledGroup(!canStep && !canStartDebugging);
-				if (GUILayout.Button("Step Over"))
+				if (GUILayout.Button(new GUIContent("Step Over", "F10")))
 				{
 					if (canStep)
 					{
@@ -411,7 +487,7 @@ namespace MoteScript.Editor
 						StartDebugging(startPaused: true);
 					}
 				}
-				if (GUILayout.Button("Step Into"))
+				if (GUILayout.Button(new GUIContent("Step Into", "F11")))
 				{
 					if (canStep)
 					{
@@ -425,7 +501,8 @@ namespace MoteScript.Editor
 				EditorGUI.EndDisabledGroup();
 
 				EditorGUI.BeginDisabledGroup(!canStep);
-				if (GUILayout.Button("Step Out"))
+				if (GUILayout.Button(
+					new GUIContent("Step Out", "Shift+F11")))
 				{
 					Execute(_execution.StepOut);
 				}
