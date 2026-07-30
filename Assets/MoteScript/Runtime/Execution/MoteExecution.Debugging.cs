@@ -160,19 +160,71 @@ namespace MoteScript
 		IReadOnlyList<MoteDebugVariable> IMoteDebugExecution.GetVariables()
 		{
 			var variables = new List<MoteDebugVariable>(_context.Count);
+			var ancestors = new HashSet<IContext<T>>();
 			if (_context is IEnumerable<KeyValuePair<string, MoteValue<T>>> values)
 			{
 				foreach (KeyValuePair<string, MoteValue<T>> pair in values)
 				{
-					variables.Add(new MoteDebugVariable(
+					variables.Add(CreateDebugVariable(
 						pair.Key,
-						pair.Value.ValueType.ToString(),
-						FormatDebugValue(pair.Value)));
+						pair.Value,
+						ancestors,
+						0));
 				}
 				variables.Sort(
 					(left, right) => string.CompareOrdinal(left.Name, right.Name));
 			}
 			return variables;
+		}
+
+		private MoteDebugVariable CreateDebugVariable(
+			string name,
+			MoteValue<T> value,
+			HashSet<IContext<T>> ancestors,
+			int depth)
+		{
+			IReadOnlyList<MoteDebugVariable> children = null;
+			string displayValue = FormatDebugValue(value);
+			if (value.ValueType == EValueType.Dictionary)
+			{
+				IContext<T> dictionary = value.GetDictionary();
+				bool added = dictionary is not null && ancestors.Add(dictionary);
+				if (dictionary is not null && !added)
+				{
+					displayValue = "Circular reference";
+				}
+				else if (dictionary is not null && depth >= 31)
+				{
+					displayValue = "Maximum depth reached";
+				}
+				else if (dictionary
+					is IEnumerable<KeyValuePair<string, MoteValue<T>>> members)
+				{
+					var childVariables =
+						new List<MoteDebugVariable>(dictionary.Count);
+					foreach (KeyValuePair<string, MoteValue<T>> member in members)
+					{
+						childVariables.Add(CreateDebugVariable(
+							member.Key,
+							member.Value,
+							ancestors,
+							depth + 1));
+					}
+					childVariables.Sort(
+						(left, right) =>
+							string.CompareOrdinal(left.Name, right.Name));
+					children = childVariables;
+				}
+				if (added)
+				{
+					ancestors.Remove(dictionary);
+				}
+			}
+			return new MoteDebugVariable(
+				name,
+				value.ValueType.ToString(),
+				displayValue,
+				children);
 		}
 
 		IReadOnlyList<MoteDebugCallFrame> IMoteDebugExecution.GetCallStack()

@@ -1,5 +1,6 @@
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using UnityEditor;
@@ -357,6 +358,41 @@ namespace MoteScript.Tests
 
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
 			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(3));
+		}
+
+		[Test]
+		public void DebugVariablesExposeNestedDictionaryMembers()
+		{
+			const string source =
+				"data=[number:1,nested:[text:\"hello\"]];"
+				+ "data.self=data;"
+				+ "data;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"dictionary-tree.mote",
+				out MoteDebugDocument document);
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				new Context<float>(),
+				new MoteDebugSession<float>(document));
+			execution.Evaluate();
+
+			IReadOnlyList<MoteDebugVariable> variables =
+				((IMoteDebugExecution)execution).GetVariables();
+			MoteDebugVariable data = variables[0];
+
+			Assert.That(data.Name, Is.EqualTo("data"));
+			Assert.That(data.Type, Is.EqualTo("Dictionary"));
+			Assert.That(data.Children, Has.Count.EqualTo(3));
+			Assert.That(data.Children[0].Name, Is.EqualTo("nested"));
+			Assert.That(data.Children[0].Children, Has.Count.EqualTo(1));
+			Assert.That(
+				data.Children[0].Children[0].Value,
+				Is.EqualTo("\"hello\""));
+			Assert.That(data.Children[2].Name, Is.EqualTo("self"));
+			Assert.That(
+				data.Children[2].Value,
+				Is.EqualTo("Circular reference"));
 		}
 
 		[Test]

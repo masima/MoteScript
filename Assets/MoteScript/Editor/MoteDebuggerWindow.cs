@@ -884,7 +884,10 @@ namespace MoteScript.Editor
 				{
 					if (!string.Equals(left[i].Name, right[i].Name, StringComparison.Ordinal)
 						|| !string.Equals(left[i].Type, right[i].Type, StringComparison.Ordinal)
-						|| !string.Equals(left[i].Value, right[i].Value, StringComparison.Ordinal))
+						|| !string.Equals(left[i].Value, right[i].Value, StringComparison.Ordinal)
+						|| !AreEqual(
+							left[i].Children ?? Array.Empty<MoteDebugVariable>(),
+							right[i].Children ?? Array.Empty<MoteDebugVariable>()))
 					{
 						return false;
 					}
@@ -900,29 +903,30 @@ namespace MoteScript.Editor
 					depth = -1,
 					displayName = "Root",
 				};
-				var rows = new List<TreeViewItem>(_variables.Count);
-				for (int i = 0; i < _variables.Count; ++i)
-				{
-					rows.Add(new VariableTreeViewItem(i + 1, _variables[i]));
-				}
-				SortRows(rows);
+				var rows = new List<TreeViewItem>();
+				int id = 1;
+				AddRows(_variables, 0, rows, ref id);
 				SetupParentsAndChildrenFromDepths(root, rows);
 				return root;
 			}
 
 			protected override void RowGUI(RowGUIArgs args)
 			{
+				base.RowGUI(args);
 				var item = (VariableTreeViewItem)args.item;
 				for (int visibleIndex = 0;
 					visibleIndex < args.GetNumVisibleColumns();
 					++visibleIndex)
 				{
 					int columnIndex = args.GetColumn(visibleIndex);
+					if ((Column)columnIndex == Column.Name)
+					{
+						continue;
+					}
 					Rect cell = args.GetCellRect(visibleIndex);
 					CenterRectUsingSingleLineHeight(ref cell);
 					string value = (Column)columnIndex switch
 					{
-						Column.Name => item.Variable.Name,
 						Column.Type => item.Variable.Type,
 						_ => item.Variable.Value,
 					};
@@ -930,7 +934,30 @@ namespace MoteScript.Editor
 				}
 			}
 
-			private void SortRows(List<TreeViewItem> rows)
+			private void AddRows(
+				IReadOnlyList<MoteDebugVariable> variables,
+				int depth,
+				List<TreeViewItem> rows,
+				ref int id)
+			{
+				var sorted = new List<MoteDebugVariable>(variables.Count);
+				for (int i = 0; i < variables.Count; ++i)
+				{
+					sorted.Add(variables[i]);
+				}
+				SortVariables(sorted);
+				for (int i = 0; i < sorted.Count; ++i)
+				{
+					MoteDebugVariable variable = sorted[i];
+					rows.Add(new VariableTreeViewItem(id++, depth, variable));
+					if (variable.Children is { Count: > 0 })
+					{
+						AddRows(variable.Children, depth + 1, rows, ref id);
+					}
+				}
+			}
+
+			private void SortVariables(List<MoteDebugVariable> variables)
 			{
 				if (multiColumnHeader.sortedColumnIndex < 0)
 				{
@@ -939,14 +966,9 @@ namespace MoteScript.Editor
 				int column = multiColumnHeader.sortedColumnIndex;
 				bool ascending =
 					multiColumnHeader.IsSortedAscending(column);
-				rows.Sort((left, right) =>
+				variables.Sort((left, right) =>
 				{
-					var leftItem = (VariableTreeViewItem)left;
-					var rightItem = (VariableTreeViewItem)right;
-					int comparison = Compare(
-						leftItem.Variable,
-						rightItem.Variable,
-						(Column)column);
+					int comparison = Compare(left, right, (Column)column);
 					return ascending ? comparison : -comparison;
 				});
 			}
@@ -989,8 +1011,9 @@ namespace MoteScript.Editor
 			{
 				public VariableTreeViewItem(
 					int id,
+					int depth,
 					MoteDebugVariable variable)
-					: base(id, 0, variable.Name)
+					: base(id, depth, variable.Name)
 				{
 					Variable = variable;
 				}

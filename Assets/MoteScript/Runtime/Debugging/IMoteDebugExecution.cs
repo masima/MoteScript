@@ -27,15 +27,26 @@ namespace MoteScript
 	public readonly struct MoteDebugVariable
 	{
 		public MoteDebugVariable(string name, string type, string value)
+			: this(name, type, value, null)
+		{
+		}
+
+		public MoteDebugVariable(
+			string name,
+			string type,
+			string value,
+			IReadOnlyList<MoteDebugVariable> children)
 		{
 			Name = name;
 			Type = type;
 			Value = value;
+			Children = children;
 		}
 
 		public string Name { get; }
 		public string Type { get; }
 		public string Value { get; }
+		public IReadOnlyList<MoteDebugVariable> Children { get; }
 	}
 
 	public readonly struct MoteDebugCallFrame
