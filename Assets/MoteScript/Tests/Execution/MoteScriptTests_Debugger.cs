@@ -87,6 +87,9 @@ namespace MoteScript.Tests
 
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
 			Assert.That(execution.Result.Value, Is.EqualTo(3f));
+			Assert.That(
+				((IMoteDebugExecution)execution).ResultText,
+				Is.EqualTo("3"));
 		}
 
 		[Test]
@@ -253,6 +256,30 @@ namespace MoteScript.Tests
 
 			execution.Resume();
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+		}
+
+		[Test]
+		public void StepIntoResumesYieldedExecution()
+		{
+			const string source =
+				"value=1;\n"
+				+ "yield(value);\n"
+				+ "value=value+1;\n"
+				+ "value;";
+			MoteExecution<float> execution =
+				CreateExecution(source, "step-after-yield.mote");
+
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.Value, Is.EqualTo(1f));
+
+			execution.StepInto();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(3));
 		}
 
 		[Test]

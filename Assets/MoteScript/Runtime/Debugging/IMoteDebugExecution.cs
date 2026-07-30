@@ -9,6 +9,7 @@ namespace MoteScript
 		MoteDebugDocument DebugDocument { get; }
 		MoteSourceSpan? CurrentLocation { get; }
 		int FunctionDepth { get; }
+		string ResultText { get; }
 
 		void Start();
 		void Continue();

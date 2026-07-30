@@ -1,7 +1,9 @@
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace MoteScript.Editor
@@ -21,10 +23,19 @@ namespace MoteScript.Editor
 		private MoteDebugDocument _document;
 		private readonly HashSet<int> _breakpoints = new();
 		private Vector2 _sourceScroll;
-		private Vector2 _variablesScroll;
+		private Vector2 _callStackScroll;
+		[SerializeField] private float _sourcePaneHeight = 280f;
+		[SerializeField] private float _variablesPaneHeight = 160f;
+		[SerializeField] private TreeViewState _variablesTreeState;
+		[SerializeField] private MultiColumnHeaderState _variablesHeaderState;
+		private VariableTreeView _variablesTree;
 		private GUIStyle _lineStyle;
-		private GUIStyle _currentLineStyle;
 		private int _selectedLine = -1;
+		private int _visibleExecutionLine = -1;
+		private int _draggedSplitter;
+
+		private const float SplitterHeight = 5f;
+		private const float MinimumPaneHeight = 70f;
 
 		[MenuItem("Window/MoteScript/Debugger")]
 		public static void Open()
@@ -40,12 +51,15 @@ namespace MoteScript.Editor
 			window._execution = null;
 			window._document = null;
 			window._selectedLine = Math.Max(1, line);
+			window._visibleExecutionLine = -1;
 			window.Repaint();
 		}
 
 		private void OnEnable()
 		{
 			MoteDebugEvents.ExecutionCreated += OnExecutionCreated;
+			RestoreInvalidPaneHeights();
+			EnsureVariableTree();
 		}
 
 		private void OnDisable()
@@ -59,11 +73,129 @@ namespace MoteScript.Editor
 			DrawSourceSelection();
 			DrawControls();
 			EditorGUILayout.Space();
-			DrawSource();
-			EditorGUILayout.Space();
-			DrawVariables();
-			EditorGUILayout.Space();
-			DrawCallStack();
+			Rect content = GUILayoutUtility.GetRect(
+				0f,
+				float.MaxValue,
+				0f,
+				float.MaxValue,
+				GUILayout.ExpandWidth(true),
+				GUILayout.ExpandHeight(true));
+			DrawPanes(content);
+		}
+
+		private void DrawPanes(Rect content)
+		{
+			RestoreInvalidPaneHeights();
+			float available = Mathf.Max(
+				0f,
+				content.height - SplitterHeight * 2f);
+
+			Rect sourceRect = new(
+				content.x,
+				content.y,
+				content.width,
+				_sourcePaneHeight);
+			Rect firstSplitter = new(
+				content.x,
+				sourceRect.yMax,
+				content.width,
+				SplitterHeight);
+			Rect variablesRect = new(
+				content.x,
+				firstSplitter.yMax,
+				content.width,
+				_variablesPaneHeight);
+			Rect secondSplitter = new(
+				content.x,
+				variablesRect.yMax,
+				content.width,
+				SplitterHeight);
+			Rect callStackRect = new(
+				content.x,
+				secondSplitter.yMax,
+				content.width,
+				Mathf.Max(0f, content.yMax - secondSplitter.yMax));
+
+			DrawSourcePane(sourceRect);
+			DrawSplitter(firstSplitter, 1, available);
+			DrawVariablesPane(variablesRect);
+			DrawSplitter(secondSplitter, 2, available);
+			DrawCallStackPane(callStackRect);
+		}
+
+		private void RestoreInvalidPaneHeights()
+		{
+			if (!float.IsFinite(_sourcePaneHeight)
+				|| _sourcePaneHeight < MinimumPaneHeight)
+			{
+				_sourcePaneHeight = 280f;
+			}
+			if (!float.IsFinite(_variablesPaneHeight)
+				|| _variablesPaneHeight < MinimumPaneHeight)
+			{
+				_variablesPaneHeight = 160f;
+			}
+		}
+
+		private void ClampPaneHeights(float available)
+		{
+			if (available < MinimumPaneHeight * 3f)
+			{
+				float equalHeight = available / 3f;
+				_sourcePaneHeight = equalHeight;
+				_variablesPaneHeight = equalHeight;
+				return;
+			}
+
+			_sourcePaneHeight = Mathf.Clamp(
+				_sourcePaneHeight,
+				MinimumPaneHeight,
+				available - MinimumPaneHeight * 2f);
+			_variablesPaneHeight = Mathf.Clamp(
+				_variablesPaneHeight,
+				MinimumPaneHeight,
+				available - _sourcePaneHeight - MinimumPaneHeight);
+		}
+
+		private void DrawSplitter(Rect rect, int splitter, float available)
+		{
+			EditorGUIUtility.AddCursorRect(rect, MouseCursor.ResizeVertical);
+			EditorGUI.DrawRect(
+				rect,
+				EditorGUIUtility.isProSkin
+					? new Color(0.12f, 0.12f, 0.12f)
+					: new Color(0.65f, 0.65f, 0.65f));
+
+			Event current = Event.current;
+			if (current.type == EventType.MouseDown
+				&& current.button == 0
+				&& rect.Contains(current.mousePosition))
+			{
+				_draggedSplitter = splitter;
+				current.Use();
+			}
+			if (current.type == EventType.MouseDrag
+				&& _draggedSplitter == splitter)
+			{
+				if (splitter == 1)
+				{
+					_sourcePaneHeight += current.delta.y;
+					_variablesPaneHeight -= current.delta.y;
+				}
+				else
+				{
+					_variablesPaneHeight += current.delta.y;
+				}
+				ClampPaneHeights(available);
+				Repaint();
+				current.Use();
+			}
+			if (current.rawType == EventType.MouseUp
+				&& _draggedSplitter == splitter)
+			{
+				_draggedSplitter = 0;
+				current.Use();
+			}
 		}
 
 		private void DrawSourceSelection()
@@ -83,6 +215,7 @@ namespace MoteScript.Editor
 				_execution = null;
 				_document = null;
 				_selectedLine = -1;
+				_visibleExecutionLine = -1;
 				_breakpoints.Clear();
 			}
 		}
@@ -91,142 +224,226 @@ namespace MoteScript.Editor
 		{
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				EditorGUI.BeginDisabledGroup(_sourceAsset == null);
-				if (GUILayout.Button("Run"))
+				bool stoppable = _execution?.State == MoteExecutionState.Paused
+					|| _execution?.State == MoteExecutionState.Yielded;
+				EditorGUI.BeginDisabledGroup(_sourceAsset == null && !stoppable);
+				if (GUILayout.Button(stoppable ? "Stop" : "Run"))
 				{
-					StartDebugging(stepInto: false);
-				}
-				if (GUILayout.Button("Start && Step Into"))
-				{
-					StartDebugging(stepInto: true);
+					if (stoppable)
+					{
+						Execute(_execution.Stop);
+					}
+					else
+					{
+						StartDebugging(startPaused: false);
+					}
 				}
 				EditorGUI.EndDisabledGroup();
 
 				bool paused = _execution?.State == MoteExecutionState.Paused;
+				bool yielded = _execution?.State == MoteExecutionState.Yielded;
+				bool canStep = paused || yielded;
+				bool canStartDebugging = _sourceAsset != null
+					&& CanStartNewExecution();
 				EditorGUI.BeginDisabledGroup(!paused);
 				if (GUILayout.Button("Continue"))
 				{
 					Execute(_execution.Continue);
 				}
-				if (GUILayout.Button("Step Into"))
-				{
-					Execute(_execution.StepInto);
-				}
+				EditorGUI.EndDisabledGroup();
+
+				EditorGUI.BeginDisabledGroup(!canStep && !canStartDebugging);
 				if (GUILayout.Button("Step Over"))
 				{
-					Execute(_execution.StepOver);
+					if (canStep)
+					{
+						Execute(_execution.StepOver);
+					}
+					else
+					{
+						StartDebugging(startPaused: true);
+					}
 				}
+				if (GUILayout.Button("Step Into"))
+				{
+					if (canStep)
+					{
+						Execute(_execution.StepInto);
+					}
+					else
+					{
+						StartDebugging(startPaused: true);
+					}
+				}
+				EditorGUI.EndDisabledGroup();
+
+				EditorGUI.BeginDisabledGroup(!canStep);
 				if (GUILayout.Button("Step Out"))
 				{
 					Execute(_execution.StepOut);
 				}
 				EditorGUI.EndDisabledGroup();
-
-				bool stoppable = _execution?.State == MoteExecutionState.Paused
-					|| _execution?.State == MoteExecutionState.Yielded;
-				EditorGUI.BeginDisabledGroup(!stoppable);
-				if (GUILayout.Button("Stop"))
-				{
-					Execute(_execution.Stop);
-				}
-				EditorGUI.EndDisabledGroup();
 			}
 
-			EditorGUILayout.LabelField(
-				"State",
-				_execution?.State.ToString() ?? "Not started");
-			if (_execution?.CurrentLocation is MoteSourceSpan location)
+			using (new EditorGUILayout.HorizontalScope())
 			{
 				EditorGUILayout.LabelField(
-					"Location",
-					$"{location.SourceName}:{location.StartLine}");
+					"State",
+					GUILayout.Width(42f));
+				EditorGUILayout.LabelField(
+					_execution?.State.ToString() ?? "Not started",
+					EditorStyles.textField,
+					GUILayout.Height(EditorGUIUtility.singleLineHeight),
+					GUILayout.MinWidth(90f));
+				EditorGUILayout.LabelField(
+					"Result",
+					GUILayout.Width(44f));
+				EditorGUILayout.SelectableLabel(
+					_execution?.ResultText ?? string.Empty,
+					EditorStyles.textField,
+					GUILayout.Height(EditorGUIUtility.singleLineHeight),
+					GUILayout.ExpandWidth(true));
 			}
+			string locationText =
+				_execution?.CurrentLocation is MoteSourceSpan location
+					? $"{location.SourceName}:{location.StartLine}"
+					: string.Empty;
+			EditorGUILayout.LabelField("Location", locationText);
 		}
 
-		private void DrawSource()
+		private bool CanStartNewExecution()
 		{
+			return _execution is null
+				|| _execution.State == MoteExecutionState.Completed
+				|| _execution.State == MoteExecutionState.Faulted
+				|| _execution.State == MoteExecutionState.Stopped;
+		}
+
+		private void DrawSourcePane(Rect rect)
+		{
+			GUI.BeginGroup(rect);
+			float titleHeight = EditorGUIUtility.singleLineHeight + 2f;
+			GUI.Label(
+				new Rect(0f, 0f, rect.width, titleHeight),
+				"Code",
+				EditorStyles.boldLabel);
 			string source = _document?.Source ?? _sourceAsset?.text;
 			if (string.IsNullOrEmpty(source))
 			{
-				EditorGUILayout.HelpBox(
+				EditorGUI.HelpBox(
+					new Rect(
+						0f,
+						titleHeight,
+						rect.width,
+						EditorGUIUtility.singleLineHeight * 2f),
 					"Select a TextAsset containing a MoteScript source.",
 					MessageType.Info);
+				GUI.EndGroup();
 				return;
 			}
 
 			string[] lines = source.Replace("\r\n", "\n").Split('\n');
 			int currentLine =
 				_execution?.CurrentLocation?.StartLine ?? _selectedLine;
-			_sourceScroll = EditorGUILayout.BeginScrollView(
+			float rowHeight = EditorGUIUtility.singleLineHeight + 2f;
+			Rect viewport = new(
+				0f,
+				titleHeight,
+				rect.width,
+				Mathf.Max(0f, rect.height - titleHeight));
+			if (_execution?.CurrentLocation is MoteSourceSpan
+				&& currentLine != _visibleExecutionLine)
+			{
+				_sourceScroll.y = Mathf.Max(
+					0f,
+					(currentLine - 1) * rowHeight - viewport.height * 0.5f);
+				_visibleExecutionLine = currentLine;
+			}
+
+			float codeWidth = 0f;
+			for (int index = 0; index < lines.Length; ++index)
+			{
+				codeWidth = Mathf.Max(
+					codeWidth,
+					_lineStyle.CalcSize(new GUIContent(lines[index])).x);
+			}
+			Rect content = new(
+				0f,
+				0f,
+				Mathf.Max(viewport.width - 16f, 72f + codeWidth),
+				Mathf.Max(viewport.height, lines.Length * rowHeight));
+			_sourceScroll = GUI.BeginScrollView(
+				viewport,
 				_sourceScroll,
-				GUILayout.MinHeight(220));
+				content);
 			for (int index = 0; index < lines.Length; ++index)
 			{
 				int line = index + 1;
-				using (new EditorGUILayout.HorizontalScope())
+				float y = index * rowHeight;
+				Rect row = new(0f, y, content.width, rowHeight);
+				if (line == currentLine)
 				{
-					bool hasBreakpoint = HasBreakpoint(line);
-					if (GUILayout.Button(
-						hasBreakpoint ? "●" : "○",
-						GUILayout.Width(24)))
-					{
-						ToggleBreakpoint(line);
-					}
-					GUILayout.Label(
-						line.ToString(),
-						GUILayout.Width(38));
-					GUILayout.Label(
-						lines[index],
-						line == currentLine
-							? _currentLineStyle
-							: _lineStyle);
+					EditorGUI.DrawRect(
+						row,
+						EditorGUIUtility.isProSkin
+							? new Color(0.25f, 0.35f, 0.5f, 0.7f)
+							: new Color(0.65f, 0.8f, 1f, 0.8f));
 				}
+				bool hasBreakpoint = HasBreakpoint(line);
+				if (GUI.Button(
+					new Rect(0f, y, 24f, rowHeight),
+					hasBreakpoint ? "●" : "○"))
+				{
+					ToggleBreakpoint(line);
+				}
+				GUI.Label(
+					new Rect(28f, y, 38f, rowHeight),
+					line.ToString(),
+					_lineStyle);
+				GUI.Label(
+					new Rect(68f, y, codeWidth + 4f, rowHeight),
+					lines[index],
+					_lineStyle);
 			}
-			EditorGUILayout.EndScrollView();
+			GUI.EndScrollView();
+			GUI.EndGroup();
 		}
 
-		private void DrawVariables()
+		private void DrawVariablesPane(Rect rect)
 		{
-			EditorGUILayout.LabelField("Context Variables", EditorStyles.boldLabel);
-			if (_execution is null)
-			{
-				return;
-			}
-
+			GUI.BeginGroup(rect);
+			GUI.Label(
+				new Rect(0f, 0f, rect.width, EditorGUIUtility.singleLineHeight),
+				"Context Variables",
+				EditorStyles.boldLabel);
+			EnsureVariableTree();
 			IReadOnlyList<MoteDebugVariable> variables =
-				_execution.GetVariables();
-			_variablesScroll = EditorGUILayout.BeginScrollView(
-				_variablesScroll,
-				GUILayout.MinHeight(100));
-			for (int i = 0; i < variables.Count; ++i)
-			{
-				MoteDebugVariable variable = variables[i];
-				using (new EditorGUILayout.HorizontalScope())
-				{
-					EditorGUILayout.LabelField(
-						variable.Name,
-						GUILayout.Width(140));
-					EditorGUILayout.LabelField(
-						variable.Type,
-						GUILayout.Width(90));
-					EditorGUILayout.SelectableLabel(
-						variable.Value,
-						GUILayout.Height(EditorGUIUtility.singleLineHeight));
-				}
-			}
-			EditorGUILayout.EndScrollView();
+				_execution?.GetVariables() ?? Array.Empty<MoteDebugVariable>();
+			_variablesTree.SetVariables(variables);
+			float top = EditorGUIUtility.singleLineHeight + 2f;
+			_variablesTree.OnGUI(
+				new Rect(0f, top, rect.width, Mathf.Max(0f, rect.height - top)));
+			GUI.EndGroup();
 		}
 
-		private void DrawCallStack()
+		private void DrawCallStackPane(Rect rect)
 		{
+			GUI.BeginGroup(rect);
+			Rect local = new(0f, 0f, rect.width, rect.height);
+			GUILayout.BeginArea(local);
 			EditorGUILayout.LabelField("Call Stack", EditorStyles.boldLabel);
 			if (_execution is null)
 			{
+				GUILayout.EndArea();
+				GUI.EndGroup();
 				return;
 			}
 
 			IReadOnlyList<MoteDebugCallFrame> frames =
 				_execution.GetCallStack();
+			_callStackScroll = EditorGUILayout.BeginScrollView(
+				_callStackScroll,
+				GUILayout.ExpandHeight(true));
 			for (int i = frames.Count - 1; i >= 0; --i)
 			{
 				MoteDebugCallFrame frame = frames[i];
@@ -237,22 +454,50 @@ namespace MoteScript.Editor
 					frame.FunctionName,
 					location);
 			}
+			EditorGUILayout.EndScrollView();
+			GUILayout.EndArea();
+			GUI.EndGroup();
 		}
 
-		private void StartDebugging(bool stepInto)
+		private void EnsureVariableTree()
 		{
+			if (_variablesTree is not null)
+			{
+				return;
+			}
+			_variablesTreeState ??= new TreeViewState();
+			MultiColumnHeaderState headerState =
+				VariableTreeView.CreateHeaderState();
+			if (_variablesHeaderState is not null
+				&& MultiColumnHeaderState.CanOverwriteSerializedFields(
+					_variablesHeaderState,
+					headerState))
+			{
+				MultiColumnHeaderState.OverwriteSerializedFields(
+					_variablesHeaderState,
+					headerState);
+			}
+			_variablesHeaderState = headerState;
+			_variablesTree ??= new VariableTreeView(
+				_variablesTreeState,
+				new MultiColumnHeader(headerState));
+		}
+
+		private void StartDebugging(bool startPaused)
+		{
+			ClearValueSelection();
 			try
 			{
 				switch (_numericType)
 				{
 					case NumericType.Integer:
-						StartDebugging<int>(stepInto);
+						StartDebugging<int>(startPaused);
 						break;
 					case NumericType.Decimal:
-						StartDebugging<decimal>(stepInto);
+						StartDebugging<decimal>(startPaused);
 						break;
 					default:
-						StartDebugging<float>(stepInto);
+						StartDebugging<float>(startPaused);
 						break;
 				}
 			}
@@ -262,7 +507,7 @@ namespace MoteScript.Editor
 			}
 		}
 
-		private void StartDebugging<T>(bool stepInto)
+		private void StartDebugging<T>(bool startPaused)
 			where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 		{
 			MoteDecoder<T>.Setup();
@@ -290,9 +535,10 @@ namespace MoteScript.Editor
 			_execution = execution;
 			_document = document;
 			_selectedLine = -1;
+			_visibleExecutionLine = -1;
 			NormalizeBreakpoints();
 
-			if (stepInto)
+			if (startPaused)
 			{
 				execution.StepInto();
 			}
@@ -305,6 +551,7 @@ namespace MoteScript.Editor
 
 		private void Execute(Action operation)
 		{
+			ClearValueSelection();
 			try
 			{
 				operation();
@@ -314,6 +561,13 @@ namespace MoteScript.Editor
 				LogException(exception, _execution?.CurrentLocation);
 			}
 			Repaint();
+		}
+
+		private static void ClearValueSelection()
+		{
+			GUI.FocusControl(null);
+			GUIUtility.keyboardControl = 0;
+			EditorGUIUtility.editingTextField = false;
 		}
 
 		private bool HasBreakpoint(int line)
@@ -372,6 +626,7 @@ namespace MoteScript.Editor
 		{
 			_execution = execution;
 			_document = execution.DebugDocument;
+			_visibleExecutionLine = -1;
 			Repaint();
 		}
 
@@ -391,27 +646,225 @@ namespace MoteScript.Editor
 
 		private void EnsureStyles()
 		{
-			_lineStyle ??= new GUIStyle(EditorStyles.label)
+			if (_lineStyle is not null)
+			{
+				return;
+			}
+
+			Color textColor = EditorGUIUtility.isProSkin
+				? new Color(0.86f, 0.86f, 0.86f)
+				: new Color(0.12f, 0.12f, 0.12f);
+			_lineStyle = new GUIStyle(EditorStyles.label)
 			{
 				font = EditorStyles.miniFont,
 				wordWrap = false,
 			};
-			_currentLineStyle ??= new GUIStyle(_lineStyle);
-			_currentLineStyle.normal.background =
-				EditorGUIUtility.isProSkin
-					? MakeTexture(new Color(0.25f, 0.35f, 0.5f, 0.7f))
-					: MakeTexture(new Color(0.65f, 0.8f, 1f, 0.8f));
+			SetTextColor(_lineStyle, textColor);
 		}
 
-		private static Texture2D MakeTexture(Color color)
+		private static void SetTextColor(GUIStyle style, Color color)
 		{
-			var texture = new Texture2D(1, 1)
+			style.normal.textColor = color;
+			style.hover.textColor = color;
+			style.active.textColor = color;
+			style.focused.textColor = color;
+			style.onNormal.textColor = color;
+			style.onHover.textColor = color;
+			style.onActive.textColor = color;
+			style.onFocused.textColor = color;
+		}
+
+		private sealed class VariableTreeView : TreeView
+		{
+			private IReadOnlyList<MoteDebugVariable> _variables =
+				Array.Empty<MoteDebugVariable>();
+
+			private enum Column
 			{
-				hideFlags = HideFlags.HideAndDontSave,
-			};
-			texture.SetPixel(0, 0, color);
-			texture.Apply();
-			return texture;
+				Name,
+				Type,
+				Value,
+			}
+
+			public VariableTreeView(
+				TreeViewState state,
+				MultiColumnHeader header)
+				: base(state, header)
+			{
+				showAlternatingRowBackgrounds = true;
+				showBorder = true;
+				rowHeight = EditorGUIUtility.singleLineHeight + 2f;
+				header.sortingChanged += _ => Reload();
+				Reload();
+			}
+
+			public static MultiColumnHeaderState CreateHeaderState()
+			{
+				return new MultiColumnHeaderState(new[]
+				{
+					new MultiColumnHeaderState.Column
+					{
+						headerContent = new GUIContent("Name"),
+						width = 160f,
+						minWidth = 70f,
+						autoResize = false,
+						canSort = true,
+					},
+					new MultiColumnHeaderState.Column
+					{
+						headerContent = new GUIContent("Type"),
+						width = 100f,
+						minWidth = 60f,
+						autoResize = false,
+						canSort = true,
+					},
+					new MultiColumnHeaderState.Column
+					{
+						headerContent = new GUIContent("Value"),
+						width = 240f,
+						minWidth = 80f,
+						autoResize = false,
+						canSort = true,
+					},
+				});
+			}
+
+			public void SetVariables(IReadOnlyList<MoteDebugVariable> variables)
+			{
+				variables ??= Array.Empty<MoteDebugVariable>();
+				if (AreEqual(_variables, variables))
+				{
+					return;
+				}
+				_variables = variables;
+				Reload();
+			}
+
+			private static bool AreEqual(
+				IReadOnlyList<MoteDebugVariable> left,
+				IReadOnlyList<MoteDebugVariable> right)
+			{
+				if (left.Count != right.Count)
+				{
+					return false;
+				}
+				for (int i = 0; i < left.Count; ++i)
+				{
+					if (!string.Equals(left[i].Name, right[i].Name, StringComparison.Ordinal)
+						|| !string.Equals(left[i].Type, right[i].Type, StringComparison.Ordinal)
+						|| !string.Equals(left[i].Value, right[i].Value, StringComparison.Ordinal))
+					{
+						return false;
+					}
+				}
+				return true;
+			}
+
+			protected override TreeViewItem BuildRoot()
+			{
+				var root = new TreeViewItem
+				{
+					id = 0,
+					depth = -1,
+					displayName = "Root",
+				};
+				var rows = new List<TreeViewItem>(_variables.Count);
+				for (int i = 0; i < _variables.Count; ++i)
+				{
+					rows.Add(new VariableTreeViewItem(i + 1, _variables[i]));
+				}
+				SortRows(rows);
+				SetupParentsAndChildrenFromDepths(root, rows);
+				return root;
+			}
+
+			protected override void RowGUI(RowGUIArgs args)
+			{
+				var item = (VariableTreeViewItem)args.item;
+				for (int visibleIndex = 0;
+					visibleIndex < args.GetNumVisibleColumns();
+					++visibleIndex)
+				{
+					int columnIndex = args.GetColumn(visibleIndex);
+					Rect cell = args.GetCellRect(visibleIndex);
+					CenterRectUsingSingleLineHeight(ref cell);
+					string value = (Column)columnIndex switch
+					{
+						Column.Name => item.Variable.Name,
+						Column.Type => item.Variable.Type,
+						_ => item.Variable.Value,
+					};
+					EditorGUI.LabelField(cell, value ?? string.Empty);
+				}
+			}
+
+			private void SortRows(List<TreeViewItem> rows)
+			{
+				if (multiColumnHeader.sortedColumnIndex < 0)
+				{
+					return;
+				}
+				int column = multiColumnHeader.sortedColumnIndex;
+				bool ascending =
+					multiColumnHeader.IsSortedAscending(column);
+				rows.Sort((left, right) =>
+				{
+					var leftItem = (VariableTreeViewItem)left;
+					var rightItem = (VariableTreeViewItem)right;
+					int comparison = Compare(
+						leftItem.Variable,
+						rightItem.Variable,
+						(Column)column);
+					return ascending ? comparison : -comparison;
+				});
+			}
+
+			private static int Compare(
+				MoteDebugVariable left,
+				MoteDebugVariable right,
+				Column column)
+			{
+				if (column == Column.Value
+					&& decimal.TryParse(
+						left.Value,
+						NumberStyles.Number,
+						CultureInfo.InvariantCulture,
+						out decimal leftNumber)
+					&& decimal.TryParse(
+						right.Value,
+						NumberStyles.Number,
+						CultureInfo.InvariantCulture,
+						out decimal rightNumber))
+				{
+					return leftNumber.CompareTo(rightNumber);
+				}
+				string leftText = column switch
+				{
+					Column.Name => left.Name,
+					Column.Type => left.Type,
+					_ => left.Value,
+				};
+				string rightText = column switch
+				{
+					Column.Name => right.Name,
+					Column.Type => right.Type,
+					_ => right.Value,
+				};
+				return string.CompareOrdinal(leftText, rightText);
+			}
+
+			private sealed class VariableTreeViewItem : TreeViewItem
+			{
+				public VariableTreeViewItem(
+					int id,
+					MoteDebugVariable variable)
+					: base(id, 0, variable.Name)
+				{
+					Variable = variable;
+				}
+
+				public MoteDebugVariable Variable { get; }
+			}
 		}
 	}
 }

@@ -28,6 +28,10 @@ namespace MoteScript
 		public MoteDebugDocument DebugDocument => _debugSession?.Document;
 		public MoteSourceSpan? CurrentLocation => _debugSession?.CurrentLocation;
 		public int FunctionDepth => _debugFunctionDepth;
+		string IMoteDebugExecution.ResultText =>
+			State == MoteExecutionState.Completed
+				? FormatDebugValue(Result)
+				: string.Empty;
 
 		public MoteValue<T> ContinueDebugging()
 		{
@@ -43,23 +47,23 @@ namespace MoteScript
 				_debugSession.StepInto();
 				return Evaluate();
 			}
-			EnsurePaused();
+			MoteExecutionState suspendedState = EnsureDebugSuspended();
 			_debugSession.StepInto();
-			return ResumeCore(MoteExecutionState.Paused);
+			return ResumeCore(suspendedState);
 		}
 
 		public MoteValue<T> StepOver()
 		{
-			EnsurePaused();
+			MoteExecutionState suspendedState = EnsureDebugSuspended();
 			_debugSession.StepOver(_debugFunctionDepth);
-			return ResumeCore(MoteExecutionState.Paused);
+			return ResumeCore(suspendedState);
 		}
 
 		public MoteValue<T> StepOut()
 		{
-			EnsurePaused();
+			MoteExecutionState suspendedState = EnsureDebugSuspended();
 			_debugSession.StepOut(_debugFunctionDepth);
-			return ResumeCore(MoteExecutionState.Paused);
+			return ResumeCore(suspendedState);
 		}
 
 		public void StopDebugging()
@@ -126,6 +130,17 @@ namespace MoteScript
 				throw new InvalidOperationException(
 					"Debug execution can only continue while paused.");
 			}
+		}
+
+		private MoteExecutionState EnsureDebugSuspended()
+		{
+			if (State != MoteExecutionState.Paused
+				&& State != MoteExecutionState.Yielded)
+			{
+				throw new InvalidOperationException(
+					"Debug execution can only step while paused or yielded.");
+			}
+			return State;
 		}
 
 		private string FormatDebugValue(MoteValue<T> value)
