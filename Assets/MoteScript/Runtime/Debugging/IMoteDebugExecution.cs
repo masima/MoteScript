@@ -21,6 +21,7 @@ namespace MoteScript
 		bool RemoveBreakpoint(int line);
 		bool HasBreakpoint(int line);
 		IReadOnlyList<MoteDebugVariable> GetVariables();
+		bool TrySetVariableValue(int id, string value, out string error);
 		IReadOnlyList<MoteDebugCallFrame> GetCallStack();
 	}
 
@@ -35,18 +36,27 @@ namespace MoteScript
 			string name,
 			string type,
 			string value,
-			IReadOnlyList<MoteDebugVariable> children)
+			IReadOnlyList<MoteDebugVariable> children,
+			int id = 0,
+			bool canEdit = false,
+			string editValue = null)
 		{
 			Name = name;
 			Type = type;
 			Value = value;
 			Children = children;
+			Id = id;
+			CanEdit = canEdit;
+			EditValue = editValue;
 		}
 
 		public string Name { get; }
 		public string Type { get; }
 		public string Value { get; }
 		public IReadOnlyList<MoteDebugVariable> Children { get; }
+		public int Id { get; }
+		public bool CanEdit { get; }
+		public string EditValue { get; }
 	}
 
 	public readonly struct MoteDebugCallFrame

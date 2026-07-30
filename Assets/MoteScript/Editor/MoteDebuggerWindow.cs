@@ -610,9 +610,23 @@ namespace MoteScript.Editor
 					headerState);
 			}
 			_variablesHeaderState = headerState;
-			_variablesTree ??= new VariableTreeView(
+			_variablesTree = new VariableTreeView(
 				_variablesTreeState,
 				new MultiColumnHeader(headerState));
+			_variablesTree.ValueEdited += SetVariableValue;
+		}
+
+		private void SetVariableValue(int id, string value)
+		{
+			if (_execution is null)
+			{
+				return;
+			}
+			if (!_execution.TrySetVariableValue(id, value, out string error))
+			{
+				ShowNotification(new GUIContent(error));
+			}
+			Repaint();
 		}
 
 		private void StartDebugging(bool startPaused)
@@ -885,6 +899,11 @@ namespace MoteScript.Editor
 					if (!string.Equals(left[i].Name, right[i].Name, StringComparison.Ordinal)
 						|| !string.Equals(left[i].Type, right[i].Type, StringComparison.Ordinal)
 						|| !string.Equals(left[i].Value, right[i].Value, StringComparison.Ordinal)
+						|| left[i].CanEdit != right[i].CanEdit
+						|| !string.Equals(
+							left[i].EditValue,
+							right[i].EditValue,
+							StringComparison.Ordinal)
 						|| !AreEqual(
 							left[i].Children ?? Array.Empty<MoteDebugVariable>(),
 							right[i].Children ?? Array.Empty<MoteDebugVariable>()))
@@ -925,6 +944,19 @@ namespace MoteScript.Editor
 					}
 					Rect cell = args.GetCellRect(visibleIndex);
 					CenterRectUsingSingleLineHeight(ref cell);
+					if ((Column)columnIndex == Column.Value
+						&& item.Variable.CanEdit)
+					{
+						EditorGUI.BeginChangeCheck();
+						string edited = EditorGUI.DelayedTextField(
+							cell,
+							item.Variable.EditValue ?? string.Empty);
+						if (EditorGUI.EndChangeCheck())
+						{
+							ValueEdited?.Invoke(item.Variable.Id, edited);
+						}
+						continue;
+					}
 					string value = (Column)columnIndex switch
 					{
 						Column.Type => item.Variable.Type,
@@ -933,6 +965,8 @@ namespace MoteScript.Editor
 					EditorGUI.LabelField(cell, value ?? string.Empty);
 				}
 			}
+
+			public event Action<int, string> ValueEdited;
 
 			private void AddRows(
 				IReadOnlyList<MoteDebugVariable> variables,

@@ -11,6 +11,8 @@ namespace MoteScript
 		private readonly MoteDebugSession<T> _debugSession;
 		private int _debugFunctionDepth;
 		private readonly List<MoteDebugCallFrame> _debugCallStack = new(4);
+		private readonly Dictionary<int, DebugVariableTarget>
+			_debugVariableTargets = new();
 
 		internal MoteExecution(
 			MoteValue<T> script,
@@ -161,6 +163,8 @@ namespace MoteScript
 		{
 			var variables = new List<MoteDebugVariable>(_context.Count);
 			var ancestors = new HashSet<object>();
+			_debugVariableTargets.Clear();
+			int nextId = 1;
 			if (_context is IEnumerable<KeyValuePair<string, MoteValue<T>>> values)
 			{
 				foreach (KeyValuePair<string, MoteValue<T>> pair in values)
@@ -168,8 +172,10 @@ namespace MoteScript
 					variables.Add(CreateDebugVariable(
 						pair.Key,
 						pair.Value,
+						new DebugVariableTarget(_context, pair.Key),
 						ancestors,
-						0));
+						0,
+						ref nextId));
 				}
 				variables.Sort(
 					(left, right) => string.CompareOrdinal(left.Name, right.Name));
@@ -180,9 +186,12 @@ namespace MoteScript
 		private MoteDebugVariable CreateDebugVariable(
 			string name,
 			MoteValue<T> value,
+			DebugVariableTarget target,
 			HashSet<object> ancestors,
-			int depth)
+			int depth,
+			ref int nextId)
 		{
+			int id = nextId++;
 			IReadOnlyList<MoteDebugVariable> children = null;
 			string displayValue = FormatDebugValue(value);
 			if (value.ValueType == EValueType.Dictionary)
@@ -207,8 +216,10 @@ namespace MoteScript
 						childVariables.Add(CreateDebugVariable(
 							member.Key,
 							member.Value,
+							new DebugVariableTarget(dictionary, member.Key),
 							ancestors,
-							depth + 1));
+							depth + 1,
+							ref nextId));
 					}
 					childVariables.Sort(
 						(left, right) =>
@@ -241,8 +252,10 @@ namespace MoteScript
 						childVariables.Add(CreateDebugVariable(
 							$"[{i}]",
 							array[i],
+							new DebugVariableTarget(array, i),
 							ancestors,
-							depth + 1));
+							depth + 1,
+							ref nextId));
 					}
 					children = childVariables;
 				}
@@ -251,11 +264,129 @@ namespace MoteScript
 					ancestors.Remove(array);
 				}
 			}
+			bool canEdit = (State == MoteExecutionState.Paused
+					|| State == MoteExecutionState.Yielded)
+				&& (value.ValueType == EValueType.Const
+					|| value.ValueType == EValueType.String);
+			if (canEdit)
+			{
+				_debugVariableTargets[id] = target;
+			}
+			string editValue = value.ValueType switch
+			{
+				EValueType.Const =>
+					value.Value.ToString(null, CultureInfo.InvariantCulture),
+				EValueType.String => value.StringValue,
+				_ => null,
+			};
 			return new MoteDebugVariable(
 				name,
 				value.ValueType.ToString(),
 				displayValue,
-				children);
+				children,
+				id,
+				canEdit,
+				editValue);
+		}
+
+		bool IMoteDebugExecution.TrySetVariableValue(
+			int id,
+			string value,
+			out string error)
+		{
+			if (State != MoteExecutionState.Paused
+				&& State != MoteExecutionState.Yielded)
+			{
+				error = "Variables can only be edited while paused or yielded.";
+				return false;
+			}
+			if (!_debugVariableTargets.TryGetValue(
+				id,
+				out DebugVariableTarget target))
+			{
+				error = "The variable is no longer available.";
+				return false;
+			}
+			MoteValue<T> current = target.GetValue();
+			try
+			{
+				MoteValue<T> updated = current.ValueType switch
+				{
+					EValueType.Const => EvaluateNumericEdit(value),
+					EValueType.String => new MoteValue<T>(value),
+					_ => throw new InvalidOperationException(
+						"Only numeric and string values can be edited."),
+				};
+				target.SetValue(updated);
+				error = null;
+				return true;
+			}
+			catch (Exception exception)
+			{
+				error = exception.Message;
+				return false;
+			}
+		}
+
+		private static MoteValue<T> EvaluateNumericEdit(string expression)
+		{
+			if (string.IsNullOrWhiteSpace(expression))
+			{
+				throw new FormatException("A numeric expression is required.");
+			}
+			var decoder = new MoteDecoder<T>();
+			MoteValue<T> result = decoder
+				.Decode(expression)
+				.Evaluate(new Context<T>());
+			if (result.ValueType != EValueType.Const)
+			{
+				throw new InvalidOperationException(
+					"The expression must return a numeric value.");
+			}
+			return new MoteValue<T>(result.Value);
+		}
+
+		private readonly struct DebugVariableTarget
+		{
+			private readonly IContext<T> _dictionary;
+			private readonly MoteList<T> _array;
+			private readonly string _key;
+			private readonly int _index;
+
+			public DebugVariableTarget(IContext<T> dictionary, string key)
+			{
+				_dictionary = dictionary;
+				_array = null;
+				_key = key;
+				_index = -1;
+			}
+
+			public DebugVariableTarget(MoteList<T> array, int index)
+			{
+				_dictionary = null;
+				_array = array;
+				_key = null;
+				_index = index;
+			}
+
+			public MoteValue<T> GetValue()
+			{
+				return _dictionary is not null
+					? _dictionary[_key]
+					: _array[_index];
+			}
+
+			public void SetValue(MoteValue<T> value)
+			{
+				if (_dictionary is not null)
+				{
+					_dictionary[_key] = value;
+				}
+				else
+				{
+					_array[_index] = value;
+				}
+			}
 		}
 
 		IReadOnlyList<MoteDebugCallFrame> IMoteDebugExecution.GetCallStack()

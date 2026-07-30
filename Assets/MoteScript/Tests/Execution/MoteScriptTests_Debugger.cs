@@ -441,6 +441,102 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void DebugVariablesAllowEditingNumericAndStringValues()
+		{
+			const string source =
+				"number=1;\n"
+				+ "text=\"old\";\n"
+				+ "data=[member:2];\n"
+				+ "items=(3,4);\n"
+				+ "number;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"edit-variables.mote",
+				out MoteDebugDocument document);
+			var session = new MoteDebugSession<float>(document);
+			session.SetBreakpoint(5);
+			var context = new Context<float>();
+			MoteExecution<float> execution =
+				script.CreateDebugExecution(context, session);
+			execution.Evaluate();
+			var debugExecution = (IMoteDebugExecution)execution;
+
+			IReadOnlyList<MoteDebugVariable> variables =
+				debugExecution.GetVariables();
+			MoteDebugVariable data = FindVariable(variables, "data");
+			MoteDebugVariable items = FindVariable(variables, "items");
+			MoteDebugVariable number = FindVariable(variables, "number");
+			MoteDebugVariable text = FindVariable(variables, "text");
+
+			Assert.That(number.CanEdit, Is.True);
+			Assert.That(text.CanEdit, Is.True);
+			Assert.That(data.CanEdit, Is.False);
+			Assert.That(items.CanEdit, Is.False);
+			Assert.That(data.Children[0].CanEdit, Is.True);
+			Assert.That(items.Children[0].CanEdit, Is.True);
+
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					number.Id,
+					"2+3*4",
+					out string numberError),
+				Is.True,
+				numberError);
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					text.Id,
+					"updated",
+					out string textError),
+				Is.True,
+				textError);
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					data.Children[0].Id,
+					"6",
+					out string dictionaryError),
+				Is.True,
+				dictionaryError);
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					items.Children[0].Id,
+					"7",
+					out string arrayError),
+				Is.True,
+				arrayError);
+
+			Assert.That(context["number"].Value, Is.EqualTo(14f));
+			Assert.That(context["text"].StringValue, Is.EqualTo("updated"));
+			Assert.That(context.GetByPath("data.member").Value, Is.EqualTo(6f));
+			Assert.That(
+				context["items"].GetArray()[0].Value,
+				Is.EqualTo(7f));
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					number.Id,
+					"invalid",
+					out string invalidError),
+				Is.False);
+			Assert.That(invalidError, Is.Not.Empty);
+			Assert.That(context["number"].Value, Is.EqualTo(14f));
+		}
+
+		private static MoteDebugVariable FindVariable(
+			IReadOnlyList<MoteDebugVariable> variables,
+			string name)
+		{
+			for (int i = 0; i < variables.Count; ++i)
+			{
+				if (variables[i].Name == name)
+				{
+					return variables[i];
+				}
+			}
+			Assert.Fail($"Variable '{name}' was not found.");
+			return default;
+		}
+
+		[Test]
 		public void ExceptionIncludesLastStatementLocation()
 		{
 			const string source = "a=1;\nmissing+1;";
