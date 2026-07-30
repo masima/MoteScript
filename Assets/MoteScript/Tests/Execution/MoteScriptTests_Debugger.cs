@@ -48,6 +48,83 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void DebuggerImportFixtureExercisesStepWorkflow()
+		{
+			const string path =
+				"Assets/MoteScript/Tests/Execution/DebuggerImportFixture.mote";
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				asset.text,
+				path,
+				out MoteDebugDocument document);
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				new Context<float>(),
+				new MoteDebugSession<float>(document));
+
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(1));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(6));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(11));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(3));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(4));
+			execution.StepOut();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(12));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(7));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(8));
+			execution.StepInto();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.Value, Is.EqualTo(3f));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(9));
+			execution.StepOut();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(13));
+			execution.StepOver();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(14));
+			execution.StepOver();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+			Assert.That(execution.Result.Value, Is.EqualTo(5f));
+		}
+
+		[Test]
+		public void StepOverSkipsFixtureFunctionWithoutYield()
+		{
+			const string path =
+				"Assets/MoteScript/Tests/Execution/DebuggerImportFixture.mote";
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				asset.text,
+				path,
+				out MoteDebugDocument document);
+			var context = new Context<float>();
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				context,
+				new MoteDebugSession<float>(document));
+
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(11));
+
+			execution.StepOver();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(12));
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.FunctionDepth, Is.EqualTo(0));
+			Assert.That(context["value"].Value, Is.EqualTo(2f));
+		}
+
+		[Test]
 		public void BasicUsageMoteSampleExecutes()
 		{
 			string source = File.ReadAllText(
