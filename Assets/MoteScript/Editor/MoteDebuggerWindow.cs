@@ -978,6 +978,12 @@ namespace MoteScript.Editor
 				MoteDebugVariable right,
 				Column column)
 			{
+				if (column == Column.Name
+					&& TryGetArrayIndex(left.Name, out int leftIndex)
+					&& TryGetArrayIndex(right.Name, out int rightIndex))
+				{
+					return leftIndex.CompareTo(rightIndex);
+				}
 				if (column == Column.Value
 					&& decimal.TryParse(
 						left.Value,
@@ -1005,6 +1011,23 @@ namespace MoteScript.Editor
 					_ => right.Value,
 				};
 				return string.CompareOrdinal(leftText, rightText);
+			}
+
+			private static bool TryGetArrayIndex(string name, out int index)
+			{
+				if (!string.IsNullOrEmpty(name)
+					&& name.Length > 2
+					&& name[0] == '['
+					&& name[name.Length - 1] == ']')
+				{
+					return int.TryParse(
+						name.Substring(1, name.Length - 2),
+						NumberStyles.None,
+						CultureInfo.InvariantCulture,
+						out index);
+				}
+				index = 0;
+				return false;
 			}
 
 			private sealed class VariableTreeViewItem : TreeViewItem

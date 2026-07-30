@@ -160,7 +160,7 @@ namespace MoteScript
 		IReadOnlyList<MoteDebugVariable> IMoteDebugExecution.GetVariables()
 		{
 			var variables = new List<MoteDebugVariable>(_context.Count);
-			var ancestors = new HashSet<IContext<T>>();
+			var ancestors = new HashSet<object>();
 			if (_context is IEnumerable<KeyValuePair<string, MoteValue<T>>> values)
 			{
 				foreach (KeyValuePair<string, MoteValue<T>> pair in values)
@@ -180,7 +180,7 @@ namespace MoteScript
 		private MoteDebugVariable CreateDebugVariable(
 			string name,
 			MoteValue<T> value,
-			HashSet<IContext<T>> ancestors,
+			HashSet<object> ancestors,
 			int depth)
 		{
 			IReadOnlyList<MoteDebugVariable> children = null;
@@ -218,6 +218,37 @@ namespace MoteScript
 				if (added)
 				{
 					ancestors.Remove(dictionary);
+				}
+			}
+			else if (value.ValueType == EValueType.Array)
+			{
+				MoteList<T> array = value.GetArray();
+				bool added = array is not null && ancestors.Add(array);
+				if (array is not null && !added)
+				{
+					displayValue = "Circular reference";
+				}
+				else if (array is not null && depth >= 31)
+				{
+					displayValue = "Maximum depth reached";
+				}
+				else if (array is not null)
+				{
+					var childVariables =
+						new List<MoteDebugVariable>(array.Count);
+					for (int i = 0; i < array.Count; ++i)
+					{
+						childVariables.Add(CreateDebugVariable(
+							$"[{i}]",
+							array[i],
+							ancestors,
+							depth + 1));
+					}
+					children = childVariables;
+				}
+				if (added)
+				{
+					ancestors.Remove(array);
 				}
 			}
 			return new MoteDebugVariable(

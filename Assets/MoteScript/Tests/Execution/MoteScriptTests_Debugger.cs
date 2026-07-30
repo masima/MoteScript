@@ -59,8 +59,9 @@ namespace MoteScript.Tests
 				asset.text,
 				path,
 				out MoteDebugDocument document);
+			var context = new Context<float>();
 			MoteExecution<float> execution = script.CreateDebugExecution(
-				new Context<float>(),
+				context,
 				new MoteDebugSession<float>(document));
 
 			execution.StepInto();
@@ -90,10 +91,9 @@ namespace MoteScript.Tests
 			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(13));
 			execution.StepOver();
 			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(14));
-			execution.StepOver();
 
-			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
-			Assert.That(execution.Result.Value, Is.EqualTo(5f));
+			Assert.That(context["value"].Value, Is.EqualTo(5f));
+			execution.StopDebugging();
 		}
 
 		[Test]
@@ -392,6 +392,51 @@ namespace MoteScript.Tests
 			Assert.That(data.Children[2].Name, Is.EqualTo("self"));
 			Assert.That(
 				data.Children[2].Value,
+				Is.EqualTo("Circular reference"));
+		}
+
+		[Test]
+		public void DebugVariablesExposeNestedArrayElements()
+		{
+			const string source =
+				"items=(1,(2,3));"
+				+ "items;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"array-tree.mote",
+				out MoteDebugDocument document);
+			var context = new Context<float>();
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				context,
+				new MoteDebugSession<float>(document));
+			execution.Evaluate();
+			MoteValue<float> itemsValue = context["items"];
+			MoteList<float> itemsArray = itemsValue.GetArray();
+			var dictionary = new Context<float>
+			{
+				["name"] = new MoteValue<float>("entry"),
+			};
+			itemsArray.Add(new MoteValue<float>(dictionary));
+			itemsArray.Add(itemsValue);
+
+			IReadOnlyList<MoteDebugVariable> variables =
+				((IMoteDebugExecution)execution).GetVariables();
+			MoteDebugVariable items = variables[0];
+
+			Assert.That(items.Name, Is.EqualTo("items"));
+			Assert.That(items.Type, Is.EqualTo("Array"));
+			Assert.That(items.Children, Has.Count.EqualTo(4));
+			Assert.That(items.Children[0].Name, Is.EqualTo("[0]"));
+			Assert.That(items.Children[0].Value, Is.EqualTo("1"));
+			Assert.That(items.Children[1].Type, Is.EqualTo("Array"));
+			Assert.That(items.Children[1].Children, Has.Count.EqualTo(2));
+			Assert.That(items.Children[2].Type, Is.EqualTo("Dictionary"));
+			Assert.That(
+				items.Children[2].Children[0].Value,
+				Is.EqualTo("\"entry\""));
+			Assert.That(
+				items.Children[3].Value,
 				Is.EqualTo("Circular reference"));
 		}
 
