@@ -54,7 +54,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.11.0
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -62,7 +62,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.11.0"
   }
 }
 ```
@@ -772,22 +772,26 @@ Playerビルドでは、デバッグ用Runtime APIと停止判定は標準では
 
 Unity Editorでは、`.mote`ファイルは`MoteScriptImporter`によってTextAssetとしてインポートされます。通常のTextAssetと同様にC#から参照でき、Debugger Windowの`Script`欄にも指定できます。
 
-Projectビューで`.mote`アセットをダブルクリックするとDebugger Windowで開きます。スクリプト例外がUnity Consoleへ`(at Assets/example.mote:3)`形式で出力された場合も、Consoleの項目をダブルクリックすると同じアセットの該当行を表示します。
+Projectビューで`.mote`アセットをダブルクリックすると、Unityで設定された外部テキストエディタで開きます。デバッガで開く場合は、アセットの右クリックメニューから **Open in MoteScript Debugger** を選択します。Debugger Windowのコード行をダブルクリックすると、外部エディタで該当行を開けます。
 
 Package Managerから`Basic Usage`サンプルをインポートすると、関数、ローカル変数、複数行の処理を含む`BasicUsage.mote`を確認できます。
 
 ### EditorWindowから実行
 
-Defineを有効にすると、Unityの **Window > MoteScript > Debugger** から専用ウィンドウを開けます。
+Unityの **Window > MoteScript > Debugger** から専用ウィンドウを開けます。
 
-1. `Script`へMoteScriptを記述したTextAssetを指定します。
+1. `Script`の選択メニューから`.mote`アセットを指定します。
 2. `Float`、`Integer`、`Decimal`から数値型を選択します。
 3. 行番号左の丸をクリックしてブレークポイントを設定します。
-4. `Run`でブレークポイントまで実行するか、`Start & Step Into`で先頭行から停止します。
+4. `Run`でブレークポイントまで実行するか、未実行状態で`Step Over`または`Step Into`を押して先頭行から停止します。
 
-停止中は`Continue`、`Step Into`、`Step Over`、`Step Out`、`Stop`を使用できます。現在行、Context内の通常変数・関数引数・ローカル変数、関数コールスタックが表示されます。ウォッチ式の評価機能はありません。
+停止中は`Continue`、`Step Over`、`Step Into`、`Step Out`、`Stop`を使用できます。F5はRun／Continue、Shift+F5はStop、F10はStep Over、F11はStep Into、Shift+F11はStep Outです。数値・文字列の編集中はショートカットが無効になります。
 
-例外はスクリプト名と行番号を含めてUnity Consoleへ出力されます。`.mote`アセットを使用した場合は、Consoleの位置情報からDebugger Windowの対象行を開けます。
+コード、Context変数、コールスタックは個別にスクロールでき、境界をドラッグしてサイズを変更できます。変数はName、Type、Valueでソートでき、辞書と配列はTreeとして展開できます。停止中またはYield中は数値と文字列を編集でき、数値欄には`1+2*3`のようなMoteScript演算式を入力できます。実行完了時はResult、Yield中はYield値を表示します。ウォッチ式の評価機能はありません。
+
+ブレークポイントは`.mote`アセットごとにSessionStateへ保存され、同じUnity Editorセッション内ではウィンドウを閉じても復元されます。外部エディタでソースを変更すると、未実行時は自動で再読み込みします。停止中またはYield中は変更通知を表示し、次回Run時に最新ソースを再デコードします。
+
+例外はスクリプト名と行番号を含めてUnity Consoleへ出力されます。`.mote`アセットを使用した場合は、Consoleの位置情報から外部テキストエディタの対象行を開けます。
 
 ### C#からデバッグ実行
 
@@ -799,7 +803,7 @@ MoteDecoder<float>.Setup();
 var decoder = new MoteDecoder<float>();
 MoteValue<float> script = decoder.DecodeDebug(
     sourceText,
-    "Assets/Scripts/example.txt",
+    "Assets/Scripts/example.mote",
     out MoteDebugDocument document);
 
 var session = new MoteDebugSession<float>(document);
@@ -823,7 +827,7 @@ if (execution.IsPaused)
 
 ブレークポイントとステップ実行は文ではなく表示上の行を指定します。ただし、1つの文が複数行に分かれている場合、その文の途中の行へ設定したブレークポイントは文頭を含む行へ正規化されます。同じ行に複数の式がある場合も、その行を1つの停止位置として扱います。
 
-デバッガによる停止は`MoteExecutionState.Paused`、スクリプト自身の`yield(value)`は`MoteExecutionState.Yielded`として区別されます。`Paused`からはデバッグ操作、`Yielded`からは従来の`Resume()`を使用します。`StopDebugging()`では継続フレームを破棄し、関数引数とローカル変数を復元してContextの実行所有権を解放します。
+デバッガによる停止は`MoteExecutionState.Paused`、スクリプト自身の`yield(value)`は`MoteExecutionState.Yielded`として区別されます。`Paused`と`Yielded`のどちらからもContinue、Step Into、Step Over、Step Outで再開できます。従来どおり`Yielded`から`Resume()`を使用することもできます。`StopDebugging()`では継続フレームを破棄し、関数引数とローカル変数を復元してContextの実行所有権を解放します。
 
 ## 開発
 

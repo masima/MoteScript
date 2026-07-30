@@ -9,7 +9,7 @@ Unity向けの軽量スクリプトランタイムです。
 - デコード済みスクリプトとContextを再利用でき、繰り返し評価時のGC割り当てを抑制
 - `yield`による中断・再開と、ステップ数、関数呼び出し深度、キャンセルによる実行制限
 - コア実行系から分離された文字列、正規表現、数値演算の標準ライブラリと、C#関数の登録に対応
-- Editorで常時利用でき、PlayerビルドではDefineで分離できる行ブレークポイント・ステップ実行対応デバッガ
+- Editorで常時利用でき、行ブレークポイント、ステップ実行、階層変数表示・編集に対応したデバッガ
 
 ## Unity Package Manager
 
@@ -22,7 +22,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 タグを指定して導入する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.11.0
 ```
 
 詳しい使用方法は[パッケージREADME](Assets/MoteScript/README.md)を参照してください。

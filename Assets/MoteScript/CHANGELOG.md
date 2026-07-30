@@ -4,22 +4,27 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-31
+
 ### Added
 
 - Unity Editorで追加設定なしに常時利用でき、Playerビルドでは`MOTESCRIPT_DEBUGGER`で切り替えられるデバッガ
-- 行単位のブレークポイント、Continue、Step Into、Step Over、Step Out、Stop
-- 停止中のContext変数、関数ローカル変数、コールスタック表示
+- 複数行の文を文頭行へ正規化する行ブレークポイントと、Continue、Step Into、Step Over、Step Out、Stop
+- サイズ変更可能なコード、変数、コールスタックの各ペイン
+- Name、Type、Value列のソートと交互背景色に対応した変数TreeView
+- 辞書メンバーと配列要素の階層表示、循環参照と最大深度の検出
+- 停止中またはYield中の数値・文字列変数編集と、数値欄でのMoteScript演算式評価
+- 実行結果とYield値の表示、およびYield後のContinue・ステップ再開
+- F5、Shift+F5、F10、F11、Shift+F11によるデバッグ操作
+- `.mote`アセット単位でブレークポイントを保持するSessionState連携
 - デバッグ停止をYieldと区別する`MoteExecutionState.Paused`と、停止完了を表す`Stopped`
 - 元ソースの行情報を保持する`DecodeDebug()`、`MoteDebugDocument`、`MoteDebugSession<T>`
 - スクリプト位置付きの例外通知とUnity Console出力
 - `.mote`ファイルをTextAssetとして取り込む`MoteScriptImporter`
-- ProjectビューおよびUnity Consoleから`.mote`の該当行をDebugger Windowで開く連携
+- `.mote`専用アセット選択、Projectビューの`Open in MoteScript Debugger`、通常編集時の外部テキストエディタ連携
+- 外部編集による`.mote`再インポートの検知、自動再読み込み、再実行通知
 - `Basic Usage`へデバッグ操作を確認できる`BasicUsage.mote`サンプル
-
-### Changed
-
-- `MoteScript.Debugger.Editor`のDefine制約を削除し、Editor上ではデバッガを常時コンパイル
-- 複数行にまたがる文のブレークポイントを、文頭を含む行へ正規化
+- Step Into、Step Over、Step Out、Yield再開を確認できるDebugger Fixture
 
 ## [0.10.0] - 2026-07-29
 
