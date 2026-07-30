@@ -38,6 +38,8 @@ namespace MoteScript.Editor
 
 		private const float SplitterHeight = 5f;
 		private const float MinimumPaneHeight = 70f;
+		private const string BreakpointSessionKeyPrefix =
+			"MoteScript.Debugger.Breakpoints.";
 
 		[MenuItem("Window/MoteScript/Debugger")]
 		public static void Open()
@@ -49,10 +51,7 @@ namespace MoteScript.Editor
 		{
 			MoteDebuggerWindow window =
 				GetWindow<MoteDebuggerWindow>("MoteScript Debugger");
-			window._sourceAsset = asset;
-			window._sourceAssetPath = AssetDatabase.GetAssetPath(asset);
-			window._execution = null;
-			window._document = null;
+			window.SetSourceAsset(asset);
 			window._sourceChanged = false;
 			window._selectedLine = Math.Max(1, line);
 			window._visibleExecutionLine = -1;
@@ -68,6 +67,7 @@ namespace MoteScript.Editor
 			{
 				_sourceAssetPath = AssetDatabase.GetAssetPath(_sourceAsset);
 			}
+			LoadBreakpoints();
 			RestoreInvalidPaneHeights();
 			EnsureVariableTree();
 		}
@@ -432,6 +432,7 @@ namespace MoteScript.Editor
 			_selectedLine = -1;
 			_visibleExecutionLine = -1;
 			_breakpoints.Clear();
+			LoadBreakpoints();
 		}
 
 		private static bool IsMoteAssetPath(string path)
@@ -862,6 +863,7 @@ namespace MoteScript.Editor
 			{
 				_execution?.SetBreakpoint(normalized);
 			}
+			SaveBreakpoints();
 			Repaint();
 		}
 
@@ -890,6 +892,55 @@ namespace MoteScript.Editor
 			{
 				_breakpoints.Add(line);
 			}
+			SaveBreakpoints();
+		}
+
+		private void LoadBreakpoints()
+		{
+			_breakpoints.Clear();
+			string key = GetBreakpointSessionKey();
+			if (string.IsNullOrEmpty(key))
+			{
+				return;
+			}
+			string serialized = SessionState.GetString(key, string.Empty);
+			if (string.IsNullOrEmpty(serialized))
+			{
+				return;
+			}
+			string[] values = serialized.Split(',');
+			for (int i = 0; i < values.Length; ++i)
+			{
+				if (int.TryParse(values[i], out int line) && line > 0)
+				{
+					_breakpoints.Add(line);
+				}
+			}
+		}
+
+		private void SaveBreakpoints()
+		{
+			string key = GetBreakpointSessionKey();
+			if (string.IsNullOrEmpty(key))
+			{
+				return;
+			}
+			var lines = new List<int>(_breakpoints);
+			lines.Sort();
+			SessionState.SetString(key, string.Join(",", lines));
+		}
+
+		private string GetBreakpointSessionKey()
+		{
+			if (string.IsNullOrEmpty(_sourceAssetPath))
+			{
+				return null;
+			}
+			string guid = AssetDatabase.AssetPathToGUID(_sourceAssetPath);
+			string identity = string.IsNullOrEmpty(guid)
+				? _sourceAssetPath
+				: guid;
+			return BreakpointSessionKeyPrefix + identity;
 		}
 
 		private void OnExecutionCreated(IMoteDebugExecution execution)
