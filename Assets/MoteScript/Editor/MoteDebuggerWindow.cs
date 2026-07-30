@@ -18,6 +18,7 @@ namespace MoteScript.Editor
 		}
 
 		private TextAsset _sourceAsset;
+		[SerializeField] private string _sourceAssetPath;
 		private NumericType _numericType;
 		private IMoteDebugExecution _execution;
 		private MoteDebugDocument _document;
@@ -33,6 +34,7 @@ namespace MoteScript.Editor
 		private int _selectedLine = -1;
 		private int _visibleExecutionLine = -1;
 		private int _draggedSplitter;
+		private bool _sourceChanged;
 
 		private const float SplitterHeight = 5f;
 		private const float MinimumPaneHeight = 70f;
@@ -48,8 +50,10 @@ namespace MoteScript.Editor
 			MoteDebuggerWindow window =
 				GetWindow<MoteDebuggerWindow>("MoteScript Debugger");
 			window._sourceAsset = asset;
+			window._sourceAssetPath = AssetDatabase.GetAssetPath(asset);
 			window._execution = null;
 			window._document = null;
+			window._sourceChanged = false;
 			window._selectedLine = Math.Max(1, line);
 			window._visibleExecutionLine = -1;
 			window.Repaint();
@@ -58,6 +62,12 @@ namespace MoteScript.Editor
 		private void OnEnable()
 		{
 			MoteDebugEvents.ExecutionCreated += OnExecutionCreated;
+			MoteScriptAssetChangeEvents.Changed += OnMoteAssetChanged;
+			if (string.IsNullOrEmpty(_sourceAssetPath)
+				&& _sourceAsset is not null)
+			{
+				_sourceAssetPath = AssetDatabase.GetAssetPath(_sourceAsset);
+			}
 			RestoreInvalidPaneHeights();
 			EnsureVariableTree();
 		}
@@ -65,6 +75,7 @@ namespace MoteScript.Editor
 		private void OnDisable()
 		{
 			MoteDebugEvents.ExecutionCreated -= OnExecutionCreated;
+			MoteScriptAssetChangeEvents.Changed -= OnMoteAssetChanged;
 		}
 
 		private void OnGUI()
@@ -332,6 +343,10 @@ namespace MoteScript.Editor
 				return;
 			}
 			_sourceAsset = asset;
+			_sourceAssetPath = asset is null
+				? string.Empty
+				: AssetDatabase.GetAssetPath(asset);
+			_sourceChanged = false;
 			ResetDebuggingForSourceChange();
 			Repaint();
 		}
@@ -377,7 +392,7 @@ namespace MoteScript.Editor
 				bool canStep = paused || yielded;
 				bool canStartDebugging = _sourceAsset != null
 					&& CanStartNewExecution();
-				EditorGUI.BeginDisabledGroup(!paused);
+				EditorGUI.BeginDisabledGroup(!paused && !yielded);
 				if (GUILayout.Button("Continue"))
 				{
 					Execute(_execution.Continue);
@@ -440,6 +455,10 @@ namespace MoteScript.Editor
 				_execution?.CurrentLocation is MoteSourceSpan location
 					? $"{location.SourceName}:{location.StartLine}"
 					: string.Empty;
+			if (_sourceChanged)
+			{
+				locationText += "  [Source changed — restart required]";
+			}
 			EditorGUILayout.LabelField("Location", locationText);
 		}
 
@@ -682,9 +701,10 @@ namespace MoteScript.Editor
 		private void StartDebugging<T>(bool startPaused)
 			where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 		{
+			RefreshSourceAsset();
 			MoteDecoder<T>.Setup();
 			var decoder = new MoteDecoder<T>();
-			string path = AssetDatabase.GetAssetPath(_sourceAsset);
+			string path = _sourceAssetPath;
 			MoteValue<T> script = decoder.DecodeDebug(
 				_sourceAsset.text,
 				path,
@@ -706,6 +726,7 @@ namespace MoteScript.Editor
 				script.CreateDebugExecution(context, session);
 			_execution = execution;
 			_document = document;
+			_sourceChanged = false;
 			_selectedLine = -1;
 			_visibleExecutionLine = -1;
 			NormalizeBreakpoints();
@@ -798,8 +819,58 @@ namespace MoteScript.Editor
 		{
 			_execution = execution;
 			_document = execution.DebugDocument;
+			_sourceAssetPath = execution.DebugDocument?.SourceName
+				?? string.Empty;
+			if (!string.IsNullOrEmpty(_sourceAssetPath))
+			{
+				_sourceAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(
+					_sourceAssetPath);
+			}
+			_sourceChanged = false;
 			_visibleExecutionLine = -1;
 			Repaint();
+		}
+
+		private void OnMoteAssetChanged(string oldPath, string newPath)
+		{
+			if (string.IsNullOrEmpty(_sourceAssetPath)
+				|| !string.Equals(
+					_sourceAssetPath,
+					oldPath,
+					StringComparison.Ordinal))
+			{
+				return;
+			}
+			if (!string.IsNullOrEmpty(newPath))
+			{
+				_sourceAssetPath = newPath;
+			}
+			bool suspended = _execution?.State == MoteExecutionState.Paused
+				|| _execution?.State == MoteExecutionState.Yielded;
+			if (suspended)
+			{
+				_sourceChanged = true;
+			}
+			else
+			{
+				RefreshSourceAsset();
+				_execution = null;
+				_document = null;
+				_selectedLine = -1;
+				_visibleExecutionLine = -1;
+			}
+			Repaint();
+		}
+
+		private void RefreshSourceAsset()
+		{
+			if (string.IsNullOrEmpty(_sourceAssetPath))
+			{
+				return;
+			}
+			_sourceAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(
+				_sourceAssetPath);
+			_sourceChanged = false;
 		}
 
 		private static void LogException(

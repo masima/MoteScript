@@ -31,15 +31,19 @@ namespace MoteScript
 		public MoteSourceSpan? CurrentLocation => _debugSession?.CurrentLocation;
 		public int FunctionDepth => _debugFunctionDepth;
 		string IMoteDebugExecution.ResultText =>
-			State == MoteExecutionState.Completed
-				? FormatDebugValue(Result)
-				: string.Empty;
+			State switch
+			{
+				MoteExecutionState.Completed => FormatDebugValue(Result),
+				MoteExecutionState.Yielded =>
+					$"Yield: {FormatDebugValue(YieldValue)}",
+				_ => string.Empty,
+			};
 
 		public MoteValue<T> ContinueDebugging()
 		{
-			EnsurePaused();
+			MoteExecutionState suspendedState = EnsureDebugSuspended();
 			_debugSession.Continue();
-			return ResumeCore(MoteExecutionState.Paused);
+			return ResumeCore(suspendedState);
 		}
 
 		public MoteValue<T> StepInto()

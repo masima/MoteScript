@@ -331,8 +331,11 @@ namespace MoteScript.Tests
 			execution.ContinueDebugging();
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
 			Assert.That(execution.YieldValue.Value, Is.EqualTo(1f));
+			Assert.That(
+				((IMoteDebugExecution)execution).ResultText,
+				Is.EqualTo("Yield: 1"));
 
-			execution.Resume();
+			execution.ContinueDebugging();
 			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
 		}
 
