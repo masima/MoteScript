@@ -200,24 +200,156 @@ namespace MoteScript.Editor
 
 		private void DrawSourceSelection()
 		{
+			DrawMoteAssetField();
 			EditorGUI.BeginChangeCheck();
-			_sourceAsset = (TextAsset)EditorGUILayout.ObjectField(
-				"Script",
-				_sourceAsset,
-				typeof(TextAsset),
-				false);
 			_numericType = (NumericType)EditorGUILayout.EnumPopup(
 				"Numeric Type",
 				_numericType);
 			if (EditorGUI.EndChangeCheck())
 			{
-				StopCurrentExecution();
-				_execution = null;
-				_document = null;
-				_selectedLine = -1;
-				_visibleExecutionLine = -1;
-				_breakpoints.Clear();
+				ResetDebuggingForSourceChange();
 			}
+		}
+
+		private void DrawMoteAssetField()
+		{
+			Rect control = EditorGUILayout.GetControlRect();
+			Rect field = EditorGUI.PrefixLabel(control, new GUIContent("Script"));
+			const float selectorWidth = 24f;
+			Rect valueField = new(
+				field.x,
+				field.y,
+				Mathf.Max(0f, field.width - selectorWidth),
+				field.height);
+			Rect selector = new(
+				valueField.xMax,
+				field.y,
+				selectorWidth,
+				field.height);
+			string path = _sourceAsset is null
+				? string.Empty
+				: AssetDatabase.GetAssetPath(_sourceAsset);
+			GUIContent content = _sourceAsset is null
+				? new GUIContent("None (MoteScript Asset)")
+				: new GUIContent(_sourceAsset.name, path);
+			bool showMenu = EditorGUI.DropdownButton(
+				valueField,
+				content,
+				FocusType.Keyboard,
+				EditorStyles.objectField);
+			GUIContent folderIcon = EditorGUIUtility.IconContent("Folder Icon");
+			folderIcon.tooltip = "Select a .mote asset";
+			if (GUI.Button(
+				selector,
+				folderIcon,
+				EditorStyles.miniButton))
+			{
+				showMenu = true;
+			}
+			if (showMenu)
+			{
+				ShowMoteAssetMenu();
+			}
+			HandleMoteAssetDrag(field);
+		}
+
+		private void ShowMoteAssetMenu()
+		{
+			var menu = new GenericMenu();
+			menu.AddItem(
+				new GUIContent("None"),
+				_sourceAsset is null,
+				() => SetSourceAsset(null));
+			menu.AddSeparator(string.Empty);
+
+			string[] assetPaths = AssetDatabase.GetAllAssetPaths();
+			var motePaths = new List<string>();
+			for (int i = 0; i < assetPaths.Length; ++i)
+			{
+				if (IsMoteAssetPath(assetPaths[i]))
+				{
+					motePaths.Add(assetPaths[i]);
+				}
+			}
+			motePaths.Sort(StringComparer.Ordinal);
+			for (int i = 0; i < motePaths.Count; ++i)
+			{
+				string path = motePaths[i];
+				TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+				if (asset is null)
+				{
+					continue;
+				}
+				menu.AddItem(
+					new GUIContent(path),
+					ReferenceEquals(asset, _sourceAsset),
+					() => SetSourceAsset(asset));
+			}
+			if (motePaths.Count == 0)
+			{
+				menu.AddDisabledItem(new GUIContent("No .mote assets found"));
+			}
+			menu.ShowAsContext();
+		}
+
+		private void HandleMoteAssetDrag(Rect field)
+		{
+			Event current = Event.current;
+			if (!field.Contains(current.mousePosition)
+				|| (current.type != EventType.DragUpdated
+					&& current.type != EventType.DragPerform))
+			{
+				return;
+			}
+			TextAsset asset = DragAndDrop.objectReferences.Length == 1
+				? DragAndDrop.objectReferences[0] as TextAsset
+				: null;
+			bool valid = asset is not null
+				&& IsMoteAssetPath(AssetDatabase.GetAssetPath(asset));
+			DragAndDrop.visualMode = valid
+				? DragAndDropVisualMode.Copy
+				: DragAndDropVisualMode.Rejected;
+			if (current.type == EventType.DragPerform)
+			{
+				if (valid)
+				{
+					DragAndDrop.AcceptDrag();
+					SetSourceAsset(asset);
+				}
+				else
+				{
+					ShowNotification(
+						new GUIContent("Only .mote assets can be selected."));
+				}
+			}
+			current.Use();
+		}
+
+		private void SetSourceAsset(TextAsset asset)
+		{
+			if (ReferenceEquals(_sourceAsset, asset))
+			{
+				return;
+			}
+			_sourceAsset = asset;
+			ResetDebuggingForSourceChange();
+			Repaint();
+		}
+
+		private void ResetDebuggingForSourceChange()
+		{
+			StopCurrentExecution();
+			_execution = null;
+			_document = null;
+			_selectedLine = -1;
+			_visibleExecutionLine = -1;
+			_breakpoints.Clear();
+		}
+
+		private static bool IsMoteAssetPath(string path)
+		{
+			return !string.IsNullOrEmpty(path)
+				&& path.EndsWith(".mote", StringComparison.OrdinalIgnoreCase);
 		}
 
 		private void DrawControls()
