@@ -35,6 +35,12 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
 - [Yield実行管理](#yield実行管理)
   - [yield構文と実行再開](#yield構文と実行再開)
   - [複数の実行単位で値を共有](#複数の実行単位で値を共有)
+- [Unity Editorデバッガ](#unity-editorデバッガ)
+  - [デバッガを有効化](#デバッガを有効化)
+  - [.moteアセット](#moteアセット)
+  - [EditorWindowから実行](#editorwindowから実行)
+  - [C#からデバッグ実行](#cからデバッグ実行)
+  - [行番号と実行状態](#行番号と実行状態)
 - [開発](#開発)
 
 ## Git URLからインストール
@@ -48,7 +54,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.11.0
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -56,7 +62,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.10.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.11.0"
   }
 }
 ```
@@ -753,6 +759,75 @@ executionB.Evaluate(); // YieldValueは11
 同一スレッドで`Evaluate()`と`Resume()`を順番に呼び出す運用では、通常のContextで共有できます。複数スレッドから同時に実行する場合、`shared.score=shared.score+1`のような読み取りと書き込みを組み合わせた処理は原子的ではありません。共有Contextの排他制御、またはC#側に登録した原子的な更新関数を使用してください。
 
 `new shared`を評価すると別の辞書として複製されるため、共有を維持する場合は同じContextインスタンスを`MoteValue<T>`として各実行Contextへ登録します。
+
+## Unity Editorデバッガ
+
+### デバッガを有効化
+
+Unity Editorでは追加設定なしでデバッガが常に有効です。`MoteScript.Debugger.Editor`アセンブリ、デバッグ用Runtime API、行情報、停止判定、`.mote`アセット連携が自動的にコンパイルされます。
+
+Playerビルドでは、デバッグ用Runtime APIと停止判定は標準ではコンパイル対象から外れます。Development Buildなどへ含める場合だけ、Unityの **Project Settings > Player > Other Settings > Scripting Define Symbols**へ`MOTESCRIPT_DEBUGGER`を追加してください。通常のリリースビルドではDefineを追加する必要はありません。
+
+### .moteアセット
+
+Unity Editorでは、`.mote`ファイルは`MoteScriptImporter`によってTextAssetとしてインポートされます。通常のTextAssetと同様にC#から参照でき、Debugger Windowの`Script`欄にも指定できます。
+
+Projectビューで`.mote`アセットをダブルクリックすると、Unityで設定された外部テキストエディタで開きます。デバッガで開く場合は、アセットの右クリックメニューから **Open in MoteScript Debugger** を選択します。Debugger Windowのコード行をダブルクリックすると、外部エディタで該当行を開けます。
+
+Package Managerから`Basic Usage`サンプルをインポートすると、関数、ローカル変数、複数行の処理を含む`BasicUsage.mote`を確認できます。
+
+### EditorWindowから実行
+
+Unityの **Window > MoteScript > Debugger** から専用ウィンドウを開けます。
+
+1. `Script`の選択メニューから`.mote`アセットを指定します。
+2. `Float`、`Integer`、`Decimal`から数値型を選択します。
+3. 行番号左の丸をクリックしてブレークポイントを設定します。
+4. `Run`でブレークポイントまで実行するか、未実行状態で`Step Over`または`Step Into`を押して先頭行から停止します。
+
+停止中は`Continue`、`Step Over`、`Step Into`、`Step Out`、`Stop`を使用できます。F5はRun／Continue、Shift+F5はStop、F10はStep Over、F11はStep Into、Shift+F11はStep Outです。数値・文字列の編集中はショートカットが無効になります。
+
+コード、Context変数、コールスタックは個別にスクロールでき、境界をドラッグしてサイズを変更できます。変数はName、Type、Valueでソートでき、辞書と配列はTreeとして展開できます。停止中またはYield中は数値と文字列を編集でき、数値欄には`1+2*3`のようなMoteScript演算式を入力できます。実行完了時はResult、Yield中はYield値を表示します。ウォッチ式の評価機能はありません。
+
+ブレークポイントは`.mote`アセットごとにSessionStateへ保存され、同じUnity Editorセッション内ではウィンドウを閉じても復元されます。外部エディタでソースを変更すると、未実行時は自動で再読み込みします。停止中またはYield中は変更通知を表示し、次回Run時に最新ソースを再デコードします。
+
+例外はスクリプト名と行番号を含めてUnity Consoleへ出力されます。`.mote`アセットを使用した場合は、Consoleの位置情報から外部テキストエディタの対象行を開けます。
+
+### C#からデバッグ実行
+
+Runtime APIから使用する場合は、`DecodeDebug()`で行情報を持つドキュメントを作成し、`MoteDebugSession<T>`へブレークポイントを登録します。
+
+```csharp
+MoteDecoder<float>.Setup();
+
+var decoder = new MoteDecoder<float>();
+MoteValue<float> script = decoder.DecodeDebug(
+    sourceText,
+    "Assets/Scripts/example.mote",
+    out MoteDebugDocument document);
+
+var session = new MoteDebugSession<float>(document);
+session.SetBreakpoint(3);
+
+var context = new Context<float>();
+MoteExecution<float> execution =
+    script.CreateDebugExecution(context, session);
+
+execution.Evaluate();
+if (execution.IsPaused)
+{
+    Debug.Log(execution.CurrentLocation);
+    execution.StepOver();
+}
+```
+
+`MoteDebugSession<T>.Paused`と`ExceptionThrown`で停止・例外を受け取れます。停止後は`ContinueDebugging()`、`StepInto()`、`StepOver()`、`StepOut()`、`StopDebugging()`を呼び出します。
+
+### 行番号と実行状態
+
+ブレークポイントとステップ実行は文ではなく表示上の行を指定します。ただし、1つの文が複数行に分かれている場合、その文の途中の行へ設定したブレークポイントは文頭を含む行へ正規化されます。同じ行に複数の式がある場合も、その行を1つの停止位置として扱います。
+
+デバッガによる停止は`MoteExecutionState.Paused`、スクリプト自身の`yield(value)`は`MoteExecutionState.Yielded`として区別されます。`Paused`と`Yielded`のどちらからもContinue、Step Into、Step Over、Step Outで再開できます。従来どおり`Yielded`から`Resume()`を使用することもできます。`StopDebugging()`では継続フレームを破棄し、関数引数とローカル変数を復元してContextの実行所有権を解放します。
 
 ## 開発
 

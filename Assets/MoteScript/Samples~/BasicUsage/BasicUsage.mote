@@ -1,0 +1,8 @@
+add=(left,right; local sum)=>{
+    sum=left+right;
+    return sum;
+};
+
+value=add(2,3);
+value=value*2;
+value;

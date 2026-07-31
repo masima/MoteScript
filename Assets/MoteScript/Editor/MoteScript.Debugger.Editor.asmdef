@@ -1,0 +1,13 @@
+{
+	"name": "MoteScript.Debugger.Editor",
+	"rootNamespace": "MoteScript.Editor",
+	"references": [
+		"MoteScript",
+		"MoteScript.StandardLibraries"
+	],
+	"includePlatforms": [
+		"Editor"
+	],
+	"defineConstraints": [],
+	"autoReferenced": true
+}

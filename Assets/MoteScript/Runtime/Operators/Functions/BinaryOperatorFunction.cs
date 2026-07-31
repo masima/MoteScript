@@ -24,21 +24,46 @@ namespace MoteScript
 
 			var parameters = right.GetObject<List<MoteValue<T>>>();
 
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteExecution<T>.TryGet(
+				context,
+				out MoteExecution<T> debugExecution);
+			debugExecution?.DebugEnterFunction(Left.StringValue);
+			bool debugSuspended = false;
+#endif
 			using (MoteExecutionGuard<T>.FunctionScope scope =
 				MoteExecutionGuard<T>.EnterFunction())
 			{
-				MoteValue<T> result =
-					left.InvokeFunction(context, parameters, receiver);
-				if (result.TryGetExecution(out MoteExecution<T> execution))
+				try
 				{
-					execution.AddContinuation(this);
+					MoteValue<T> result =
+						left.InvokeFunction(
+							context,
+							parameters,
+							receiver);
+					if (result.TryGetExecution(out MoteExecution<T> execution))
+					{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+						debugSuspended = true;
+#endif
+						execution.AddContinuation(this);
+						return result;
+					}
+					if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
+					{
+						return operatorReturn.ReturnValue;
+					}
 					return result;
 				}
-				if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
+				finally
 				{
-					return operatorReturn.ReturnValue;
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+					if (!debugSuspended)
+					{
+						debugExecution?.DebugExitFunction();
+					}
+#endif
 				}
-				return result;
 			}
 		}
 
@@ -47,6 +72,12 @@ namespace MoteScript
 			MoteValue<T> result,
 			int state)
 		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteExecution<T>.TryGet(
+				context,
+				out MoteExecution<T> debugExecution);
+			debugExecution?.DebugExitFunction();
+#endif
 			if (result.TryGetOperator(out FlowControlOperatorReturn<T> operatorReturn))
 			{
 				return operatorReturn.ReturnValue;
@@ -56,6 +87,12 @@ namespace MoteScript
 
 		void IExecutionContinuation<T>.Cancel(IContext<T> context)
 		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteExecution<T>.TryGet(
+				context,
+				out MoteExecution<T> debugExecution);
+			debugExecution?.DebugExitFunction();
+#endif
 		}
 	}
 

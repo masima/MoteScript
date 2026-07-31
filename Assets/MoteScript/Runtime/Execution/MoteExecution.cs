@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace MoteScript
 {
-	public sealed class MoteExecution<T> : IExecutionControl
+	public sealed partial class MoteExecution<T> : IExecutionControl
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 	{
 		private readonly MoteValue<T> _script;
@@ -27,6 +27,12 @@ namespace MoteScript
 
 		public MoteExecutionState State { get; private set; }
 		public bool IsYielded => State == MoteExecutionState.Yielded;
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		public bool IsPaused => State == MoteExecutionState.Paused;
+		internal bool IsSuspended => IsYielded || IsPaused;
+#else
+		internal bool IsSuspended => IsYielded;
+#endif
 		public MoteValue<T> YieldValue { get; private set; }
 		public MoteValue<T> Result { get; private set; }
 		public Exception Exception { get; private set; }
@@ -52,7 +58,12 @@ namespace MoteScript
 
 		public MoteValue<T> Resume()
 		{
-			List<ExecutionContinuation<T>> current = BeginResume();
+			return ResumeCore(MoteExecutionState.Yielded);
+		}
+
+		private MoteValue<T> ResumeCore(MoteExecutionState expectedState)
+		{
+			List<ExecutionContinuation<T>> current = BeginResume(expectedState);
 
 			MoteValue<T> result = default;
 			int index = 0;
@@ -64,7 +75,7 @@ namespace MoteScript
 					for (; index < current.Count; ++index)
 					{
 						result = current[index].Resume(_context, result);
-						if (State == MoteExecutionState.Yielded)
+						if (IsSuspended)
 						{
 							for (int remaining = index + 1; remaining < current.Count; ++remaining)
 							{
@@ -159,11 +170,13 @@ namespace MoteScript
 			}
 		}
 
-		private List<ExecutionContinuation<T>> BeginResume()
+		private List<ExecutionContinuation<T>> BeginResume(
+			MoteExecutionState expectedState)
 		{
-			if (State != MoteExecutionState.Yielded)
+			if (State != expectedState)
 			{
-				throw new InvalidOperationException("Only a yielded execution can be resumed.");
+				throw new InvalidOperationException(
+					$"Only an execution in the {expectedState} state can be resumed.");
 			}
 			if (!ReferenceEquals(_context.CurrentExecution, this))
 			{
@@ -182,7 +195,7 @@ namespace MoteScript
 
 		private MoteValue<T> Finish(MoteValue<T> result)
 		{
-			if (State == MoteExecutionState.Yielded) return result;
+			if (IsSuspended) return result;
 			Result = result;
 			State = MoteExecutionState.Completed;
 			_context.ReleaseExecution(this);
@@ -196,18 +209,34 @@ namespace MoteScript
 			_continuations.Clear();
 			_resumeContinuations.Clear();
 			_context.ReleaseExecution(this);
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			_debugSession?.NotifyException(this, exception);
+#endif
 		}
 
 		internal static MoteExecution<T> Get(IContext<T> context)
 		{
-			if (context is IExecutionContext<T> executionContext
-				&& executionContext.CurrentExecution is MoteExecution<T> execution
-				&& execution.State == MoteExecutionState.Running)
+			if (TryGet(context, out MoteExecution<T> execution))
 			{
 				return execution;
 			}
 			throw new InvalidOperationException(
 				"Scripts containing yield require an IExecutionContext<T> and must be run through CreateExecution(context).");
+		}
+
+		internal static bool TryGet(
+			IContext<T> context,
+			out MoteExecution<T> execution)
+		{
+			if (context is IExecutionContext<T> executionContext
+				&& executionContext.CurrentExecution is MoteExecution<T> current
+				&& current.State == MoteExecutionState.Running)
+			{
+				execution = current;
+				return true;
+			}
+			execution = null;
+			return false;
 		}
 
 	}

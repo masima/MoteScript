@@ -1,8 +1,8 @@
 {
   "name": "io.github.masima.motescript",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "displayName": "MoteScript",
-  "description": "A lightweight typed scripting runtime for Unity with dictionary receivers, reference parameters, resumable yield execution, and modular standard libraries.",
+  "description": "A lightweight typed scripting runtime for Unity with resumable yield execution, modular standard libraries, and an integrated line debugger.",
   "unity": "6000.0",
   "keywords": [
     "script",
@@ -14,6 +14,8 @@
     "reference-parameter",
     "yield",
     "execution-limit",
+    "debugger",
+    "breakpoint",
     "runtime"
   ],
   "author": {
@@ -25,7 +27,7 @@
   "samples": [
     {
       "displayName": "Basic Usage",
-      "description": "A basic MoteScript setup and evaluation example.",
+      "description": "Basic C# setup, evaluation, and a debuggable .mote script example.",
       "path": "Samples~/BasicUsage"
     }
   ]

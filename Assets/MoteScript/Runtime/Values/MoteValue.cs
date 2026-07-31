@@ -128,7 +128,7 @@ namespace MoteScript
 		internal bool TryGetExecution(out MoteExecution<T> execution)
 		{
 			execution = _object as MoteExecution<T>;
-			return execution is not null && execution.IsYielded;
+			return execution is not null && execution.IsSuspended;
 		}
 
 
@@ -371,6 +371,30 @@ namespace MoteScript
 		{
 			return new MoteExecution<T>(this, context, options);
 		}
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		public MoteExecution<T> CreateDebugExecution(
+			IExecutionContext<T> context,
+			MoteDebugSession<T> debugSession)
+		{
+			return new MoteExecution<T>(
+				this,
+				context,
+				default,
+				debugSession);
+		}
+
+		public MoteExecution<T> CreateDebugExecution(
+			IExecutionContext<T> context,
+			MoteDebugSession<T> debugSession,
+			MoteExecutionOptions options)
+		{
+			return new MoteExecution<T>(
+				this,
+				context,
+				options,
+				debugSession);
+		}
+#endif
 		[Obsolete("Use Evaluate instead.")]
 		public MoteValue<T> Evalute(IContext<T> context)
 		{

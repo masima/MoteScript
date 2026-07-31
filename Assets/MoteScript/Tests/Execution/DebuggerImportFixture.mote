@@ -1,0 +1,14 @@
+value=1;
+double=(input; local result)=>{
+	result=input*2;
+	return result;
+};
+increment=(input; local next)=>{
+	next=input+1;
+	yield(next);
+	return next+1;
+};
+value=double(value);
+value=increment(value);
+value=value+1;
+value;

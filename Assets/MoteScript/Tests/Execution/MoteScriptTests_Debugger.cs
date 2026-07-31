@@ -1,0 +1,578 @@
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+using System;
+using System.Collections.Generic;
+using System.IO;
+using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
+
+namespace MoteScript.Tests
+{
+	public class MoteScriptTests_Debugger
+	{
+		[SetUp]
+		public void SetUp()
+		{
+			MoteDecoder<float>.Setup();
+		}
+
+		[Test]
+		public void BreakpointOnContinuationLineUsesStatementStartLine()
+		{
+			const string source =
+				"a =\n"
+				+ "  1 + 2;\n"
+				+ "b=4;";
+			var decoder = new MoteDecoder<float>();
+			decoder.DecodeDebug(
+				source,
+				"multiline.mote",
+				out MoteDebugDocument document);
+
+			Assert.That(document.NormalizeBreakpointLine(2), Is.EqualTo(1));
+			Assert.That(document.NormalizeBreakpointLine(3), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void MoteFileIsImportedAsTextAsset()
+		{
+			const string path =
+				"Assets/MoteScript/Tests/Execution/DebuggerImportFixture.mote";
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+
+			Assert.That(asset, Is.Not.Null);
+			Assert.That(asset.text, Does.Contain("value=value+1;"));
+			AssetImporter importer = AssetImporter.GetAtPath(path);
+			Assert.That(
+				importer.GetType().FullName,
+				Is.EqualTo("MoteScript.Editor.MoteScriptImporter"));
+		}
+
+		[Test]
+		public void DebuggerImportFixtureExercisesStepWorkflow()
+		{
+			const string path =
+				"Assets/MoteScript/Tests/Execution/DebuggerImportFixture.mote";
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				asset.text,
+				path,
+				out MoteDebugDocument document);
+			var context = new Context<float>();
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				context,
+				new MoteDebugSession<float>(document));
+
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(1));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(6));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(11));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(3));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(4));
+			execution.StepOut();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(12));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(7));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(8));
+			execution.StepInto();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.Value, Is.EqualTo(3f));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(9));
+			execution.StepOut();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(13));
+			execution.StepOver();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(14));
+
+			Assert.That(context["value"].Value, Is.EqualTo(5f));
+			execution.StopDebugging();
+		}
+
+		[Test]
+		public void StepOverSkipsFixtureFunctionWithoutYield()
+		{
+			const string path =
+				"Assets/MoteScript/Tests/Execution/DebuggerImportFixture.mote";
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				asset.text,
+				path,
+				out MoteDebugDocument document);
+			var context = new Context<float>();
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				context,
+				new MoteDebugSession<float>(document));
+
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(11));
+
+			execution.StepOver();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(12));
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.FunctionDepth, Is.EqualTo(0));
+			Assert.That(context["value"].Value, Is.EqualTo(2f));
+		}
+
+		[Test]
+		public void BasicUsageMoteSampleExecutes()
+		{
+			string source = File.ReadAllText(
+				"Assets/MoteScript/Samples~/BasicUsage/BasicUsage.mote");
+			var decoder = new MoteDecoder<float>();
+
+			MoteValue<float> result = decoder
+				.Decode(source)
+				.Evaluate(new Context<float>());
+
+			Assert.That(result.Value, Is.EqualTo(10f));
+		}
+
+		[Test]
+		public void BreakpointPausesBeforeLineAndContinueCompletes()
+		{
+			const string source = "a=1;\nb=2;\na+b;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"breakpoint.mote",
+				out MoteDebugDocument document);
+			var session = new MoteDebugSession<float>(document);
+			session.SetBreakpoint(2);
+			var context = new Context<float>();
+			MoteExecution<float> execution =
+				script.CreateDebugExecution(context, session);
+
+			execution.Evaluate();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+			Assert.That(context.ContainsKey("a"), Is.True);
+			Assert.That(context.ContainsKey("b"), Is.False);
+
+			execution.ContinueDebugging();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+			Assert.That(execution.Result.Value, Is.EqualTo(3f));
+			Assert.That(
+				((IMoteDebugExecution)execution).ResultText,
+				Is.EqualTo("3"));
+		}
+
+		[Test]
+		public void StepIntoStopsAtEachStatement()
+		{
+			const string source = "a=1;\na=a+1;\na;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"step-into.mote",
+				out MoteDebugDocument document);
+			var execution = script.CreateDebugExecution(
+				new Context<float>(),
+				new MoteDebugSession<float>(document));
+
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(1));
+
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(3));
+
+			execution.StepInto();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+			Assert.That(execution.Result.Value, Is.EqualTo(2f));
+		}
+
+		[Test]
+		public void SameLineIsOnlyOneDebugStop()
+		{
+			const string source = "a=1;b=2;\nc=3;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"same-line.mote",
+				out MoteDebugDocument document);
+			var session = new MoteDebugSession<float>(document);
+			session.SetBreakpoint(1);
+			var execution = script.CreateDebugExecution(
+				new Context<float>(),
+				session);
+
+			execution.Evaluate();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(1));
+
+			execution.StepInto();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+		}
+
+		[Test]
+		public void StepOverSkipsFunctionBody()
+		{
+			const string source =
+				"f=()=>{\n"
+				+ "  x=1;\n"
+				+ "  return x;\n"
+				+ "};\n"
+				+ "result=f();\n"
+				+ "result=result+1;";
+			MoteExecution<float> execution = CreateExecution(source, "step-over.mote");
+
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(1));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(5));
+
+			execution.StepOver();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(6));
+			Assert.That(execution.FunctionDepth, Is.EqualTo(0));
+		}
+
+		[Test]
+		public void StepOutStopsAfterCurrentFunction()
+		{
+			const string source =
+				"f=()=>{\n"
+				+ "  x=1;\n"
+				+ "  x=x+1;\n"
+				+ "  return x;\n"
+				+ "};\n"
+				+ "result=f();\n"
+				+ "result=result+1;";
+			MoteExecution<float> execution = CreateExecution(source, "step-out.mote");
+
+			execution.StepInto();
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(6));
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+			Assert.That(execution.FunctionDepth, Is.EqualTo(1));
+			var frames = ((IMoteDebugExecution)execution).GetCallStack();
+			Assert.That(frames.Count, Is.EqualTo(1));
+			Assert.That(frames[0].FunctionName, Is.EqualTo("f"));
+			Assert.That(frames[0].CallSite?.StartLine, Is.EqualTo(6));
+
+			execution.StepOut();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(7));
+			Assert.That(execution.FunctionDepth, Is.EqualTo(0));
+		}
+
+		[Test]
+		public void StopRestoresFunctionScopeAndReleasesContext()
+		{
+			const string source =
+				"f=(value; local temporary)=>{\n"
+				+ "  temporary=value+1;\n"
+				+ "  return temporary;\n"
+				+ "};\n"
+				+ "result=f(2);";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"stop.mote",
+				out MoteDebugDocument document);
+			var context = new Context<float>();
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				context,
+				new MoteDebugSession<float>(document));
+
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(2));
+			Assert.That(context.ContainsKey("value"), Is.True);
+
+			execution.StopDebugging();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Stopped));
+			Assert.That(context.ContainsKey("value"), Is.False);
+			Assert.That(context.ContainsKey("temporary"), Is.False);
+			Assert.That(
+				((IExecutionContext<float>)context).CurrentExecution,
+				Is.Null);
+		}
+
+		[Test]
+		public void DebugPauseAndScriptYieldRemainDistinct()
+		{
+			const string source = "a=1;\nyield(a);\na=2;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"yield.mote",
+				out MoteDebugDocument document);
+			var session = new MoteDebugSession<float>(document);
+			session.SetBreakpoint(1);
+			MoteExecution<float> execution =
+				script.CreateDebugExecution(new Context<float>(), session);
+
+			execution.Evaluate();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+
+			execution.ContinueDebugging();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.Value, Is.EqualTo(1f));
+			Assert.That(
+				((IMoteDebugExecution)execution).ResultText,
+				Is.EqualTo("Yield: 1"));
+
+			execution.ContinueDebugging();
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Completed));
+		}
+
+		[Test]
+		public void StepIntoResumesYieldedExecution()
+		{
+			const string source =
+				"value=1;\n"
+				+ "yield(value);\n"
+				+ "value=value+1;\n"
+				+ "value;";
+			MoteExecution<float> execution =
+				CreateExecution(source, "step-after-yield.mote");
+
+			execution.StepInto();
+			execution.StepInto();
+			execution.StepInto();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Yielded));
+			Assert.That(execution.YieldValue.Value, Is.EqualTo(1f));
+
+			execution.StepInto();
+
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Paused));
+			Assert.That(execution.CurrentLocation?.StartLine, Is.EqualTo(3));
+		}
+
+		[Test]
+		public void DebugVariablesExposeNestedDictionaryMembers()
+		{
+			const string source =
+				"data=[number:1,nested:[text:\"hello\"]];"
+				+ "data.self=data;"
+				+ "data;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"dictionary-tree.mote",
+				out MoteDebugDocument document);
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				new Context<float>(),
+				new MoteDebugSession<float>(document));
+			execution.Evaluate();
+
+			IReadOnlyList<MoteDebugVariable> variables =
+				((IMoteDebugExecution)execution).GetVariables();
+			MoteDebugVariable data = variables[0];
+
+			Assert.That(data.Name, Is.EqualTo("data"));
+			Assert.That(data.Type, Is.EqualTo("Dictionary"));
+			Assert.That(data.Children, Has.Count.EqualTo(3));
+			Assert.That(data.Children[0].Name, Is.EqualTo("nested"));
+			Assert.That(data.Children[0].Children, Has.Count.EqualTo(1));
+			Assert.That(
+				data.Children[0].Children[0].Value,
+				Is.EqualTo("\"hello\""));
+			Assert.That(data.Children[2].Name, Is.EqualTo("self"));
+			Assert.That(
+				data.Children[2].Value,
+				Is.EqualTo("Circular reference"));
+		}
+
+		[Test]
+		public void DebugVariablesExposeNestedArrayElements()
+		{
+			const string source =
+				"items=(1,(2,3));"
+				+ "items;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"array-tree.mote",
+				out MoteDebugDocument document);
+			var context = new Context<float>();
+			MoteExecution<float> execution = script.CreateDebugExecution(
+				context,
+				new MoteDebugSession<float>(document));
+			execution.Evaluate();
+			MoteValue<float> itemsValue = context["items"];
+			MoteList<float> itemsArray = itemsValue.GetArray();
+			var dictionary = new Context<float>
+			{
+				["name"] = new MoteValue<float>("entry"),
+			};
+			itemsArray.Add(new MoteValue<float>(dictionary));
+			itemsArray.Add(itemsValue);
+
+			IReadOnlyList<MoteDebugVariable> variables =
+				((IMoteDebugExecution)execution).GetVariables();
+			MoteDebugVariable items = variables[0];
+
+			Assert.That(items.Name, Is.EqualTo("items"));
+			Assert.That(items.Type, Is.EqualTo("Array"));
+			Assert.That(items.Children, Has.Count.EqualTo(4));
+			Assert.That(items.Children[0].Name, Is.EqualTo("[0]"));
+			Assert.That(items.Children[0].Value, Is.EqualTo("1"));
+			Assert.That(items.Children[1].Type, Is.EqualTo("Array"));
+			Assert.That(items.Children[1].Children, Has.Count.EqualTo(2));
+			Assert.That(items.Children[2].Type, Is.EqualTo("Dictionary"));
+			Assert.That(
+				items.Children[2].Children[0].Value,
+				Is.EqualTo("\"entry\""));
+			Assert.That(
+				items.Children[3].Value,
+				Is.EqualTo("Circular reference"));
+		}
+
+		[Test]
+		public void DebugVariablesAllowEditingNumericAndStringValues()
+		{
+			const string source =
+				"number=1;\n"
+				+ "text=\"old\";\n"
+				+ "data=[member:2];\n"
+				+ "items=(3,4);\n"
+				+ "number;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"edit-variables.mote",
+				out MoteDebugDocument document);
+			var session = new MoteDebugSession<float>(document);
+			session.SetBreakpoint(5);
+			var context = new Context<float>();
+			MoteExecution<float> execution =
+				script.CreateDebugExecution(context, session);
+			execution.Evaluate();
+			var debugExecution = (IMoteDebugExecution)execution;
+
+			IReadOnlyList<MoteDebugVariable> variables =
+				debugExecution.GetVariables();
+			MoteDebugVariable data = FindVariable(variables, "data");
+			MoteDebugVariable items = FindVariable(variables, "items");
+			MoteDebugVariable number = FindVariable(variables, "number");
+			MoteDebugVariable text = FindVariable(variables, "text");
+
+			Assert.That(number.CanEdit, Is.True);
+			Assert.That(text.CanEdit, Is.True);
+			Assert.That(data.CanEdit, Is.False);
+			Assert.That(items.CanEdit, Is.False);
+			Assert.That(data.Children[0].CanEdit, Is.True);
+			Assert.That(items.Children[0].CanEdit, Is.True);
+
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					number.Id,
+					"2+3*4",
+					out string numberError),
+				Is.True,
+				numberError);
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					text.Id,
+					"updated",
+					out string textError),
+				Is.True,
+				textError);
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					data.Children[0].Id,
+					"6",
+					out string dictionaryError),
+				Is.True,
+				dictionaryError);
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					items.Children[0].Id,
+					"7",
+					out string arrayError),
+				Is.True,
+				arrayError);
+
+			Assert.That(context["number"].Value, Is.EqualTo(14f));
+			Assert.That(context["text"].StringValue, Is.EqualTo("updated"));
+			Assert.That(context.GetByPath("data.member").Value, Is.EqualTo(6f));
+			Assert.That(
+				context["items"].GetArray()[0].Value,
+				Is.EqualTo(7f));
+			Assert.That(
+				debugExecution.TrySetVariableValue(
+					number.Id,
+					"invalid",
+					out string invalidError),
+				Is.False);
+			Assert.That(invalidError, Is.Not.Empty);
+			Assert.That(context["number"].Value, Is.EqualTo(14f));
+		}
+
+		private static MoteDebugVariable FindVariable(
+			IReadOnlyList<MoteDebugVariable> variables,
+			string name)
+		{
+			for (int i = 0; i < variables.Count; ++i)
+			{
+				if (variables[i].Name == name)
+				{
+					return variables[i];
+				}
+			}
+			Assert.Fail($"Variable '{name}' was not found.");
+			return default;
+		}
+
+		[Test]
+		public void ExceptionIncludesLastStatementLocation()
+		{
+			const string source = "a=1;\nmissing+1;";
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				"exception.mote",
+				out MoteDebugDocument document);
+			var session = new MoteDebugSession<float>(document);
+			MoteSourceSpan? exceptionLocation = null;
+			session.ExceptionThrown += (_, location, _) =>
+				exceptionLocation = location;
+			MoteExecution<float> execution =
+				script.CreateDebugExecution(new Context<float>(), session);
+
+			Assert.Throws<InvalidOperationException>(() => execution.Evaluate());
+			Assert.That(execution.State, Is.EqualTo(MoteExecutionState.Faulted));
+			Assert.That(exceptionLocation?.StartLine, Is.EqualTo(2));
+		}
+
+		private static MoteExecution<float> CreateExecution(
+			string source,
+			string sourceName)
+		{
+			var decoder = new MoteDecoder<float>();
+			MoteValue<float> script = decoder.DecodeDebug(
+				source,
+				sourceName,
+				out MoteDebugDocument document);
+			return script.CreateDebugExecution(
+				new Context<float>(),
+				new MoteDebugSession<float>(document));
+		}
+	}
+}
+#endif

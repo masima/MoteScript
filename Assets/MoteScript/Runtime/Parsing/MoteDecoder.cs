@@ -57,8 +57,12 @@ namespace MoteScript
 			try
 			{
 				if (ScriptTextReader.RequiresStructuredParsing(
-					sentence,
-					startat))
+						sentence,
+						startat)
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+					|| _debugDocumentBuilder is not null
+#endif
+					)
 				{
 					return DecodeStructuredScript(sentence, ref startat);
 				}
@@ -127,7 +131,37 @@ namespace MoteScript
 		readonly Queue<MoteValue<T>> _queue = new();
 		readonly List<MoteValue<T>> _rpn = new();
 		readonly DecodedScriptCache<T> _decodedCache = new();
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		private MoteDebugDocument.Builder _debugDocumentBuilder;
+#endif
 		// MoteDecoder<T> _childDecoder = null;
+
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		public MoteValue<T> DecodeDebug(
+			string source,
+			string sourceName,
+			out MoteDebugDocument document)
+		{
+			if (_debugDocumentBuilder is not null)
+			{
+				throw new InvalidOperationException(
+					"A debug document is already being decoded.");
+			}
+
+			var builder = new MoteDebugDocument.Builder(sourceName, source);
+			_debugDocumentBuilder = builder;
+			try
+			{
+				MoteValue<T> result = Decode(source);
+				document = builder.Build();
+				return result;
+			}
+			finally
+			{
+				_debugDocumentBuilder = null;
+			}
+		}
+#endif
 
 		/// <summary>
 		/// Returns a previously decoded script when the same source is requested again.
@@ -152,7 +186,11 @@ namespace MoteScript
 
 		// const char InvalidEndCode = (char)0;
 
-		private MoteValue<T> DecodeStructuredScript(string source, ref int position, char terminator = '\0')
+		private MoteValue<T> DecodeStructuredScript(
+			string source,
+			ref int position,
+			char terminator = '\0',
+			int sourceOffset = 0)
 		{
 			List<MoteValue<T>> statements = new();
 			while (position < source.Length)
@@ -163,14 +201,15 @@ namespace MoteScript
 					break;
 				}
 
+				int statementStart = position;
 				MoteValue<T> statement;
 				if (ScriptTextReader.IsKeyword(source, position, "if"))
 				{
-					statement = ParseIf(source, ref position);
+					statement = ParseIf(source, ref position, sourceOffset);
 				}
 				else if (ScriptTextReader.IsKeyword(source, position, "while"))
 				{
-					statement = ParseWhile(source, ref position);
+					statement = ParseWhile(source, ref position, sourceOffset);
 				}
 				else if (ScriptTextReader.IsKeyword(source, position, "return"))
 				{
@@ -201,8 +240,20 @@ namespace MoteScript
 					{
 						continue;
 					}
-					statement = DecodeStructuredExpression(expression);
+					statement = DecodeStructuredExpression(
+						expression,
+						sourceOffset + statementStart);
 				}
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				if (_debugDocumentBuilder is not null)
+				{
+					MoteSourceSpan location = _debugDocumentBuilder.AddStatement(
+						sourceOffset + statementStart,
+						sourceOffset + position);
+					statement = new MoteValue<T>(
+						new DebugStatementOperator<T>(statement, location));
+				}
+#endif
 				statements.Add(statement);
 				ScriptTextReader.SkipTrivia(source, ref position);
 			}
@@ -227,7 +278,10 @@ namespace MoteScript
 			return new MoteValue<T>(new ScriptBlockOperator<T>(statements));
 		}
 
-		private MoteValue<T> ParseIf(string source, ref int position)
+		private MoteValue<T> ParseIf(
+			string source,
+			ref int position,
+			int sourceOffset)
 		{
 			position += "if".Length;
 			MoteValue<T> judge = DecodeExpression(
@@ -236,7 +290,10 @@ namespace MoteScript
 					ref position,
 					'(',
 					')'));
-			MoteValue<T> body = ParseRequiredBlock(source, ref position);
+			MoteValue<T> body = ParseRequiredBlock(
+				source,
+				ref position,
+				sourceOffset);
 			MoteValue<T> ifValue = new MoteValue<T>(new FlowControlOperatorIf<T>
 			{
 				Judge = judge,
@@ -252,8 +309,8 @@ namespace MoteScript
 			ScriptTextReader.SkipTrivia(source, ref position);
 			MoteValue<T> elseBody =
 				ScriptTextReader.IsKeyword(source, position, "if")
-				? ParseIf(source, ref position)
-				: ParseRequiredBlock(source, ref position);
+				? ParseIf(source, ref position, sourceOffset)
+				: ParseRequiredBlock(source, ref position, sourceOffset);
 			return new MoteValue<T>(new FlowControlOperatorElse<T>
 			{
 				Judge = ifValue,
@@ -261,7 +318,9 @@ namespace MoteScript
 			});
 		}
 
-		private MoteValue<T> DecodeStructuredExpression(string expression)
+		private MoteValue<T> DecodeStructuredExpression(
+			string expression,
+			int sourceOffset = 0)
 		{
 			int arrowIndex =
 				StructuredExpressionReader.FindToken(expression, "=>");
@@ -328,13 +387,24 @@ namespace MoteScript
 				out string selfName,
 				out string[] localNames);
 
-			string bodyText = expression.Substring(arrowIndex + 2).Trim();
+			string untrimmedBody = expression.Substring(arrowIndex + 2);
+			int bodyLeadingWhitespace = 0;
+			while (bodyLeadingWhitespace < untrimmedBody.Length
+				&& char.IsWhiteSpace(untrimmedBody[bodyLeadingWhitespace]))
+			{
+				++bodyLeadingWhitespace;
+			}
+			string bodyText = untrimmedBody.Substring(bodyLeadingWhitespace).TrimEnd();
 			if (bodyText.Length < 2 || bodyText[0] != '{' || bodyText[bodyText.Length - 1] != '}')
 			{
 				throw new FormatException("delegate body is invalid");
 			}
 			int bodyPosition = 1;
-			MoteValue<T> body = DecodeStructuredScript(bodyText, ref bodyPosition, '}');
+			MoteValue<T> body = DecodeStructuredScript(
+				bodyText,
+				ref bodyPosition,
+				'}',
+				sourceOffset + arrowIndex + 2 + bodyLeadingWhitespace);
 			MoteValue<T> function = BinaryOperatorDelegate<T>.CreateFunction(
 				parameters,
 				selfName,
@@ -402,7 +472,10 @@ namespace MoteScript
 			return DecodeExpression(trimmed);
 		}
 
-		private MoteValue<T> ParseWhile(string source, ref int position)
+		private MoteValue<T> ParseWhile(
+			string source,
+			ref int position,
+			int sourceOffset)
 		{
 			position += "while".Length;
 			return new MoteValue<T>(new FlowControlOperatorWhile<T>
@@ -413,7 +486,10 @@ namespace MoteScript
 						ref position,
 						'(',
 						')')),
-				Statement = ParseRequiredBlock(source, ref position),
+				Statement = ParseRequiredBlock(
+					source,
+					ref position,
+					sourceOffset),
 			});
 		}
 
@@ -459,7 +535,10 @@ namespace MoteScript
 			});
 		}
 
-		private MoteValue<T> ParseRequiredBlock(string source, ref int position)
+		private MoteValue<T> ParseRequiredBlock(
+			string source,
+			ref int position,
+			int sourceOffset)
 		{
 			ScriptTextReader.SkipTrivia(source, ref position);
 			if (position >= source.Length || source[position] != '{')
@@ -467,7 +546,11 @@ namespace MoteScript
 				throw new FormatException("expected block");
 			}
 			++position;
-			return DecodeStructuredScript(source, ref position, '}');
+			return DecodeStructuredScript(
+				source,
+				ref position,
+				'}',
+				sourceOffset);
 		}
 
 		private static bool TryReadStringLiteral(
