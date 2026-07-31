@@ -10,6 +10,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
   - [数値型の選択](#数値型の選択)
   - [デコーダーの再利用](#デコーダーの再利用)
   - [デコード済みの式を再評価](#デコード済みの式を再評価)
+  - [定数式の最適化](#定数式の最適化)
 - [基本構文](#基本構文)
   - [数値演算](#数値演算)
   - [比較・論理演算](#比較論理演算)
@@ -145,6 +146,25 @@ float second = expression.Evaluate(context).Value;
 ```
 
 この例では、`first`は`200`、`second`は`360`です。`expression`は同じインスタンスを再利用し、2回目は値の評価だけを行います。
+
+### 定数式の最適化
+
+`DecodeOptimized()`はデコード後に副作用のない定数式を事前計算します。既にデコードした値には`MoteOptimizer<T>.Optimize()`を使用できます。元の構文木は変更されません。
+
+```csharp
+MoteValue<float> optimized = decoder.DecodeOptimized(
+    "value+(2+3)*4");
+
+MoteValue<float> decoded = decoder.Decode("value+2*3");
+MoteValue<float> optimizedCopy =
+    MoteOptimizer<float>.Optimize(decoded);
+```
+
+算術、比較、論理演算が対象です。変数を含む部分は実行時評価のまま残り、その内部にある定数部分だけが畳み込まれます。代入、配列、辞書、関数呼び出しを事前実行することはありません。
+
+型不一致やゼロ除算など、定数式の評価で発生するエラーは最適化時に送出されます。ただし、`false && expression`や`true || expression`の右辺は通常の短絡評価と同様に評価されません。
+
+`DecodeDebug()`は停止行とステップ順序を維持するため、自動では最適化されません。ソースレベルのデバッグが必要な場合は、最適化前の構文木を使用してください。
 
 ## 基本構文
 

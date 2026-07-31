@@ -35,6 +35,13 @@ namespace MoteScript
 			return EvaluateStatement(context);
 		}
 
+		internal MoteValue<T> Optimize(MoteOptimizer<T> optimizer)
+		{
+			return new MoteValue<T>(new DebugStatementOperator<T>(
+				optimizer.OptimizeValue(_statement),
+				_location));
+		}
+
 		private MoteValue<T> EvaluateStatement(IContext<T> context)
 		{
 			MoteValue<T> result = _statement.EvaluateInner(context);

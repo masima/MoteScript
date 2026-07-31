@@ -22,6 +22,16 @@ namespace MoteScript
 			return ExecuteFrom(context, 0, default);
 		}
 
+		internal MoteValue<T> Optimize(MoteOptimizer<T> optimizer)
+		{
+			var statements = new MoteValue<T>[_statements.Count];
+			for (int i = 0; i < statements.Length; ++i)
+			{
+				statements[i] = optimizer.OptimizeValue(_statements[i]);
+			}
+			return new MoteValue<T>(new ScriptBlockOperator<T>(statements));
+		}
+
 		private MoteValue<T> ExecuteFrom(IContext<T> context, int start, MoteValue<T> result)
 		{
 			if (result.ValueType.IsExecutionControl())

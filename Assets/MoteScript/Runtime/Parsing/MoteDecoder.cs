@@ -94,6 +94,15 @@ namespace MoteScript
 			}
 		}
 
+		/// <summary>
+		/// Decodes and constant-folds side-effect-free expressions.
+		/// Use DecodeDebug when source-level stepping must retain the unoptimized tree.
+		/// </summary>
+		public MoteValue<T> DecodeOptimized(string sentence, int startat = 0)
+		{
+			return MoteOptimizer<T>.Optimize(Decode(sentence, startat));
+		}
+
 		private MoteValue<T> DecodeExpression(string sentence, int startat = 0)
 		{
 			try
