@@ -17,6 +17,7 @@ namespace MoteScript.Unity
 		public int ExecutionPriority => _executionPriority;
 		public MoteScriptLifecycleState LifecycleState =>
 			_host?.State ?? MoteScriptLifecycleState.Uninitialized;
+		public MoteExecutionState? ExecutionState => _host?.ExecutionState;
 
 		public Context<T> GetContext<T>()
 			where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>

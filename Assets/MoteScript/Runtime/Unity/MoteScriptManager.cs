@@ -13,6 +13,7 @@ namespace MoteScript.Unity
 
 		private readonly List<MoteScriptBehaviour> _behaviours = new();
 		private IMoteScriptRuntime _runtime;
+		private bool _childrenStarted;
 
 		public static MoteScriptManager Instance { get; private set; }
 		public TextAsset Script => _script;
@@ -36,19 +37,37 @@ namespace MoteScript.Unity
 		private void Start()
 		{
 			_runtime.ManagerHost.Start();
-			for (int i = 0; i < _behaviours.Count; ++i)
+			if (_runtime.ManagerHost.State == MoteScriptLifecycleState.Started)
 			{
-				_behaviours[i].StartLifecycle();
+				StartChildren();
 			}
 		}
 
 		private void Update()
 		{
 			_runtime.ManagerHost.Update();
+			if (!_childrenStarted)
+			{
+				if (_runtime.ManagerHost.State == MoteScriptLifecycleState.Started
+					|| _runtime.ManagerHost.State == MoteScriptLifecycleState.Updating)
+				{
+					StartChildren();
+				}
+				return;
+			}
 			for (int i = 0; i < _behaviours.Count; ++i)
 			{
 				_behaviours[i].UpdateLifecycle();
 			}
+		}
+
+		private void StartChildren()
+		{
+			for (int i = 0; i < _behaviours.Count; ++i)
+			{
+				_behaviours[i].StartLifecycle();
+			}
+			_childrenStarted = true;
 		}
 
 		private void OnDestroy()

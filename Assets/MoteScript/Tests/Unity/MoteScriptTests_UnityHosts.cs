@@ -112,6 +112,107 @@ namespace MoteScript.Tests
 				MoteScriptLifecycleState.Updating));
 		}
 
+		[Test]
+		public void StartYield_CompletesBeforeUpdateBegins()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			InvokeLifecycle(manager, "Awake");
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{shared.updates=0};"
+				+ "Start=()=>{shared.phase=1;yield(10);shared.phase=2};"
+				+ "Update=()=>{shared.updates=shared.updates+1};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			InvokeLifecycle(manager, "Start");
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Starting));
+			Assert.That(behaviour.ExecutionState, Is.EqualTo(
+				MoteExecutionState.Yielded));
+			Assert.That(manager.GetSharedVariables<float>()["phase"].IntegerValue,
+				Is.EqualTo(1));
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Started));
+			Assert.That(manager.GetSharedVariables<float>()["phase"].IntegerValue,
+				Is.EqualTo(2));
+			Assert.That(manager.GetSharedVariables<float>()["updates"].IntegerValue,
+				Is.Zero);
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(manager.GetSharedVariables<float>()["updates"].IntegerValue,
+				Is.EqualTo(1));
+		}
+
+		[Test]
+		public void ManagerStartYield_DelaysBehaviourStart()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			SetPrivateField(manager, "_script", new TextAsset(
+				"Awake=()=>{shared.order=0};"
+				+ "Start=()=>{shared.order=1;yield(0);shared.order=2};"));
+			InvokeLifecycle(manager, "Awake");
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Start=()=>{shared.order=shared.order*10+3};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			InvokeLifecycle(manager, "Start");
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Awakened));
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(manager.GetSharedVariables<float>()["order"].IntegerValue,
+				Is.EqualTo(23));
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Started));
+		}
+
+		[Test]
+		public void UpdateYield_ResumesWithoutOverlappingInvocations()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			InvokeLifecycle(manager, "Awake");
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{shared.calls=0;shared.resumes=0};"
+				+ "Update=()=>{shared.calls=shared.calls+1;"
+				+ "yield(shared.calls);shared.resumes=shared.resumes+1};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(manager, "Start");
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(behaviour.ExecutionState, Is.EqualTo(
+				MoteExecutionState.Yielded));
+			Assert.That(manager.GetSharedVariables<float>()["calls"].IntegerValue,
+				Is.EqualTo(1));
+			Assert.That(manager.GetSharedVariables<float>()["resumes"].IntegerValue,
+				Is.Zero);
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(manager.GetSharedVariables<float>()["calls"].IntegerValue,
+				Is.EqualTo(1));
+			Assert.That(manager.GetSharedVariables<float>()["resumes"].IntegerValue,
+				Is.EqualTo(1));
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(manager.GetSharedVariables<float>()["calls"].IntegerValue,
+				Is.EqualTo(2));
+		}
+
 		private static void InvokeLifecycle(object target, string methodName)
 		{
 			target.GetType()

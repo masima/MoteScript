@@ -6,6 +6,8 @@ namespace MoteScript.Unity
 	internal interface IMoteScriptLifecycleHost
 	{
 		object Context { get; }
+		object ActiveExecution { get; }
+		MoteExecutionState? ExecutionState { get; }
 		MoteScriptLifecycleState State { get; }
 		void InitializeAndAwake();
 		void Start();
@@ -21,6 +23,7 @@ namespace MoteScript.Unity
 		private readonly MoteValue<T> _awakeCall;
 		private readonly MoteValue<T> _startCall;
 		private readonly MoteValue<T> _updateCall;
+		private MoteExecution<T> _activeExecution;
 
 		public MoteScriptLifecycleHost(TextAsset source, Context<T> context)
 		{
@@ -36,6 +39,8 @@ namespace MoteScript.Unity
 		}
 
 		object IMoteScriptLifecycleHost.Context => _context;
+		object IMoteScriptLifecycleHost.ActiveExecution => _activeExecution;
+		public MoteExecutionState? ExecutionState => _activeExecution?.State;
 		public MoteScriptLifecycleState State { get; private set; }
 
 		public void InitializeAndAwake()
@@ -59,20 +64,67 @@ namespace MoteScript.Unity
 
 		public void Start()
 		{
+			if (State == MoteScriptLifecycleState.Starting)
+			{
+				ResumeStart();
+				return;
+			}
 			EnsureState(MoteScriptLifecycleState.Awakened);
-			InvokeWithFaultHandling("Start", _startCall);
-			State = MoteScriptLifecycleState.Started;
+			if (!HasFunction("Start"))
+			{
+				State = MoteScriptLifecycleState.Started;
+				return;
+			}
+			try
+			{
+				_activeExecution = _startCall.CreateExecution(_context);
+				_activeExecution.Evaluate();
+				State = _activeExecution.IsYielded
+					? MoteScriptLifecycleState.Starting
+					: MoteScriptLifecycleState.Started;
+			}
+			catch
+			{
+				State = MoteScriptLifecycleState.Faulted;
+				throw;
+			}
 		}
 
 		public void Update()
 		{
+			if (State == MoteScriptLifecycleState.Starting)
+			{
+				ResumeStart();
+				return;
+			}
 			if (State != MoteScriptLifecycleState.Started
 				&& State != MoteScriptLifecycleState.Updating)
 			{
 				return;
 			}
-			InvokeWithFaultHandling("Update", _updateCall);
-			State = MoteScriptLifecycleState.Updating;
+			if (!HasFunction("Update"))
+			{
+				State = MoteScriptLifecycleState.Updating;
+				return;
+			}
+			try
+			{
+				if (_activeExecution?.State == MoteExecutionState.Yielded)
+				{
+					_activeExecution.Resume();
+				}
+				else
+				{
+					_activeExecution = _updateCall.CreateExecution(_context);
+					_activeExecution.Evaluate();
+				}
+				State = MoteScriptLifecycleState.Updating;
+			}
+			catch
+			{
+				State = MoteScriptLifecycleState.Faulted;
+				throw;
+			}
 		}
 
 		public void Disable()
@@ -83,11 +135,15 @@ namespace MoteScript.Unity
 			}
 		}
 
-		private void InvokeWithFaultHandling(string name, MoteValue<T> call)
+		private void ResumeStart()
 		{
 			try
 			{
-				InvokeIfDefined(name, call);
+				_activeExecution.Resume();
+				if (!_activeExecution.IsYielded)
+				{
+					State = MoteScriptLifecycleState.Started;
+				}
 			}
 			catch
 			{
@@ -96,19 +152,19 @@ namespace MoteScript.Unity
 			}
 		}
 
+		private bool HasFunction(string name)
+		{
+			return _context.TryGetValue(name, out MoteValue<T> function)
+				&& function.ValueType == EValueType.Function;
+		}
+
 		private void InvokeIfDefined(string name, MoteValue<T> call)
 		{
-			if (!_context.TryGetValue(name, out MoteValue<T> function)
-				|| function.ValueType != EValueType.Function)
+			if (!HasFunction(name))
 			{
 				return;
 			}
-			MoteValue<T> result = call.Evaluate(_context);
-			if (result.ValueType == EValueType.Yield)
-			{
-				throw new InvalidOperationException(
-					$"{name} yielded before lifecycle scheduling was enabled.");
-			}
+			call.Evaluate(_context);
 		}
 
 		private void EnsureState(MoteScriptLifecycleState expected)
