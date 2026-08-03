@@ -80,13 +80,14 @@ namespace MoteScript.Editor
 
 		private void OnEnable()
 		{
+			SanitizeDestroyedReferences();
 			MoteDebugEvents.ExecutionCreated += OnExecutionCreated;
 			MoteDebugTargetRegistry.TargetRegistered += OnTargetRegistered;
 			MoteDebugTargetRegistry.TargetUnregistered += OnTargetUnregistered;
 			MoteDebugTargetRegistry.TargetChanged += OnTargetChanged;
 			MoteScriptAssetChangeEvents.Changed += OnMoteAssetChanged;
 			if (string.IsNullOrEmpty(_sourceAssetPath)
-				&& _sourceAsset is not null)
+				&& _sourceAsset != null)
 			{
 				_sourceAssetPath = AssetDatabase.GetAssetPath(_sourceAsset);
 			}
@@ -110,6 +111,7 @@ namespace MoteScript.Editor
 
 		private void OnGUI()
 		{
+			SanitizeDestroyedReferences();
 			EnsureStyles();
 			HandleKeyboardShortcuts();
 			DrawTargetSelection();
@@ -142,7 +144,7 @@ namespace MoteScript.Editor
 			bool yielded = _execution?.State == MoteExecutionState.Yielded;
 			bool canStep = paused || yielded;
 			bool canStart = _selectedTarget is null
-				&& _sourceAsset is not null
+				&& _sourceAsset != null
 				&& CanStartNewExecution();
 			switch (current.keyCode)
 			{
@@ -370,10 +372,10 @@ namespace MoteScript.Editor
 				field.y,
 				selectorWidth,
 				field.height);
-			string path = _sourceAsset is null
+			string path = _sourceAsset == null
 				? string.Empty
 				: AssetDatabase.GetAssetPath(_sourceAsset);
-			GUIContent content = _sourceAsset is null
+			GUIContent content = _sourceAsset == null
 				? new GUIContent("None (MoteScript Asset)")
 				: new GUIContent(_sourceAsset.name, path);
 			bool showMenu = EditorGUI.DropdownButton(
@@ -402,7 +404,7 @@ namespace MoteScript.Editor
 			var menu = new GenericMenu();
 			menu.AddItem(
 				new GUIContent("None"),
-				_sourceAsset is null,
+				_sourceAsset == null,
 				() => SetSourceAsset(null));
 			menu.AddSeparator(string.Empty);
 
@@ -1050,6 +1052,8 @@ namespace MoteScript.Editor
 			_selectedTarget = null;
 			_execution = null;
 			_document = null;
+			_sourceAsset = null;
+			_sourceAssetPath = string.Empty;
 			if (MoteDebugTargetRegistry.Targets.Count != 0)
 			{
 				SelectTarget(MoteDebugTargetRegistry.Targets[0]);
@@ -1074,7 +1078,7 @@ namespace MoteScript.Editor
 			_execution = target?.Execution;
 			_document = _execution?.DebugDocument;
 			_sourceAsset = target?.SourceAsset;
-			_sourceAssetPath = _sourceAsset is null
+			_sourceAssetPath = _sourceAsset == null
 				? string.Empty
 				: AssetDatabase.GetAssetPath(_sourceAsset);
 			_sourceChanged = false;
@@ -1089,6 +1093,22 @@ namespace MoteScript.Editor
 				}
 			}
 			Repaint();
+		}
+
+		private void SanitizeDestroyedReferences()
+		{
+			if (!ReferenceEquals(_sourceAsset, null) && _sourceAsset == null)
+			{
+				_sourceAsset = null;
+				_sourceAssetPath = string.Empty;
+				if (_selectedTarget is not null
+					&& _selectedTarget.SourceAsset == null)
+				{
+					_selectedTarget = null;
+					_execution = null;
+					_document = null;
+				}
+			}
 		}
 
 		private void OnMoteAssetChanged(string oldPath, string newPath)

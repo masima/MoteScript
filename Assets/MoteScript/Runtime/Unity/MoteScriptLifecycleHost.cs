@@ -45,7 +45,7 @@ namespace MoteScript.Unity
 		{
 			_context = context ?? throw new ArgumentNullException(nameof(context));
 			var decoder = new MoteDecoder<T>();
-			if (source is not null && !string.IsNullOrWhiteSpace(source.text))
+			if (source != null && !string.IsNullOrWhiteSpace(source.text))
 			{
 				#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 				_definitionScript = decoder.DecodeDebug(
