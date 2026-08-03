@@ -21,6 +21,7 @@ namespace MoteScript.Editor
 		[SerializeField] private string _sourceAssetPath;
 		private NumericType _numericType;
 		private IMoteDebugExecution _execution;
+		private IMoteDebugTarget _selectedTarget;
 		private MoteDebugDocument _document;
 		private readonly HashSet<int> _breakpoints = new();
 		private Vector2 _sourceScroll;
@@ -61,6 +62,9 @@ namespace MoteScript.Editor
 		private void OnEnable()
 		{
 			MoteDebugEvents.ExecutionCreated += OnExecutionCreated;
+			MoteDebugTargetRegistry.TargetRegistered += OnTargetRegistered;
+			MoteDebugTargetRegistry.TargetUnregistered += OnTargetUnregistered;
+			MoteDebugTargetRegistry.TargetChanged += OnTargetChanged;
 			MoteScriptAssetChangeEvents.Changed += OnMoteAssetChanged;
 			if (string.IsNullOrEmpty(_sourceAssetPath)
 				&& _sourceAsset is not null)
@@ -70,11 +74,18 @@ namespace MoteScript.Editor
 			LoadBreakpoints();
 			RestoreInvalidPaneHeights();
 			EnsureVariableTree();
+			if (_selectedTarget is null && MoteDebugTargetRegistry.Targets.Count != 0)
+			{
+				SelectTarget(MoteDebugTargetRegistry.Targets[0]);
+			}
 		}
 
 		private void OnDisable()
 		{
 			MoteDebugEvents.ExecutionCreated -= OnExecutionCreated;
+			MoteDebugTargetRegistry.TargetRegistered -= OnTargetRegistered;
+			MoteDebugTargetRegistry.TargetUnregistered -= OnTargetUnregistered;
+			MoteDebugTargetRegistry.TargetChanged -= OnTargetChanged;
 			MoteScriptAssetChangeEvents.Changed -= OnMoteAssetChanged;
 		}
 
@@ -82,6 +93,7 @@ namespace MoteScript.Editor
 		{
 			EnsureStyles();
 			HandleKeyboardShortcuts();
+			DrawTargetSelection();
 			DrawSourceSelection();
 			DrawControls();
 			EditorGUILayout.Space();
@@ -110,7 +122,8 @@ namespace MoteScript.Editor
 			bool paused = _execution?.State == MoteExecutionState.Paused;
 			bool yielded = _execution?.State == MoteExecutionState.Yielded;
 			bool canStep = paused || yielded;
-			bool canStart = _sourceAsset is not null
+			bool canStart = _selectedTarget is null
+				&& _sourceAsset is not null
 				&& CanStartNewExecution();
 			switch (current.keyCode)
 			{
@@ -295,6 +308,34 @@ namespace MoteScript.Editor
 			}
 		}
 
+		private void DrawTargetSelection()
+		{
+			IReadOnlyList<IMoteDebugTarget> targets =
+				MoteDebugTargetRegistry.Targets;
+			var labels = new string[targets.Count + 1];
+			labels[0] = "Standalone script";
+			int selected = 0;
+			for (int i = 0; i < targets.Count; ++i)
+			{
+				IMoteDebugTarget target = targets[i];
+				string state = target.Execution?.State.ToString()
+					?? target.LifecycleState.ToString();
+				labels[i + 1] = $"{target.DisplayName} ({state})";
+				if (ReferenceEquals(target, _selectedTarget)) selected = i + 1;
+			}
+			int next = EditorGUILayout.Popup("Target", selected, labels);
+			if (next == selected) return;
+			if (next == 0)
+			{
+				_selectedTarget = null;
+				_execution = null;
+				_document = null;
+				Repaint();
+				return;
+			}
+			SelectTarget(targets[next - 1]);
+		}
+
 		private void DrawMoteAssetField()
 		{
 			Rect control = EditorGUILayout.GetControlRect();
@@ -415,6 +456,7 @@ namespace MoteScript.Editor
 			{
 				return;
 			}
+			_selectedTarget = null;
 			_sourceAsset = asset;
 			_sourceAssetPath = asset is null
 				? string.Empty
@@ -447,7 +489,9 @@ namespace MoteScript.Editor
 			{
 				bool stoppable = _execution?.State == MoteExecutionState.Paused
 					|| _execution?.State == MoteExecutionState.Yielded;
-				EditorGUI.BeginDisabledGroup(_sourceAsset == null && !stoppable);
+				EditorGUI.BeginDisabledGroup(
+					(_sourceAsset == null || _selectedTarget is not null)
+					&& !stoppable);
 				GUIContent runContent = stoppable
 					? new GUIContent("Stop", "Shift+F5")
 					: new GUIContent("Run", "F5");
@@ -467,7 +511,8 @@ namespace MoteScript.Editor
 				bool paused = _execution?.State == MoteExecutionState.Paused;
 				bool yielded = _execution?.State == MoteExecutionState.Yielded;
 				bool canStep = paused || yielded;
-				bool canStartDebugging = _sourceAsset != null
+				bool canStartDebugging = _selectedTarget is null
+					&& _sourceAsset != null
 					&& CanStartNewExecution();
 				EditorGUI.BeginDisabledGroup(!paused && !yielded);
 				if (GUILayout.Button(new GUIContent("Continue", "F5")))
@@ -945,6 +990,17 @@ namespace MoteScript.Editor
 
 		private void OnExecutionCreated(IMoteDebugExecution execution)
 		{
+			IReadOnlyList<IMoteDebugTarget> targets =
+				MoteDebugTargetRegistry.Targets;
+			for (int i = 0; i < targets.Count; ++i)
+			{
+				if (!ReferenceEquals(targets[i].Execution, execution)) continue;
+				if (_selectedTarget is null)
+				{
+					SelectTarget(targets[i]);
+				}
+				return;
+			}
 			_execution = execution;
 			_document = execution.DebugDocument;
 			_sourceAssetPath = execution.DebugDocument?.SourceName
@@ -956,6 +1012,63 @@ namespace MoteScript.Editor
 			}
 			_sourceChanged = false;
 			_visibleExecutionLine = -1;
+			Repaint();
+		}
+
+		private void OnTargetRegistered(IMoteDebugTarget target)
+		{
+			if (_selectedTarget is null) SelectTarget(target);
+			Repaint();
+		}
+
+		private void OnTargetUnregistered(IMoteDebugTarget target)
+		{
+			if (!ReferenceEquals(_selectedTarget, target))
+			{
+				Repaint();
+				return;
+			}
+			_selectedTarget = null;
+			_execution = null;
+			_document = null;
+			if (MoteDebugTargetRegistry.Targets.Count != 0)
+			{
+				SelectTarget(MoteDebugTargetRegistry.Targets[0]);
+			}
+			Repaint();
+		}
+
+		private void OnTargetChanged(IMoteDebugTarget target)
+		{
+			if (ReferenceEquals(_selectedTarget, target))
+			{
+				_execution = target.Execution;
+				_document = _execution?.DebugDocument;
+			}
+			Repaint();
+		}
+
+		private void SelectTarget(IMoteDebugTarget target)
+		{
+			SaveBreakpoints();
+			_selectedTarget = target;
+			_execution = target?.Execution;
+			_document = _execution?.DebugDocument;
+			_sourceAsset = target?.SourceAsset;
+			_sourceAssetPath = _sourceAsset is null
+				? string.Empty
+				: AssetDatabase.GetAssetPath(_sourceAsset);
+			_sourceChanged = false;
+			_selectedLine = -1;
+			_visibleExecutionLine = -1;
+			LoadBreakpoints();
+			if (_execution is not null)
+			{
+				foreach (int line in _breakpoints)
+				{
+					_execution.SetBreakpoint(line);
+				}
+			}
 			Repaint();
 		}
 

@@ -132,6 +132,12 @@ namespace MoteScript.Unity
 
 		public void Update()
 		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			if (_activeExecution?.State == MoteExecutionState.Paused)
+			{
+				return;
+			}
+#endif
 			if (State == MoteScriptLifecycleState.Starting)
 			{
 				ResumeStart();
@@ -182,6 +188,14 @@ namespace MoteScript.Unity
 		{
 			try
 			{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				if (_activeExecution.State == MoteExecutionState.Paused) return;
+#endif
+				if (_activeExecution.State == MoteExecutionState.Completed)
+				{
+					State = MoteScriptLifecycleState.Started;
+					return;
+				}
 				_activeExecution.Resume();
 				if (!_activeExecution.IsYielded)
 				{

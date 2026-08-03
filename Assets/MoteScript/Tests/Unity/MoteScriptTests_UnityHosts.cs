@@ -245,6 +245,56 @@ namespace MoteScript.Tests
 				MoteExecutionState.Yielded));
 			Assert.That(target.SourceAsset, Is.SameAs(behaviour.Script));
 		}
+
+		[Test]
+		public void PausedUpdate_IsNotResumedByUnityScheduler()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			InvokeLifecycle(manager, "Awake");
+			_behaviourObject = new GameObject("Paused Target");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Update=()=>{\n"
+				+ "yield(1);\n"
+				+ "shared.after=1;\n"
+				+ "};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(manager, "Start");
+			InvokeLifecycle(manager, "Update");
+
+			IMoteDebugTarget target = FindTarget(behaviour);
+			target.Execution.SetBreakpoint(3);
+			InvokeLifecycle(manager, "Update");
+			Assert.That(target.Execution.State, Is.EqualTo(
+				MoteExecutionState.Paused));
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(target.Execution.State, Is.EqualTo(
+				MoteExecutionState.Paused));
+			Assert.That(
+				manager.GetSharedVariables<float>().ContainsKey("after"),
+				Is.False);
+
+			target.Execution.Continue();
+			Assert.That(target.Execution.State, Is.EqualTo(
+				MoteExecutionState.Completed));
+			Assert.That(manager.GetSharedVariables<float>()["after"].IntegerValue,
+				Is.EqualTo(1));
+		}
+#endif
+
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		private static IMoteDebugTarget FindTarget(UnityEngine.Object owner)
+		{
+			foreach (IMoteDebugTarget target in MoteDebugTargetRegistry.Targets)
+			{
+				if (target.Owner == owner) return target;
+			}
+			return null;
+		}
 #endif
 
 		private static void InvokeLifecycle(object target, string methodName)
