@@ -42,6 +42,11 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
   - [EditorWindowから実行](#editorwindowから実行)
   - [C#からデバッグ実行](#cからデバッグ実行)
   - [行番号と実行状態](#行番号と実行状態)
+- [GameObjectで実行](#gameobjectで実行)
+  - [Managerと共有Context](#managerと共有context)
+  - [Awake・Start・Update](#awakestartupdate)
+  - [Yieldと実行順](#yieldと実行順)
+  - [GameObjectをデバッグ](#gameobjectをデバッグ)
 - [開発](#開発)
 
 ## Git URLからインストール
@@ -848,6 +853,69 @@ if (execution.IsPaused)
 ブレークポイントとステップ実行は文ではなく表示上の行を指定します。ただし、1つの文が複数行に分かれている場合、その文の途中の行へ設定したブレークポイントは文頭を含む行へ正規化されます。同じ行に複数の式がある場合も、その行を1つの停止位置として扱います。
 
 デバッガによる停止は`MoteExecutionState.Paused`、スクリプト自身の`yield(value)`は`MoteExecutionState.Yielded`として区別されます。`Paused`と`Yielded`のどちらからもContinue、Step Into、Step Over、Step Outで再開できます。従来どおり`Yielded`から`Resume()`を使用することもできます。`StopDebugging()`では継続フレームを破棄し、関数引数とローカル変数を復元してContextの実行所有権を解放します。
+
+## GameObjectで実行
+
+シーンに`MoteScriptManager`を1つ配置し、スクリプトを実行するGameObjectへ`MoteScriptBehaviour`を追加します。Managerは`DefaultExecutionOrder(-10000)`で各Behaviourより先に実行され、Manager自身にもスクリプトを指定できます。
+
+### Managerと共有Context
+
+GameObjectごとに独立したExecutionContextが作られます。Managerが保持する共有辞書は、各スクリプトから`shared`と`library`として参照できます。
+
+```csharp
+using MoteScript;
+using MoteScript.Unity;
+
+MoteScriptManager manager = GetComponent<MoteScriptManager>();
+Context<float> shared = manager.GetSharedVariables<float>();
+Context<float> libraries = manager.GetSharedLibraries<float>();
+
+shared.Set("score", 0);
+StandardMathLibrary<float>.Register(libraries);
+StandardStringLibrary<float>.Register(libraries);
+StandardRegexLibrary<float>.Register(libraries);
+```
+
+```mote
+shared.score=shared.score+1;
+value=library.math.clamp(value,0,100);
+```
+
+Managerの`Numeric Type`に合わせて`float`、`int`、`decimal`の型引数を使用します。型が異なるContextを取得しようとすると例外になります。
+
+### Awake・Start・Update
+
+スクリプトを一度評価して関数定義をContextへ保持した後、定義されているライフサイクル関数だけを呼び出します。
+
+```mote
+Awake=()=>{
+    localValue=0;
+};
+
+Start=()=>{
+    shared.ready=1;
+};
+
+Update=()=>{
+    localValue=localValue+1;
+};
+```
+
+実行中に追加された`MoteScriptBehaviour`は、登録時にAwakeとStartを順番に実行してから通常のUpdateへ参加します。AwakeではYieldを使用できません。
+
+### Yieldと実行順
+
+StartとUpdateではYieldを使用できます。StartがYield中は同じGameObjectのUpdateを開始せず、Start完了後の次フレームからUpdateを呼び出します。UpdateがYieldした場合も新しいUpdateを重ねず、次フレームに同じExecutionを再開します。
+
+ManagerのStartがYield中は、すべてのBehaviourのStartを待機させます。ManagerがFaultedまたはデバッグ停止中の場合もBehaviourの更新を進めません。
+
+Package Managerの`Basic Usage`サンプルに`ManagerLifecycle.mote`と`BehaviourLifecycle.mote`を収録しています。
+
+### GameObjectをデバッグ
+
+Unity Editorでは、実行中のManagerと各BehaviourがDebugger Windowの`Target`欄へ表示されます。Yield中でも対象を選択してブレークポイントを追加でき、次の再開時に停止できます。停止中はUnity側スケジューラーから自動再開されません。
+
+スクリプト例外が発生すると単一のDebugger Windowが自動的に開き、最初のFaulted対象を選択します。複数のGameObjectで例外が発生した場合は`Target`欄から切り替えられます。例外時点の変数、関数ローカル変数、発生行、コールスタックはスナップショットとして保持されます。Faulted実行は再開および変数編集できません。
 
 ## 開発
 

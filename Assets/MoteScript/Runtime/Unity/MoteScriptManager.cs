@@ -46,6 +46,16 @@ namespace MoteScript.Unity
 		private void Update()
 		{
 			_runtime.ManagerHost.Update();
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			if (_runtime.ManagerHost.ExecutionState == MoteExecutionState.Paused)
+			{
+				return;
+			}
+#endif
+			if (_runtime.ManagerHost.State == MoteScriptLifecycleState.Faulted)
+			{
+				return;
+			}
 			if (!_childrenStarted)
 			{
 				if (_runtime.ManagerHost.State == MoteScriptLifecycleState.Started
@@ -75,6 +85,10 @@ namespace MoteScript.Unity
 			if (Instance == this)
 			{
 				Instance = null;
+			}
+			for (int i = _behaviours.Count - 1; i >= 0; --i)
+			{
+				_behaviours[i].DetachRuntime(this);
 			}
 			_behaviours.Clear();
 			_runtime?.ManagerHost.Disable();
@@ -110,6 +124,10 @@ namespace MoteScript.Unity
 				behaviour.gameObject.name);
 			behaviour.AttachRuntime(this, host);
 			host.InitializeAndAwake();
+			if (_childrenStarted)
+			{
+				behaviour.StartLifecycle();
+			}
 		}
 
 		internal void Unregister(MoteScriptBehaviour behaviour)

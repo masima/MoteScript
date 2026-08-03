@@ -1,0 +1,14 @@
+Awake=()=>{
+    localValue=0;
+};
+
+Start=()=>{
+    while(shared.ready==0){
+        yield(0);
+    };
+};
+
+Update=()=>{
+    localValue=localValue+1;
+    yield(localValue);
+};
