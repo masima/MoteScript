@@ -18,6 +18,8 @@ namespace MoteScript.Unity
 		public TextAsset Script => _script;
 		public MoteNumericType NumericType => _numericType;
 		public int RegisteredBehaviourCount => _behaviours.Count;
+		public MoteScriptLifecycleState LifecycleState =>
+			_runtime?.ManagerHost.State ?? MoteScriptLifecycleState.Uninitialized;
 
 		private void Awake()
 		{
@@ -27,7 +29,26 @@ namespace MoteScript.Unity
 					"Only one active MoteScriptManager is allowed per scene.");
 			}
 			Instance = this;
-			_runtime = CreateRuntime(_numericType);
+			_runtime = CreateRuntime(_numericType, _script);
+			_runtime.ManagerHost.InitializeAndAwake();
+		}
+
+		private void Start()
+		{
+			_runtime.ManagerHost.Start();
+			for (int i = 0; i < _behaviours.Count; ++i)
+			{
+				_behaviours[i].StartLifecycle();
+			}
+		}
+
+		private void Update()
+		{
+			_runtime.ManagerHost.Update();
+			for (int i = 0; i < _behaviours.Count; ++i)
+			{
+				_behaviours[i].UpdateLifecycle();
+			}
 		}
 
 		private void OnDestroy()
@@ -63,7 +84,9 @@ namespace MoteScript.Unity
 			if (behaviour is null || _behaviours.Contains(behaviour)) return;
 			_behaviours.Add(behaviour);
 			_behaviours.Sort(CompareBehaviours);
-			behaviour.AttachRuntime(this, _runtime.CreateHostContext());
+			IMoteScriptLifecycleHost host = _runtime.CreateHost(behaviour.Script);
+			behaviour.AttachRuntime(this, host);
+			host.InitializeAndAwake();
 		}
 
 		internal void Unregister(MoteScriptBehaviour behaviour)
@@ -87,13 +110,15 @@ namespace MoteScript.Unity
 				: left.GetInstanceID().CompareTo(right.GetInstanceID());
 		}
 
-		private static IMoteScriptRuntime CreateRuntime(MoteNumericType numericType)
+		private static IMoteScriptRuntime CreateRuntime(
+			MoteNumericType numericType,
+			TextAsset source)
 		{
 			return numericType switch
 			{
-				MoteNumericType.Integer => new MoteScriptRuntime<int>(),
-				MoteNumericType.Decimal => new MoteScriptRuntime<decimal>(),
-				_ => new MoteScriptRuntime<float>(),
+				MoteNumericType.Integer => new MoteScriptRuntime<int>(source),
+				MoteNumericType.Decimal => new MoteScriptRuntime<decimal>(source),
+				_ => new MoteScriptRuntime<float>(source),
 			};
 		}
 

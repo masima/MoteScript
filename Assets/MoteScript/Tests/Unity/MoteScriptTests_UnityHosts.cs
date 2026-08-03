@@ -10,6 +10,9 @@ namespace MoteScript.Tests
 		private GameObject _managerObject;
 		private GameObject _behaviourObject;
 
+		private const BindingFlags PrivateInstance =
+			BindingFlags.Instance | BindingFlags.NonPublic;
+
 		[TearDown]
 		public void TearDown()
 		{
@@ -76,11 +79,54 @@ namespace MoteScript.Tests
 				Is.EqualTo(10));
 		}
 
+		[Test]
+		public void Manager_DrivesLifecycleFunctionsInOrder()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			SetPrivateField(manager, "_script", new TextAsset(
+				"Awake=()=>{shared.order=1};"
+				+ "Start=()=>{shared.order=shared.order*10+2};"
+				+ "Update=()=>{shared.order=shared.order*10+3};"));
+			InvokeLifecycle(manager, "Awake");
+
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{shared.order=shared.order*10+4};"
+				+ "Start=()=>{shared.order=shared.order*10+5};"
+				+ "Update=()=>{shared.order=shared.order*10+6};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			InvokeLifecycle(manager, "Start");
+			InvokeLifecycle(manager, "Update");
+
+			Assert.That(
+				manager.GetSharedVariables<float>()["order"].IntegerValue,
+				Is.EqualTo(142536));
+			Assert.That(manager.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Updating));
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Updating));
+		}
+
 		private static void InvokeLifecycle(object target, string methodName)
 		{
 			target.GetType()
-				.GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
+				.GetMethod(methodName, PrivateInstance)
 				.Invoke(target, null);
+		}
+
+		private static void SetPrivateField(
+			object target,
+			string fieldName,
+			object value)
+		{
+			target.GetType()
+				.GetField(fieldName, PrivateInstance)
+				.SetValue(target, value);
 		}
 	}
 }

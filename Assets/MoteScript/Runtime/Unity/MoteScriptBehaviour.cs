@@ -10,17 +10,19 @@ namespace MoteScript.Unity
 		[SerializeField] private MoteScriptManager _manager;
 		[SerializeField] private TextAsset _script;
 		[SerializeField] private int _executionPriority;
-		private object _context;
+		private IMoteScriptLifecycleHost _host;
 
 		public MoteScriptManager Manager => _manager;
 		public TextAsset Script => _script;
 		public int ExecutionPriority => _executionPriority;
+		public MoteScriptLifecycleState LifecycleState =>
+			_host?.State ?? MoteScriptLifecycleState.Uninitialized;
 
 		public Context<T> GetContext<T>()
 			where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 		{
-			if (_context is Context<T> context) return context;
-			if (_context is null)
+			if (_host?.Context is Context<T> context) return context;
+			if (_host is null)
 			{
 				throw new InvalidOperationException(
 					"The Context is unavailable until the behaviour is registered.");
@@ -43,16 +45,29 @@ namespace MoteScript.Unity
 			_manager?.Unregister(this);
 		}
 
-		internal void AttachRuntime(MoteScriptManager manager, object context)
+		internal void AttachRuntime(
+			MoteScriptManager manager,
+			IMoteScriptLifecycleHost host)
 		{
 			_manager = manager;
-			_context = context;
+			_host = host;
 		}
 
 		internal void DetachRuntime(MoteScriptManager manager)
 		{
 			if (_manager != manager) return;
-			_context = null;
+			_host?.Disable();
+			_host = null;
+		}
+
+		internal void StartLifecycle()
+		{
+			_host?.Start();
+		}
+
+		internal void UpdateLifecycle()
+		{
+			_host?.Update();
 		}
 	}
 }

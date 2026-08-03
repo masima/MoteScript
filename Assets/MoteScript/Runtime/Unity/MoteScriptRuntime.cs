@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace MoteScript.Unity
 {
@@ -7,7 +8,8 @@ namespace MoteScript.Unity
 		object ManagerContext { get; }
 		object SharedVariables { get; }
 		object SharedLibraries { get; }
-		object CreateHostContext();
+		IMoteScriptLifecycleHost ManagerHost { get; }
+		IMoteScriptLifecycleHost CreateHost(TextAsset source);
 	}
 
 	internal sealed class MoteScriptRuntime<T> : IMoteScriptRuntime
@@ -17,16 +19,23 @@ namespace MoteScript.Unity
 		private readonly Context<T> _sharedLibraries = new();
 		private readonly Context<T> _managerContext;
 
-		public MoteScriptRuntime()
+		public MoteScriptRuntime(TextAsset managerSource)
 		{
 			MoteDecoder<T>.Setup();
 			_managerContext = CreateContext();
+			ManagerHost = new MoteScriptLifecycleHost<T>(
+				managerSource,
+				_managerContext);
 		}
 
 		object IMoteScriptRuntime.ManagerContext => _managerContext;
 		object IMoteScriptRuntime.SharedVariables => _sharedVariables;
 		object IMoteScriptRuntime.SharedLibraries => _sharedLibraries;
-		object IMoteScriptRuntime.CreateHostContext() => CreateContext();
+		public IMoteScriptLifecycleHost ManagerHost { get; }
+		public IMoteScriptLifecycleHost CreateHost(TextAsset source)
+		{
+			return new MoteScriptLifecycleHost<T>(source, CreateContext());
+		}
 
 		private Context<T> CreateContext()
 		{
