@@ -303,8 +303,18 @@ namespace MoteScript.Tests
 			InvokeLifecycle(behaviour, "OnEnable");
 			InvokeLifecycle(manager, "Start");
 
-			Assert.Throws<TargetInvocationException>(
-				() => InvokeLifecycle(manager, "Update"));
+			int faultNotifications = 0;
+			System.Action<IMoteDebugTarget> onFault = _ => ++faultNotifications;
+			MoteDebugTargetRegistry.TargetFaulted += onFault;
+			try
+			{
+				Assert.Throws<TargetInvocationException>(
+					() => InvokeLifecycle(manager, "Update"));
+			}
+			finally
+			{
+				MoteDebugTargetRegistry.TargetFaulted -= onFault;
+			}
 
 			IMoteDebugTarget target = FindTarget(behaviour);
 			Assert.That(target.Execution.State, Is.EqualTo(
@@ -318,6 +328,7 @@ namespace MoteScript.Tests
 				Is.EqualTo("42"));
 			Assert.That(snapshot.CallStack.Count, Is.EqualTo(1));
 			Assert.That(snapshot.CallStack[0].FunctionName, Is.EqualTo("Update"));
+			Assert.That(faultNotifications, Is.EqualTo(1));
 		}
 #endif
 

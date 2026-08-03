@@ -48,6 +48,25 @@ namespace MoteScript.Editor
 			GetWindow<MoteDebuggerWindow>("MoteScript Debugger");
 		}
 
+		internal static MoteDebuggerWindow FindOpenWindow()
+		{
+			MoteDebuggerWindow[] windows =
+				Resources.FindObjectsOfTypeAll<MoteDebuggerWindow>();
+			return windows.Length == 0 ? null : windows[0];
+		}
+
+		internal static void OpenTarget(IMoteDebugTarget target)
+		{
+			MoteDebuggerWindow window =
+				GetWindow<MoteDebuggerWindow>("MoteScript Debugger");
+			window.SelectTarget(target);
+			window.Show();
+			window.Focus();
+		}
+
+		internal bool SelectedTargetIsFaulted =>
+			_selectedTarget?.Execution?.State == MoteExecutionState.Faulted;
+
 		internal static void OpenAsset(TextAsset asset, int line)
 		{
 			MoteDebuggerWindow window =
