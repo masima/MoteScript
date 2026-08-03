@@ -14,6 +14,7 @@ namespace MoteScript
 		bool IsManager { get; }
 		MoteScriptLifecycleState LifecycleState { get; }
 		IMoteDebugExecution Execution { get; }
+		Exception Exception { get; }
 	}
 
 	public static class MoteDebugTargetRegistry
@@ -24,6 +25,7 @@ namespace MoteScript
 		public static event Action<IMoteDebugTarget> TargetRegistered;
 		public static event Action<IMoteDebugTarget> TargetUnregistered;
 		public static event Action<IMoteDebugTarget> TargetChanged;
+		public static event Action<IMoteDebugTarget> TargetFaulted;
 
 		internal static void Register(IMoteDebugTarget target)
 		{
@@ -41,6 +43,12 @@ namespace MoteScript
 		internal static void NotifyChanged(IMoteDebugTarget target)
 		{
 			TargetChanged?.Invoke(target);
+		}
+
+		internal static void NotifyFaulted(IMoteDebugTarget target)
+		{
+			TargetChanged?.Invoke(target);
+			TargetFaulted?.Invoke(target);
 		}
 	}
 }

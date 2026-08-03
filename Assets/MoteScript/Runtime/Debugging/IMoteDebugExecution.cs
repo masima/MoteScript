@@ -10,6 +10,7 @@ namespace MoteScript
 		MoteSourceSpan? CurrentLocation { get; }
 		int FunctionDepth { get; }
 		string ResultText { get; }
+		MoteDebugFaultSnapshot FaultSnapshot { get; }
 
 		void Start();
 		void Continue();
@@ -23,6 +24,26 @@ namespace MoteScript
 		IReadOnlyList<MoteDebugVariable> GetVariables();
 		bool TrySetVariableValue(int id, string value, out string error);
 		IReadOnlyList<MoteDebugCallFrame> GetCallStack();
+	}
+
+	public sealed class MoteDebugFaultSnapshot
+	{
+		internal MoteDebugFaultSnapshot(
+			System.Exception exception,
+			MoteSourceSpan? location,
+			IReadOnlyList<MoteDebugVariable> variables,
+			IReadOnlyList<MoteDebugCallFrame> callStack)
+		{
+			Exception = exception;
+			Location = location;
+			Variables = variables ?? System.Array.Empty<MoteDebugVariable>();
+			CallStack = callStack ?? System.Array.Empty<MoteDebugCallFrame>();
+		}
+
+		public System.Exception Exception { get; }
+		public MoteSourceSpan? Location { get; }
+		public IReadOnlyList<MoteDebugVariable> Variables { get; }
+		public IReadOnlyList<MoteDebugCallFrame> CallStack { get; }
 	}
 
 	public readonly struct MoteDebugVariable

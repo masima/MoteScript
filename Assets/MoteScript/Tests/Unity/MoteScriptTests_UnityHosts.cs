@@ -284,6 +284,41 @@ namespace MoteScript.Tests
 			Assert.That(manager.GetSharedVariables<float>()["after"].IntegerValue,
 				Is.EqualTo(1));
 		}
+
+		[Test]
+		public void FaultedUpdate_PreservesLocalVariablesAndCallStack()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			InvokeLifecycle(manager, "Awake");
+			_behaviourObject = new GameObject("Faulted Target");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Update=(;local temporary)=>{\n"
+				+ "temporary=42;\n"
+				+ "missing+1;\n"
+				+ "};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(manager, "Start");
+
+			Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(manager, "Update"));
+
+			IMoteDebugTarget target = FindTarget(behaviour);
+			Assert.That(target.Execution.State, Is.EqualTo(
+				MoteExecutionState.Faulted));
+			MoteDebugFaultSnapshot snapshot = target.Execution.FaultSnapshot;
+			Assert.That(snapshot, Is.Not.Null);
+			Assert.That(snapshot.Exception,
+				Is.TypeOf<System.InvalidOperationException>());
+			Assert.That(snapshot.Location?.StartLine, Is.EqualTo(3));
+			Assert.That(FindVariable(snapshot.Variables, "temporary").Value,
+				Is.EqualTo("42"));
+			Assert.That(snapshot.CallStack.Count, Is.EqualTo(1));
+			Assert.That(snapshot.CallStack[0].FunctionName, Is.EqualTo("Update"));
+		}
 #endif
 
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
@@ -294,6 +329,17 @@ namespace MoteScript.Tests
 				if (target.Owner == owner) return target;
 			}
 			return null;
+		}
+
+		private static MoteDebugVariable FindVariable(
+			System.Collections.Generic.IReadOnlyList<MoteDebugVariable> variables,
+			string name)
+		{
+			foreach (MoteDebugVariable variable in variables)
+			{
+				if (variable.Name == name) return variable;
+			}
+			throw new AssertionException($"Variable '{name}' was not captured.");
 		}
 #endif
 

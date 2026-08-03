@@ -13,6 +13,7 @@ namespace MoteScript
 		private readonly List<MoteDebugCallFrame> _debugCallStack = new(4);
 		private readonly Dictionary<int, DebugVariableTarget>
 			_debugVariableTargets = new();
+		private MoteDebugFaultSnapshot _faultSnapshot;
 
 		internal MoteExecution(
 			MoteValue<T> script,
@@ -30,12 +31,16 @@ namespace MoteScript
 		public MoteDebugDocument DebugDocument => _debugSession?.Document;
 		public MoteSourceSpan? CurrentLocation => _debugSession?.CurrentLocation;
 		public int FunctionDepth => _debugFunctionDepth;
+		public MoteDebugFaultSnapshot FaultSnapshot => _faultSnapshot;
 		string IMoteDebugExecution.ResultText =>
 			State switch
 			{
 				MoteExecutionState.Completed => FormatDebugValue(Result),
 				MoteExecutionState.Yielded =>
 					$"Yield: {FormatDebugValue(YieldValue)}",
+				MoteExecutionState.Faulted => Exception is null
+					? "Faulted"
+					: $"{Exception.GetType().Name}: {Exception.Message}",
 				_ => string.Empty,
 			};
 
@@ -164,6 +169,16 @@ namespace MoteScript
 		}
 
 		IReadOnlyList<MoteDebugVariable> IMoteDebugExecution.GetVariables()
+		{
+			if (State == MoteExecutionState.Faulted
+				&& _faultSnapshot is not null)
+			{
+				return _faultSnapshot.Variables;
+			}
+			return BuildDebugVariables();
+		}
+
+		private IReadOnlyList<MoteDebugVariable> BuildDebugVariables()
 		{
 			var variables = new List<MoteDebugVariable>(_context.Count);
 			var ancestors = new HashSet<object>();
@@ -395,7 +410,22 @@ namespace MoteScript
 
 		IReadOnlyList<MoteDebugCallFrame> IMoteDebugExecution.GetCallStack()
 		{
+			if (State == MoteExecutionState.Faulted
+				&& _faultSnapshot is not null)
+			{
+				return _faultSnapshot.CallStack;
+			}
 			return _debugCallStack.ToArray();
+		}
+
+		internal void DebugCaptureException(Exception exception)
+		{
+			if (_faultSnapshot is not null) return;
+			_faultSnapshot = new MoteDebugFaultSnapshot(
+				exception,
+				_debugSession?.CurrentLocation,
+				BuildDebugVariables(),
+				_debugCallStack.ToArray());
 		}
 
 		void IMoteDebugExecution.Start()

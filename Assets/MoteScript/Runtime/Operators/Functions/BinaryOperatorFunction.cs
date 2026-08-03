@@ -55,6 +55,13 @@ namespace MoteScript
 					}
 					return result;
 				}
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				catch (Exception exception)
+				{
+					debugExecution?.DebugCaptureException(exception);
+					throw;
+				}
+#endif
 				finally
 				{
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER

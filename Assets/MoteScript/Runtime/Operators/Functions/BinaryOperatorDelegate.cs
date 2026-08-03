@@ -137,6 +137,18 @@ namespace MoteScript
 					}
 					return result;
 				}
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				catch (Exception exception)
+				{
+					if (MoteExecution<T>.TryGet(
+						context,
+						out MoteExecution<T> execution))
+					{
+						execution.DebugCaptureException(exception);
+					}
+					throw;
+				}
+#endif
 				finally
 				{
 					if (!suspended)

@@ -91,6 +91,9 @@ namespace MoteScript
 			}
 			catch (Exception exception)
 			{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				DebugCaptureException(exception);
+#endif
 				for (; index < current.Count; ++index)
 				{
 					current[index].Cancel(_context);
@@ -204,6 +207,9 @@ namespace MoteScript
 
 		private void Fail(Exception exception)
 		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			DebugCaptureException(exception);
+#endif
 			Exception = exception;
 			State = MoteExecutionState.Faulted;
 			_continuations.Clear();

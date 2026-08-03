@@ -27,6 +27,7 @@ namespace MoteScript.Unity
 		private readonly MoteValue<T> _startCall;
 		private readonly MoteValue<T> _updateCall;
 		private MoteExecution<T> _activeExecution;
+		private Exception _exception;
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		private readonly MoteDebugSession<T> _debugSession;
 		private readonly UnityEngine.Object _owner;
@@ -80,6 +81,8 @@ namespace MoteScript.Unity
 		bool IMoteDebugTarget.IsManager => _isManager;
 		MoteScriptLifecycleState IMoteDebugTarget.LifecycleState => State;
 		IMoteDebugExecution IMoteDebugTarget.Execution => _activeExecution;
+		Exception IMoteDebugTarget.Exception =>
+			_activeExecution?.Exception ?? _exception;
 #endif
 		public MoteScriptLifecycleState State { get; private set; }
 
@@ -95,9 +98,11 @@ namespace MoteScript.Unity
 				InvokeIfDefined("Awake", _awakeCall);
 				State = MoteScriptLifecycleState.Awakened;
 			}
-			catch
+			catch (Exception exception)
 			{
+				_exception = _activeExecution?.Exception ?? exception;
 				State = MoteScriptLifecycleState.Faulted;
+				NotifyFaulted();
 				throw;
 			}
 		}
@@ -123,9 +128,11 @@ namespace MoteScript.Unity
 					? MoteScriptLifecycleState.Starting
 					: MoteScriptLifecycleState.Started;
 			}
-			catch
+			catch (Exception exception)
 			{
+				_exception = _activeExecution?.Exception ?? exception;
 				State = MoteScriptLifecycleState.Faulted;
+				NotifyFaulted();
 				throw;
 			}
 		}
@@ -166,9 +173,11 @@ namespace MoteScript.Unity
 				}
 				State = MoteScriptLifecycleState.Updating;
 			}
-			catch
+			catch (Exception exception)
 			{
+				_exception = _activeExecution?.Exception ?? exception;
 				State = MoteScriptLifecycleState.Faulted;
+				NotifyFaulted();
 				throw;
 			}
 		}
@@ -202,9 +211,11 @@ namespace MoteScript.Unity
 					State = MoteScriptLifecycleState.Started;
 				}
 			}
-			catch
+			catch (Exception exception)
 			{
+				_exception = _activeExecution?.Exception ?? exception;
 				State = MoteScriptLifecycleState.Faulted;
+				NotifyFaulted();
 				throw;
 			}
 		}
@@ -227,6 +238,13 @@ namespace MoteScript.Unity
 #else
 			_activeExecution = call.CreateExecution(_context);
 			return _activeExecution;
+#endif
+		}
+
+		private void NotifyFaulted()
+		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteDebugTargetRegistry.NotifyFaulted(this);
 #endif
 		}
 
