@@ -16,6 +16,9 @@ namespace MoteScript.Unity
 	}
 
 	internal sealed class MoteScriptLifecycleHost<T> : IMoteScriptLifecycleHost
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		, IMoteDebugTarget
+#endif
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>, IComparable<T>
 	{
 		private readonly Context<T> _context;
@@ -24,23 +27,60 @@ namespace MoteScript.Unity
 		private readonly MoteValue<T> _startCall;
 		private readonly MoteValue<T> _updateCall;
 		private MoteExecution<T> _activeExecution;
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		private readonly MoteDebugSession<T> _debugSession;
+		private readonly UnityEngine.Object _owner;
+		private readonly TextAsset _source;
+		private readonly string _displayName;
+		private readonly bool _isManager;
+#endif
 
-		public MoteScriptLifecycleHost(TextAsset source, Context<T> context)
+		public MoteScriptLifecycleHost(
+			TextAsset source,
+			Context<T> context,
+			UnityEngine.Object owner,
+			string displayName,
+			bool isManager)
 		{
 			_context = context ?? throw new ArgumentNullException(nameof(context));
 			var decoder = new MoteDecoder<T>();
 			if (source is not null && !string.IsNullOrWhiteSpace(source.text))
 			{
+				#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				_definitionScript = decoder.DecodeDebug(
+					source.text,
+					source.name,
+					out MoteDebugDocument document);
+				_debugSession = new MoteDebugSession<T>(document);
+				#else
 				_definitionScript = decoder.Decode(source.text);
+				#endif
 			}
 			_awakeCall = decoder.Decode("Awake()");
 			_startCall = decoder.Decode("Start()");
 			_updateCall = decoder.Decode("Update()");
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			_owner = owner;
+			_source = source;
+			_displayName = string.IsNullOrEmpty(displayName)
+				? source?.name ?? "MoteScript"
+				: displayName;
+			_isManager = isManager;
+			MoteDebugTargetRegistry.Register(this);
+#endif
 		}
 
 		object IMoteScriptLifecycleHost.Context => _context;
 		object IMoteScriptLifecycleHost.ActiveExecution => _activeExecution;
 		public MoteExecutionState? ExecutionState => _activeExecution?.State;
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		string IMoteDebugTarget.DisplayName => _displayName;
+		UnityEngine.Object IMoteDebugTarget.Owner => _owner;
+		TextAsset IMoteDebugTarget.SourceAsset => _source;
+		bool IMoteDebugTarget.IsManager => _isManager;
+		MoteScriptLifecycleState IMoteDebugTarget.LifecycleState => State;
+		IMoteDebugExecution IMoteDebugTarget.Execution => _activeExecution;
+#endif
 		public MoteScriptLifecycleState State { get; private set; }
 
 		public void InitializeAndAwake()
@@ -77,7 +117,7 @@ namespace MoteScript.Unity
 			}
 			try
 			{
-				_activeExecution = _startCall.CreateExecution(_context);
+				_activeExecution = CreateExecution(_startCall);
 				_activeExecution.Evaluate();
 				State = _activeExecution.IsYielded
 					? MoteScriptLifecycleState.Starting
@@ -115,7 +155,7 @@ namespace MoteScript.Unity
 				}
 				else
 				{
-					_activeExecution = _updateCall.CreateExecution(_context);
+					_activeExecution = CreateExecution(_updateCall);
 					_activeExecution.Evaluate();
 				}
 				State = MoteScriptLifecycleState.Updating;
@@ -133,6 +173,9 @@ namespace MoteScript.Unity
 			{
 				State = MoteScriptLifecycleState.Disabled;
 			}
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteDebugTargetRegistry.Unregister(this);
+#endif
 		}
 
 		private void ResumeStart()
@@ -156,6 +199,21 @@ namespace MoteScript.Unity
 		{
 			return _context.TryGetValue(name, out MoteValue<T> function)
 				&& function.ValueType == EValueType.Function;
+		}
+
+		private MoteExecution<T> CreateExecution(MoteValue<T> call)
+		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteExecution<T> execution = _debugSession is null
+				? call.CreateExecution(_context)
+				: call.CreateDebugExecution(_context, _debugSession);
+			_activeExecution = execution;
+			MoteDebugTargetRegistry.NotifyChanged(this);
+			return execution;
+#else
+			_activeExecution = call.CreateExecution(_context);
+			return _activeExecution;
+#endif
 		}
 
 		private void InvokeIfDefined(string name, MoteValue<T> call)

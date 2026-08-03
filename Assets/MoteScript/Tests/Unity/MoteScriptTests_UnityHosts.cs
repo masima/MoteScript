@@ -213,6 +213,40 @@ namespace MoteScript.Tests
 				Is.EqualTo(2));
 		}
 
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+		[Test]
+		public void YieldingBehaviour_IsAvailableFromDebugTargetRegistry()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			InvokeLifecycle(manager, "Awake");
+			_behaviourObject = new GameObject("Debug Target");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Update=()=>{yield(1)};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(manager, "Start");
+			InvokeLifecycle(manager, "Update");
+
+			IMoteDebugTarget target = null;
+			foreach (IMoteDebugTarget candidate in MoteDebugTargetRegistry.Targets)
+			{
+				if (candidate.Owner == behaviour)
+				{
+					target = candidate;
+					break;
+				}
+			}
+			Assert.That(target, Is.Not.Null);
+			Assert.That(target.DisplayName, Is.EqualTo("Debug Target"));
+			Assert.That(target.Execution.State, Is.EqualTo(
+				MoteExecutionState.Yielded));
+			Assert.That(target.SourceAsset, Is.SameAs(behaviour.Script));
+		}
+#endif
+
 		private static void InvokeLifecycle(object target, string methodName)
 		{
 			target.GetType()

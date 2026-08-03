@@ -9,7 +9,11 @@ namespace MoteScript.Unity
 		object SharedVariables { get; }
 		object SharedLibraries { get; }
 		IMoteScriptLifecycleHost ManagerHost { get; }
-		IMoteScriptLifecycleHost CreateHost(TextAsset source);
+		IMoteScriptLifecycleHost CreateHost(
+			TextAsset source,
+			UnityEngine.Object owner,
+			string displayName,
+			bool isManager = false);
 	}
 
 	internal sealed class MoteScriptRuntime<T> : IMoteScriptRuntime
@@ -19,22 +23,37 @@ namespace MoteScript.Unity
 		private readonly Context<T> _sharedLibraries = new();
 		private readonly Context<T> _managerContext;
 
-		public MoteScriptRuntime(TextAsset managerSource)
+		public MoteScriptRuntime(
+			TextAsset managerSource,
+			UnityEngine.Object managerOwner,
+			string managerName)
 		{
 			MoteDecoder<T>.Setup();
 			_managerContext = CreateContext();
 			ManagerHost = new MoteScriptLifecycleHost<T>(
 				managerSource,
-				_managerContext);
+				_managerContext,
+				managerOwner,
+				managerName,
+				isManager: true);
 		}
 
 		object IMoteScriptRuntime.ManagerContext => _managerContext;
 		object IMoteScriptRuntime.SharedVariables => _sharedVariables;
 		object IMoteScriptRuntime.SharedLibraries => _sharedLibraries;
 		public IMoteScriptLifecycleHost ManagerHost { get; }
-		public IMoteScriptLifecycleHost CreateHost(TextAsset source)
+		public IMoteScriptLifecycleHost CreateHost(
+			TextAsset source,
+			UnityEngine.Object owner,
+			string displayName,
+			bool isManager = false)
 		{
-			return new MoteScriptLifecycleHost<T>(source, CreateContext());
+			return new MoteScriptLifecycleHost<T>(
+				source,
+				CreateContext(),
+				owner,
+				displayName,
+				isManager);
 		}
 
 		private Context<T> CreateContext()

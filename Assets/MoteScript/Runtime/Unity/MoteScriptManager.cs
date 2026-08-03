@@ -30,7 +30,7 @@ namespace MoteScript.Unity
 					"Only one active MoteScriptManager is allowed per scene.");
 			}
 			Instance = this;
-			_runtime = CreateRuntime(_numericType, _script);
+			_runtime = CreateRuntime(_numericType, _script, this);
 			_runtime.ManagerHost.InitializeAndAwake();
 		}
 
@@ -77,6 +77,7 @@ namespace MoteScript.Unity
 				Instance = null;
 			}
 			_behaviours.Clear();
+			_runtime?.ManagerHost.Disable();
 			_runtime = null;
 		}
 
@@ -103,7 +104,10 @@ namespace MoteScript.Unity
 			if (behaviour is null || _behaviours.Contains(behaviour)) return;
 			_behaviours.Add(behaviour);
 			_behaviours.Sort(CompareBehaviours);
-			IMoteScriptLifecycleHost host = _runtime.CreateHost(behaviour.Script);
+			IMoteScriptLifecycleHost host = _runtime.CreateHost(
+				behaviour.Script,
+				behaviour,
+				behaviour.gameObject.name);
 			behaviour.AttachRuntime(this, host);
 			host.InitializeAndAwake();
 		}
@@ -131,13 +135,17 @@ namespace MoteScript.Unity
 
 		private static IMoteScriptRuntime CreateRuntime(
 			MoteNumericType numericType,
-			TextAsset source)
+			TextAsset source,
+			MoteScriptManager owner)
 		{
 			return numericType switch
 			{
-				MoteNumericType.Integer => new MoteScriptRuntime<int>(source),
-				MoteNumericType.Decimal => new MoteScriptRuntime<decimal>(source),
-				_ => new MoteScriptRuntime<float>(source),
+				MoteNumericType.Integer => new MoteScriptRuntime<int>(
+					source, owner, owner.gameObject.name),
+				MoteNumericType.Decimal => new MoteScriptRuntime<decimal>(
+					source, owner, owner.gameObject.name),
+				_ => new MoteScriptRuntime<float>(
+					source, owner, owner.gameObject.name),
 			};
 		}
 
