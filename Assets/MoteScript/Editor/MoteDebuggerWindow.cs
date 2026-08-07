@@ -94,10 +94,6 @@ namespace MoteScript.Editor
 			LoadBreakpoints();
 			RestoreInvalidPaneHeights();
 			EnsureVariableTree();
-			if (_selectedTarget is null && MoteDebugTargetRegistry.Targets.Count != 0)
-			{
-				SelectTarget(MoteDebugTargetRegistry.Targets[0]);
-			}
 		}
 
 		private void OnDisable()
@@ -1013,13 +1009,8 @@ namespace MoteScript.Editor
 		{
 			IReadOnlyList<IMoteDebugTarget> targets =
 				MoteDebugTargetRegistry.Targets;
-			for (int i = 0; i < targets.Count; ++i)
+			if (_selectedTarget is not null || targets.Count != 0)
 			{
-				if (!ReferenceEquals(targets[i].Execution, execution)) continue;
-				if (_selectedTarget is null)
-				{
-					SelectTarget(targets[i]);
-				}
 				return;
 			}
 			_execution = execution;
@@ -1038,7 +1029,6 @@ namespace MoteScript.Editor
 
 		private void OnTargetRegistered(IMoteDebugTarget target)
 		{
-			if (_selectedTarget is null) SelectTarget(target);
 			Repaint();
 		}
 
@@ -1054,10 +1044,6 @@ namespace MoteScript.Editor
 			_document = null;
 			_sourceAsset = null;
 			_sourceAssetPath = string.Empty;
-			if (MoteDebugTargetRegistry.Targets.Count != 0)
-			{
-				SelectTarget(MoteDebugTargetRegistry.Targets[0]);
-			}
 			Repaint();
 		}
 
