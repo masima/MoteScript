@@ -31,6 +31,11 @@
       "displayName": "Basic Usage",
       "description": "Basic C# setup, evaluation, and a debuggable .mote script example.",
       "path": "Samples~/BasicUsage"
+    },
+    {
+      "displayName": "Manager Lifecycle",
+      "description": "A sample scene demonstrating manager priority, shared values, independent GameObject contexts, lifecycle functions, yield, and debugger targets.",
+      "path": "Samples~/ManagerLifecycle"
     }
   ]
 }

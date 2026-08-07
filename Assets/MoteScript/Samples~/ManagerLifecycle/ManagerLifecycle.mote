@@ -1,0 +1,16 @@
+Awake=()=>{
+    shared.ready=0;
+    shared.frame=0;
+    shared.order=0;
+    shared.startedCount=0;
+};
+
+Start=()=>{
+    yield(0);
+    shared.ready=1;
+};
+
+Update=()=>{
+    shared.frame=shared.frame+1;
+    shared.order=0;
+};

@@ -1,0 +1,16 @@
+Awake=()=>{
+    localValue=0;
+    started=0;
+};
+
+Start=()=>{
+    shared.startedCount=shared.startedCount+1;
+    yield(localValue);
+    started=1;
+};
+
+Update=()=>{
+    localValue=library.math.clamp(localValue+step,0,1000000);
+    shared.order=shared.order*10+identifier;
+    yield(localValue);
+};
