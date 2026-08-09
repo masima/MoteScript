@@ -60,7 +60,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 リリースタグを固定する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.0
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.1
 ```
 
 または、利用側プロジェクトの`Packages/manifest.json`へ追加します。
@@ -68,7 +68,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.0
 ```json
 {
   "dependencies": {
-    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.0"
+    "io.github.masima.motescript": "https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.1"
   }
 }
 ```
@@ -805,7 +805,7 @@ Package Managerから`Basic Usage`サンプルをインポートすると、関�
 
 Unityの **Window > MoteScript > Debugger** から専用ウィンドウを開けます。
 
-1. `Script`の選択メニューから`.mote`アセットを指定します。
+1. `Script`の選択メニューから`.mote`アセットを指定します。メニュー上部の検索欄ではファイル名またはパスを検索できます。分岐や直下のスクリプトがないフォルダ階層は1項目にまとめて表示され、直近に選択したアセットは`Recent`から再選択できます。
 2. `Float`、`Integer`、`Decimal`から数値型を選択します。
 3. 行番号左の丸をクリックしてブレークポイントを設定します。
 4. `Run`でブレークポイントまで実行するか、未実行状態で`Step Over`または`Step Into`を押して先頭行から停止します。
@@ -851,6 +851,8 @@ if (execution.IsPaused)
 ### 行番号と実行状態
 
 ブレークポイントとステップ実行は文ではなく表示上の行を指定します。ただし、1つの文が複数行に分かれている場合、その文の途中の行へ設定したブレークポイントは文頭を含む行へ正規化されます。同じ行に複数の式がある場合も、その行を1つの停止位置として扱います。
+
+コード欄では通常の選択行を薄い青で表示し、実行位置には専用の`▶`マーカーを表示します。停止中は黄色、Yield中は青緑、例外発生位置は赤色の背景となるため、選択行と現在の実行位置を区別できます。ブレークポイントの赤い丸は実行位置マーカーと同時に表示されます。
 
 デバッガによる停止は`MoteExecutionState.Paused`、スクリプト自身の`yield(value)`は`MoteExecutionState.Yielded`として区別されます。`Paused`と`Yielded`のどちらからもContinue、Step Into、Step Over、Step Outで再開できます。従来どおり`Yielded`から`Resume()`を使用することもできます。`StopDebugging()`では継続フレームを破棄し、関数引数とローカル変数を復元してContextの実行所有権を解放します。
 
