@@ -40,6 +40,13 @@ public sealed class ManagerLifecycleSample : MonoBehaviour
 			+ $"  frame={Read(shared, "frame")}"
 			+ $"  order={Read(shared, "order")}"
 			+ $"  started={Read(shared, "startedCount")}");
+		GUILayout.Label(
+			$"Enable calls  manager={Read(shared, "managerEnables")}"
+			+ $"  behaviours={Read(shared, "behaviourEnables")}");
+		GUILayout.Label(
+			$"Disable calls  manager={Read(shared, "managerDisables")}"
+			+ $"  behaviours={Read(shared, "behaviourDisables")}"
+			+ $"  destroyed={Read(shared, "behaviourDestroys")}");
 
 		GUILayout.Space(8);
 		DrawBehaviour("Early (priority 0, step 1)", _earlyBehaviour);

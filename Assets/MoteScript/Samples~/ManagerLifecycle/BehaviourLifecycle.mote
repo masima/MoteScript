@@ -1,6 +1,18 @@
 Awake=()=>{
     localValue=0;
-    started=0;
+	started=0;
+};
+
+Enable=()=>{
+	shared.behaviourEnables=shared.behaviourEnables+1;
+};
+
+Disable=()=>{
+	shared.behaviourDisables=shared.behaviourDisables+1;
+};
+
+Destroy=()=>{
+	shared.behaviourDestroys=shared.behaviourDestroys+1;
 };
 
 Start=()=>{

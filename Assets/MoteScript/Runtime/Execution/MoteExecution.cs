@@ -119,6 +119,23 @@ namespace MoteScript
 			_continuations.Add(new ExecutionContinuation<T>(target, state));
 		}
 
+		internal void CancelSuspended()
+		{
+			if (!IsSuspended) return;
+			for (int i = 0; i < _continuations.Count; ++i)
+			{
+				_continuations[i].Cancel(_context);
+			}
+			for (int i = 0; i < _resumeContinuations.Count; ++i)
+			{
+				_resumeContinuations[i].Cancel(_context);
+			}
+			_continuations.Clear();
+			_resumeContinuations.Clear();
+			State = MoteExecutionState.Completed;
+			_context.ReleaseExecution(this);
+		}
+
 		internal bool HasExecutionLimits => _options.HasLimits;
 
 		internal void RecordStep()

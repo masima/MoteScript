@@ -10,9 +10,11 @@ namespace MoteScript.Unity
 		MoteExecutionState? ExecutionState { get; }
 		MoteScriptLifecycleState State { get; }
 		void InitializeAndAwake();
+		void Enable();
 		void Start();
 		void Update();
 		void Disable();
+		void Destroy();
 	}
 
 	internal sealed class MoteScriptLifecycleHost<T> : IMoteScriptLifecycleHost
@@ -24,10 +26,17 @@ namespace MoteScript.Unity
 		private readonly Context<T> _context;
 		private readonly MoteValue<T> _definitionScript;
 		private readonly MoteValue<T> _awakeCall;
+		private readonly MoteValue<T> _enableCall;
 		private readonly MoteValue<T> _startCall;
 		private readonly MoteValue<T> _updateCall;
+		private readonly MoteValue<T> _disableCall;
+		private readonly MoteValue<T> _destroyCall;
 		private MoteExecution<T> _activeExecution;
 		private Exception _exception;
+		private MoteScriptLifecycleState _stateBeforeDisable;
+		private bool _startInvoked;
+		private bool _enabled;
+		private bool _destroyed;
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		private readonly MoteDebugSession<T> _debugSession;
 		private readonly UnityEngine.Object _owner;
@@ -58,8 +67,11 @@ namespace MoteScript.Unity
 				#endif
 			}
 			_awakeCall = decoder.Decode("Awake()");
+			_enableCall = decoder.Decode("Enable()");
 			_startCall = decoder.Decode("Start()");
 			_updateCall = decoder.Decode("Update()");
+			_disableCall = decoder.Decode("Disable()");
+			_destroyCall = decoder.Decode("Destroy()");
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 			_owner = owner;
 			_source = source;
@@ -107,14 +119,79 @@ namespace MoteScript.Unity
 			}
 		}
 
+		public void Enable()
+		{
+			if (State == MoteScriptLifecycleState.Faulted)
+			{
+				return;
+			}
+			if (State != MoteScriptLifecycleState.Awakened
+				&& State != MoteScriptLifecycleState.Disabled)
+			{
+				return;
+			}
+			MoteScriptLifecycleState enabledState =
+				State == MoteScriptLifecycleState.Disabled
+					? _stateBeforeDisable
+					: MoteScriptLifecycleState.Enabled;
+			try
+			{
+				InvokeSynchronousLifecycle("Enable", _enableCall);
+				_enabled = true;
+				State = enabledState;
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+				MoteDebugTargetRegistry.Register(this);
+#endif
+			}
+			catch (Exception exception)
+			{
+				_exception = _activeExecution?.Exception ?? exception;
+				State = MoteScriptLifecycleState.Faulted;
+				NotifyFaulted();
+				throw;
+			}
+		}
+
+		private void InvokeSynchronousLifecycle(
+			string name,
+			MoteValue<T> call)
+		{
+			IExecutionContext<T> executionContext = _context;
+			MoteExecution<T> suspendedExecution =
+				executionContext.CurrentExecution;
+			if (suspendedExecution is not null)
+			{
+				executionContext.ReleaseExecution(suspendedExecution);
+			}
+			try
+			{
+				InvokeIfDefined(name, call);
+			}
+			finally
+			{
+				if (suspendedExecution is not null
+					&& !executionContext.TryAcquireExecution(suspendedExecution))
+				{
+					throw new InvalidOperationException(
+						"The suspended lifecycle execution could not reacquire its Context after Enable.");
+				}
+			}
+		}
+
 		public void Start()
 		{
+			if (_startInvoked
+				&& State != MoteScriptLifecycleState.Starting)
+			{
+				return;
+			}
 			if (State == MoteScriptLifecycleState.Starting)
 			{
 				ResumeStart();
 				return;
 			}
-			EnsureState(MoteScriptLifecycleState.Awakened);
+			EnsureState(MoteScriptLifecycleState.Enabled);
+			_startInvoked = true;
 			if (!HasFunction("Start"))
 			{
 				State = MoteScriptLifecycleState.Started;
@@ -184,13 +261,66 @@ namespace MoteScript.Unity
 
 		public void Disable()
 		{
-			if (State != MoteScriptLifecycleState.Faulted)
+			if (_destroyed || !_enabled)
 			{
-				State = MoteScriptLifecycleState.Disabled;
+				UnregisterDebugTarget();
+				return;
 			}
-#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
-			MoteDebugTargetRegistry.Unregister(this);
-#endif
+			MoteScriptLifecycleState previousState = State;
+			_enabled = false;
+			try
+			{
+				InvokeSynchronousLifecycle("Disable", _disableCall);
+				if (previousState != MoteScriptLifecycleState.Faulted)
+				{
+					_stateBeforeDisable = previousState;
+					State = MoteScriptLifecycleState.Disabled;
+				}
+			}
+			catch (Exception exception)
+			{
+				RecordFault(exception);
+				throw;
+			}
+			finally
+			{
+				UnregisterDebugTarget();
+			}
+		}
+
+		public void Destroy()
+		{
+			if (_destroyed) return;
+			Exception pendingException = null;
+			try
+			{
+				Disable();
+			}
+			catch (Exception exception)
+			{
+				pendingException = exception;
+			}
+
+			_destroyed = true;
+			try
+			{
+				InvokeSynchronousLifecycle("Destroy", _destroyCall);
+			}
+			catch (Exception exception)
+			{
+				RecordFault(exception);
+				pendingException ??= exception;
+			}
+			finally
+			{
+				StopSuspendedExecution();
+				State = MoteScriptLifecycleState.Destroyed;
+				UnregisterDebugTarget();
+			}
+			if (pendingException is not null)
+			{
+				throw pendingException;
+			}
 		}
 
 		private void ResumeStart()
@@ -245,6 +375,30 @@ namespace MoteScript.Unity
 		{
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 			MoteDebugTargetRegistry.NotifyFaulted(this);
+#endif
+		}
+
+		private void RecordFault(Exception exception)
+		{
+			_exception = _activeExecution?.Exception ?? exception;
+			State = MoteScriptLifecycleState.Faulted;
+			NotifyFaulted();
+		}
+
+		private void StopSuspendedExecution()
+		{
+			if (_activeExecution is null || !_activeExecution.IsSuspended) return;
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			_activeExecution.StopDebugging();
+#else
+			_activeExecution.CancelSuspended();
+#endif
+		}
+
+		private void UnregisterDebugTarget()
+		{
+#if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
+			MoteDebugTargetRegistry.Unregister(this);
 #endif
 		}
 

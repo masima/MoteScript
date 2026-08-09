@@ -44,7 +44,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
   - [行番号と実行状態](#行番号と実行状態)
 - [GameObjectで実行](#gameobjectで実行)
   - [Managerと共有Context](#managerと共有context)
-  - [Awake・Start・Update](#awakestartupdate)
+  - [Awake・Enable・Start・Update・Disable・Destroy](#awakeenablestartupdatedisabledestroy)
   - [Yieldと実行順](#yieldと実行順)
   - [GameObjectをデバッグ](#gameobjectをデバッグ)
 - [開発](#開発)
@@ -883,13 +883,18 @@ value=library.math.clamp(value,0,100);
 
 Managerの`Numeric Type`に合わせて`float`、`int`、`decimal`の型引数を使用します。型が異なるContextを取得しようとすると例外になります。
 
-### Awake・Start・Update
+### Awake・Enable・Start・Update・Disable・Destroy
 
 スクリプトを一度評価して関数定義をContextへ保持した後、定義されているライフサイクル関数だけを呼び出します。
 
 ```mote
 Awake=()=>{
     localValue=0;
+    enableCount=0;
+};
+
+Enable=()=>{
+    enableCount=enableCount+1;
 };
 
 Start=()=>{
@@ -899,13 +904,25 @@ Start=()=>{
 Update=()=>{
     localValue=localValue+1;
 };
+
+Disable=()=>{
+    shared.lastValue=localValue;
+};
+
+Destroy=()=>{
+    shared.destroyedCount=shared.destroyedCount+1;
+};
 ```
 
-実行中に追加された`MoteScriptBehaviour`は、登録時にAwakeとStartを順番に実行してから通常のUpdateへ参加します。AwakeではYieldを使用できません。
+`Awake`はHostが初めて生成されたときに1回だけ呼ばれ、その直後に`Enable`が呼ばれます。`MoteScriptBehaviour`または`MoteScriptManager`を無効化してから再び有効化した場合、Contextと中断中のExecutionを維持したまま`Enable`だけを再度呼び出します。`Awake`と`Start`は繰り返しません。
+
+実行中に追加された`MoteScriptBehaviour`は、`Awake`、`Enable`、`Start`の順に実行してから通常のUpdateへ参加します。Unityの`Awake`と`OnEnable`と同様に、MoteScriptの`Awake`と`Enable`ではYieldを使用できません。
+
+無効化時には`Disable`が呼ばれます。破棄時には、有効状態であれば`Disable`を先に呼んでから`Destroy`を1回だけ呼び出します。`Destroy`の完了まではContextと`shared`を参照できますが、完了後はHostと中断中のExecutionが解放されます。Unityの`OnDisable`と`OnDestroy`と同様に、`Disable`と`Destroy`でもYieldは使用できません。
 
 ### Yieldと実行順
 
-StartとUpdateではYieldを使用できます。StartがYield中は同じGameObjectのUpdateを開始せず、Start完了後の次フレームからUpdateを呼び出します。UpdateがYieldした場合も新しいUpdateを重ねず、次フレームに同じExecutionを再開します。
+StartとUpdateではYieldを使用できます。StartがYield中は同じGameObjectのUpdateを開始せず、Start完了後の次フレームからUpdateを呼び出します。UpdateがYieldした場合も新しいUpdateを重ねず、次フレームに同じExecutionを再開します。Yield中にBehaviourを無効化すると自動再開を停止し、再有効化時の`Enable`完了後に同じExecutionを再開します。
 
 ManagerのStartがYield中は、すべてのBehaviourのStartを待機させます。ManagerがFaultedまたはデバッグ停止中の場合もBehaviourの更新を進めません。
 

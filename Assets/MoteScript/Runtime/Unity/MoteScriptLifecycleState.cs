@@ -4,10 +4,12 @@ namespace MoteScript.Unity
 	{
 		Uninitialized,
 		Awakened,
+		Enabled,
 		Starting,
 		Started,
 		Updating,
 		Disabled,
 		Faulted,
+		Destroyed,
 	}
 }

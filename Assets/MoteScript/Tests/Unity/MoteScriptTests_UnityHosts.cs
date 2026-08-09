@@ -16,20 +16,22 @@ namespace MoteScript.Tests
 		[TearDown]
 		public void TearDown()
 		{
-			if (_behaviourObject is not null)
+			if (_behaviourObject != null)
 			{
 				MoteScriptBehaviour behaviour =
 					_behaviourObject.GetComponent<MoteScriptBehaviour>();
 				if (behaviour is not null) InvokeLifecycle(behaviour, "OnDisable");
 				Object.DestroyImmediate(_behaviourObject);
 			}
-			if (_managerObject is not null)
+			_behaviourObject = null;
+			if (_managerObject != null)
 			{
 				MoteScriptManager manager =
 					_managerObject.GetComponent<MoteScriptManager>();
 				if (manager is not null) InvokeLifecycle(manager, "OnDestroy");
 				Object.DestroyImmediate(_managerObject);
 			}
+			_managerObject = null;
 		}
 
 		[Test]
@@ -38,7 +40,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Mote Behaviour");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -52,12 +54,160 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void Behaviour_ReenableInvokesEnableWithoutRepeatingAwakeOrStart()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{shared.order=shared.order*10+1};"
+				+ "Enable=()=>{shared.order=shared.order*10+2};"
+				+ "Start=()=>{shared.order=shared.order*10+3};"));
+			manager.GetSharedVariables<float>().Set("order", 0);
+
+			InvokeLifecycle(behaviour, "OnEnable");
+			Context<float> firstContext = behaviour.GetContext<float>();
+			InvokeLifecycle(manager, "Start");
+			Assert.That(
+				manager.GetSharedVariables<float>()["order"].IntegerValue,
+				Is.EqualTo(123));
+
+			InvokeLifecycle(behaviour, "OnDisable");
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Disabled));
+			Assert.That(manager.RegisteredBehaviourCount, Is.Zero);
+
+			InvokeLifecycle(behaviour, "OnEnable");
+			Assert.That(behaviour.GetContext<float>(), Is.SameAs(firstContext));
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Started));
+			Assert.That(manager.RegisteredBehaviourCount, Is.EqualTo(1));
+			Assert.That(
+				manager.GetSharedVariables<float>()["order"].IntegerValue,
+				Is.EqualTo(1232));
+		}
+
+		[Test]
+		public void Behaviour_DisableAndDestroyFollowUnityOrder()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{shared.order=1};"
+				+ "Enable=()=>{shared.order=shared.order*10+2};"
+				+ "Start=()=>{shared.order=shared.order*10+3};"
+				+ "Disable=()=>{shared.order=shared.order*10+4};"
+				+ "Destroy=()=>{shared.order=shared.order*10+5};"));
+
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(manager, "Start");
+			InvokeLifecycle(behaviour, "OnDisable");
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(behaviour, "OnDestroy");
+
+			Assert.That(
+				manager.GetSharedVariables<float>()["order"].IntegerValue,
+				Is.EqualTo(1234245));
+			Assert.That(manager.RegisteredBehaviourCount, Is.Zero);
+			Assert.That(behaviour.Manager, Is.Null);
+		}
+
+		[Test]
+		public void Manager_ReenableInvokesEnableWithoutRepeatingAwakeOrStart()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			SetPrivateField(manager, "_script", new TextAsset(
+				"Awake=()=>{shared.order=1};"
+				+ "Enable=()=>{shared.order=shared.order*10+2};"
+				+ "Start=()=>{shared.order=shared.order*10+3};"));
+			AwakeAndEnableManager(manager);
+			InvokeLifecycle(manager, "Start");
+
+			InvokeLifecycle(manager, "OnDisable");
+			InvokeLifecycle(manager, "OnEnable");
+
+			Assert.That(manager.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Started));
+			Assert.That(
+				manager.GetSharedVariables<float>()["order"].IntegerValue,
+				Is.EqualTo(1232));
+		}
+
+		[Test]
+		public void Manager_DestroyInvokesDisableThenDestroy()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			SetPrivateField(manager, "_script", new TextAsset(
+				"Awake=()=>{shared.order=1};"
+				+ "Enable=()=>{shared.order=shared.order*10+2};"
+				+ "Start=()=>{shared.order=shared.order*10+3};"
+				+ "Disable=()=>{shared.order=shared.order*10+4};"
+				+ "Destroy=()=>{shared.order=shared.order*10+5};"));
+			AwakeAndEnableManager(manager);
+			InvokeLifecycle(manager, "Start");
+			Context<float> shared = manager.GetSharedVariables<float>();
+
+			InvokeLifecycle(manager, "OnDestroy");
+
+			Assert.That(shared["order"].IntegerValue, Is.EqualTo(12345));
+			Assert.That(manager.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Uninitialized));
+		}
+
+		[Test]
+		public void Behaviour_ReenablePreservesYieldedUpdateExecution()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{shared.enables=0;shared.resumed=0};"
+				+ "Enable=()=>{shared.enables=shared.enables+1};"
+				+ "Update=()=>{yield(1);shared.resumed=shared.resumed+1};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+			InvokeLifecycle(manager, "Start");
+			InvokeLifecycle(manager, "Update");
+			Assert.That(behaviour.ExecutionState, Is.EqualTo(
+				MoteExecutionState.Yielded));
+
+			InvokeLifecycle(behaviour, "OnDisable");
+			InvokeLifecycle(behaviour, "OnEnable");
+			Assert.That(behaviour.ExecutionState, Is.EqualTo(
+				MoteExecutionState.Yielded));
+			Assert.That(
+				manager.GetSharedVariables<float>()["enables"].IntegerValue,
+				Is.EqualTo(2));
+
+			InvokeLifecycle(manager, "Update");
+			Assert.That(
+				manager.GetSharedVariables<float>()["resumed"].IntegerValue,
+				Is.EqualTo(1));
+		}
+
+		[Test]
 		public void Behaviour_UsesIndependentContextWithSharedDictionaries()
 		{
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Mote Behaviour");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -89,7 +239,7 @@ namespace MoteScript.Tests
 				"Awake=()=>{shared.order=1};"
 				+ "Start=()=>{shared.order=shared.order*10+2};"
 				+ "Update=()=>{shared.order=shared.order*10+3};"));
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 
 			_behaviourObject = new GameObject("Mote Behaviour");
 			MoteScriptBehaviour behaviour =
@@ -118,7 +268,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Mote Behaviour");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -158,7 +308,7 @@ namespace MoteScript.Tests
 			SetPrivateField(manager, "_script", new TextAsset(
 				"Awake=()=>{shared.order=0};"
 				+ "Start=()=>{shared.order=1;yield(0);shared.order=2};"));
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Mote Behaviour");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -168,7 +318,7 @@ namespace MoteScript.Tests
 
 			InvokeLifecycle(manager, "Start");
 			Assert.That(behaviour.LifecycleState, Is.EqualTo(
-				MoteScriptLifecycleState.Awakened));
+				MoteScriptLifecycleState.Enabled));
 
 			InvokeLifecycle(manager, "Update");
 			Assert.That(manager.GetSharedVariables<float>()["order"].IntegerValue,
@@ -183,7 +333,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			InvokeLifecycle(manager, "Start");
 
 			_behaviourObject = new GameObject("Late Behaviour");
@@ -206,7 +356,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Invalid Awake");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -220,12 +370,75 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void EnableYield_IsRejectedAndFaultsHost()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Invalid Enable");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Enable=()=>{yield(1)};"));
+
+			Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(behaviour, "OnEnable"));
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Faulted));
+		}
+
+		[Test]
+		public void DisableYield_IsRejectedAndDestroyStillReleasesHost()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Invalid Disable");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Disable=()=>{yield(1)};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(behaviour, "OnDisable"));
+			Assert.That(behaviour.LifecycleState, Is.EqualTo(
+				MoteScriptLifecycleState.Faulted));
+
+			InvokeLifecycle(behaviour, "OnDestroy");
+			Assert.That(manager.RegisteredBehaviourCount, Is.Zero);
+			Assert.That(behaviour.Manager, Is.Null);
+		}
+
+		[Test]
+		public void DestroyYield_IsRejectedAfterHostIsReleased()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Invalid Destroy");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Destroy=()=>{yield(1)};"));
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(behaviour, "OnDestroy"));
+			Assert.That(manager.RegisteredBehaviourCount, Is.Zero);
+			Assert.That(behaviour.Manager, Is.Null);
+		}
+
+		[Test]
 		public void UpdateYield_ResumesWithoutOverlappingInvocations()
 		{
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Mote Behaviour");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -262,7 +475,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Debug Target");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -294,7 +507,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Paused Target");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -333,7 +546,7 @@ namespace MoteScript.Tests
 			_managerObject = new GameObject("Mote Manager");
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Faulted Target");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -380,7 +593,7 @@ namespace MoteScript.Tests
 			MoteScriptManager manager =
 				_managerObject.AddComponent<MoteScriptManager>();
 			SetPrivateField(manager, "_script", new TextAsset("Start=()=>{0};"));
-			InvokeLifecycle(manager, "Awake");
+			AwakeAndEnableManager(manager);
 			_behaviourObject = new GameObject("Child Target");
 			MoteScriptBehaviour behaviour =
 				_behaviourObject.AddComponent<MoteScriptBehaviour>();
@@ -423,6 +636,12 @@ namespace MoteScript.Tests
 			target.GetType()
 				.GetMethod(methodName, PrivateInstance)
 				.Invoke(target, null);
+		}
+
+		private static void AwakeAndEnableManager(MoteScriptManager manager)
+		{
+			InvokeLifecycle(manager, "Awake");
+			InvokeLifecycle(manager, "OnEnable");
 		}
 
 		private static void SetPrivateField(

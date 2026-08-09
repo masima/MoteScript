@@ -1,8 +1,26 @@
 Awake=()=>{
     shared.ready=0;
     shared.frame=0;
-    shared.order=0;
-    shared.startedCount=0;
+	shared.order=0;
+	shared.startedCount=0;
+	shared.managerEnables=0;
+	shared.behaviourEnables=0;
+	shared.managerDisables=0;
+	shared.behaviourDisables=0;
+	shared.behaviourDestroys=0;
+	shared.managerDestroyed=0;
+};
+
+Enable=()=>{
+	shared.managerEnables=shared.managerEnables+1;
+};
+
+Disable=()=>{
+	shared.managerDisables=shared.managerDisables+1;
+};
+
+Destroy=()=>{
+	shared.managerDestroyed=1;
 };
 
 Start=()=>{

@@ -5,6 +5,8 @@ Open `ManagerLifecycle.unity` and enter Play Mode. The Game view displays the Ma
 The sample demonstrates:
 
 - the Manager starting before its registered behaviours;
+- `Awake` running once and `Enable` running after each activation;
+- `Disable` running on deactivation and `Destroy` running once on teardown;
 - a yielding Manager `Start` delaying all behaviour `Start` calls;
 - independent Context values on each GameObject;
 - values shared through `shared`;

@@ -12,6 +12,7 @@ namespace MoteScript.Unity
 		[SerializeField] private MoteNumericType _numericType = MoteNumericType.Float;
 
 		private readonly List<MoteScriptBehaviour> _behaviours = new();
+		private readonly List<MoteScriptBehaviour> _knownBehaviours = new();
 		private IMoteScriptRuntime _runtime;
 		private bool _childrenStarted;
 
@@ -32,6 +33,16 @@ namespace MoteScript.Unity
 			Instance = this;
 			_runtime = CreateRuntime(_numericType, _script, this);
 			_runtime.ManagerHost.InitializeAndAwake();
+		}
+
+		private void OnEnable()
+		{
+			_runtime?.ManagerHost.Enable();
+		}
+
+		private void OnDisable()
+		{
+			_runtime?.ManagerHost.Disable();
 		}
 
 		private void Start()
@@ -67,7 +78,10 @@ namespace MoteScript.Unity
 			}
 			for (int i = 0; i < _behaviours.Count; ++i)
 			{
-				_behaviours[i].UpdateLifecycle();
+				if (_behaviours[i].isActiveAndEnabled)
+				{
+					_behaviours[i].UpdateLifecycle();
+				}
 			}
 		}
 
@@ -75,24 +89,50 @@ namespace MoteScript.Unity
 		{
 			for (int i = 0; i < _behaviours.Count; ++i)
 			{
-				_behaviours[i].StartLifecycle();
+				if (_behaviours[i].isActiveAndEnabled)
+				{
+					_behaviours[i].StartLifecycle();
+				}
 			}
 			_childrenStarted = true;
 		}
 
 		private void OnDestroy()
 		{
+			Exception pendingException = null;
 			if (Instance == this)
 			{
 				Instance = null;
 			}
-			for (int i = _behaviours.Count - 1; i >= 0; --i)
+			for (int i = _knownBehaviours.Count - 1; i >= 0; --i)
 			{
-				_behaviours[i].DetachRuntime(this);
+				try
+				{
+					_knownBehaviours[i].DetachRuntime(this);
+				}
+				catch (Exception exception)
+				{
+					pendingException ??= exception;
+				}
 			}
 			_behaviours.Clear();
-			_runtime?.ManagerHost.Disable();
-			_runtime = null;
+			_knownBehaviours.Clear();
+			try
+			{
+				_runtime?.ManagerHost.Destroy();
+			}
+			catch (Exception exception)
+			{
+				pendingException ??= exception;
+			}
+			finally
+			{
+				_runtime = null;
+			}
+			if (pendingException is not null)
+			{
+				throw pendingException;
+			}
 		}
 
 		public Context<T> GetContext<T>()
@@ -116,14 +156,19 @@ namespace MoteScript.Unity
 		internal void Register(MoteScriptBehaviour behaviour)
 		{
 			if (behaviour is null || _behaviours.Contains(behaviour)) return;
+			if (!_knownBehaviours.Contains(behaviour))
+			{
+				_knownBehaviours.Add(behaviour);
+				IMoteScriptLifecycleHost host = _runtime.CreateHost(
+					behaviour.Script,
+					behaviour,
+					behaviour.gameObject.name);
+				behaviour.AttachRuntime(this, host);
+				host.InitializeAndAwake();
+			}
 			_behaviours.Add(behaviour);
 			_behaviours.Sort(CompareBehaviours);
-			IMoteScriptLifecycleHost host = _runtime.CreateHost(
-				behaviour.Script,
-				behaviour,
-				behaviour.gameObject.name);
-			behaviour.AttachRuntime(this, host);
-			host.InitializeAndAwake();
+			behaviour.EnableRuntime(this);
 			if (_childrenStarted)
 			{
 				behaviour.StartLifecycle();
@@ -133,6 +178,13 @@ namespace MoteScript.Unity
 		internal void Unregister(MoteScriptBehaviour behaviour)
 		{
 			_behaviours.Remove(behaviour);
+			behaviour.DisableRuntime(this);
+		}
+
+		internal void Release(MoteScriptBehaviour behaviour)
+		{
+			_behaviours.Remove(behaviour);
+			_knownBehaviours.Remove(behaviour);
 			behaviour.DetachRuntime(this);
 		}
 

@@ -46,6 +46,11 @@ namespace MoteScript.Unity
 			_manager?.Unregister(this);
 		}
 
+		private void OnDestroy()
+		{
+			_manager?.Release(this);
+		}
+
 		internal void AttachRuntime(
 			MoteScriptManager manager,
 			IMoteScriptLifecycleHost host)
@@ -57,8 +62,27 @@ namespace MoteScript.Unity
 		internal void DetachRuntime(MoteScriptManager manager)
 		{
 			if (_manager != manager) return;
+			try
+			{
+				_host?.Destroy();
+			}
+			finally
+			{
+				_host = null;
+				_manager = null;
+			}
+		}
+
+		internal void EnableRuntime(MoteScriptManager manager)
+		{
+			if (_manager != manager) return;
+			_host?.Enable();
+		}
+
+		internal void DisableRuntime(MoteScriptManager manager)
+		{
+			if (_manager != manager) return;
 			_host?.Disable();
-			_host = null;
 		}
 
 		internal void StartLifecycle()
