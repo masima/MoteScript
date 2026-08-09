@@ -32,6 +32,8 @@ namespace MoteScript.Editor
 		private VariableTreeView _variablesTree;
 		private GUIStyle _lineStyle;
 		private GUIStyle _executionMarkerStyle;
+		private AdvancedDropdownState _moteAssetDropdownState;
+		private MoteAssetDropdown _moteAssetDropdown;
 		private int _selectedLine = -1;
 		private int _visibleExecutionLine = -1;
 		private int _draggedSplitter;
@@ -41,6 +43,10 @@ namespace MoteScript.Editor
 		private const float MinimumPaneHeight = 70f;
 		private const string BreakpointSessionKeyPrefix =
 			"MoteScript.Debugger.Breakpoints.";
+		private const string RecentMoteAssetsSessionKey =
+			"MoteScript.Debugger.RecentAssets";
+		private const int MaximumRecentMoteAssets = 8;
+		private static string[] s_cachedMoteAssetPaths;
 
 		[MenuItem("Window/MoteScript/Debugger")]
 		public static void Open()
@@ -71,6 +77,7 @@ namespace MoteScript.Editor
 			LoadBreakpoints();
 			RestoreInvalidPaneHeights();
 			EnsureVariableTree();
+			_moteAssetDropdownState ??= new AdvancedDropdownState();
 		}
 
 		private void OnDisable()
@@ -333,48 +340,38 @@ namespace MoteScript.Editor
 			}
 			if (showMenu)
 			{
-				ShowMoteAssetMenu();
+				ShowMoteAssetDropdown(field);
 			}
 			HandleMoteAssetDrag(field);
 		}
 
-		private void ShowMoteAssetMenu()
+		private void ShowMoteAssetDropdown(Rect field)
 		{
-			var menu = new GenericMenu();
-			menu.AddItem(
-				new GUIContent("None"),
-				_sourceAsset is null,
-				() => SetSourceAsset(null));
-			menu.AddSeparator(string.Empty);
+			_moteAssetDropdownState ??= new AdvancedDropdownState();
+			_moteAssetDropdown = new MoteAssetDropdown(
+				_moteAssetDropdownState,
+				GetMoteAssetPaths(),
+				GetRecentMoteAssetPaths(),
+				_sourceAssetPath,
+				SelectMoteAssetPath);
+			_moteAssetDropdown.Show(field);
+		}
 
-			string[] assetPaths = AssetDatabase.GetAllAssetPaths();
-			var motePaths = new List<string>();
-			for (int i = 0; i < assetPaths.Length; ++i)
+		private void SelectMoteAssetPath(string path)
+		{
+			if (string.IsNullOrEmpty(path))
 			{
-				if (IsMoteAssetPath(assetPaths[i]))
-				{
-					motePaths.Add(assetPaths[i]);
-				}
+				SetSourceAsset(null);
+				return;
 			}
-			motePaths.Sort(StringComparer.Ordinal);
-			for (int i = 0; i < motePaths.Count; ++i)
+			TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+			if (asset is null)
 			{
-				string path = motePaths[i];
-				TextAsset asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
-				if (asset is null)
-				{
-					continue;
-				}
-				menu.AddItem(
-					new GUIContent(path),
-					ReferenceEquals(asset, _sourceAsset),
-					() => SetSourceAsset(asset));
+				InvalidateMoteAssetPathCache();
+				ShowNotification(new GUIContent("The selected .mote asset no longer exists."));
+				return;
 			}
-			if (motePaths.Count == 0)
-			{
-				menu.AddDisabledItem(new GUIContent("No .mote assets found"));
-			}
-			menu.ShowAsContext();
+			SetSourceAsset(asset);
 		}
 
 		private void HandleMoteAssetDrag(Rect field)
@@ -412,6 +409,10 @@ namespace MoteScript.Editor
 
 		private void SetSourceAsset(TextAsset asset)
 		{
+			if (asset is not null)
+			{
+				RememberMoteAsset(AssetDatabase.GetAssetPath(asset));
+			}
 			if (ReferenceEquals(_sourceAsset, asset))
 			{
 				return;
@@ -440,6 +441,76 @@ namespace MoteScript.Editor
 		{
 			return !string.IsNullOrEmpty(path)
 				&& path.EndsWith(".mote", StringComparison.OrdinalIgnoreCase);
+		}
+
+		private static IReadOnlyList<string> GetMoteAssetPaths()
+		{
+			if (s_cachedMoteAssetPaths is not null)
+			{
+				return s_cachedMoteAssetPaths;
+			}
+			string[] assetPaths = AssetDatabase.GetAllAssetPaths();
+			var motePaths = new List<string>();
+			for (int i = 0; i < assetPaths.Length; ++i)
+			{
+				if (IsMoteAssetPath(assetPaths[i]))
+				{
+					motePaths.Add(assetPaths[i]);
+				}
+			}
+			motePaths.Sort(StringComparer.Ordinal);
+			s_cachedMoteAssetPaths = motePaths.ToArray();
+			return s_cachedMoteAssetPaths;
+		}
+
+		private static IReadOnlyList<string> GetRecentMoteAssetPaths()
+		{
+			string serialized = SessionState.GetString(
+				RecentMoteAssetsSessionKey,
+				string.Empty);
+			if (string.IsNullOrEmpty(serialized))
+			{
+				return Array.Empty<string>();
+			}
+			string[] guids = serialized.Split(';');
+			var paths = new List<string>(guids.Length);
+			for (int i = 0; i < guids.Length; ++i)
+			{
+				string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+				if (IsMoteAssetPath(path) && !paths.Contains(path))
+				{
+					paths.Add(path);
+				}
+			}
+			return paths;
+		}
+
+		private static void RememberMoteAsset(string path)
+		{
+			if (!IsMoteAssetPath(path)) return;
+			string guid = AssetDatabase.AssetPathToGUID(path);
+			if (string.IsNullOrEmpty(guid)) return;
+			string serialized = SessionState.GetString(
+				RecentMoteAssetsSessionKey,
+				string.Empty);
+			var guids = new List<string>(serialized.Split(';'));
+			guids.RemoveAll(value => string.IsNullOrEmpty(value)
+				|| string.Equals(value, guid, StringComparison.Ordinal));
+			guids.Insert(0, guid);
+			if (guids.Count > MaximumRecentMoteAssets)
+			{
+				guids.RemoveRange(
+					MaximumRecentMoteAssets,
+					guids.Count - MaximumRecentMoteAssets);
+			}
+			SessionState.SetString(
+				RecentMoteAssetsSessionKey,
+				string.Join(";", guids));
+		}
+
+		private static void InvalidateMoteAssetPathCache()
+		{
+			s_cachedMoteAssetPaths = null;
 		}
 
 		private void DrawControls()
@@ -1035,6 +1106,7 @@ namespace MoteScript.Editor
 
 		private void OnMoteAssetChanged(string oldPath, string newPath)
 		{
+			InvalidateMoteAssetPathCache();
 			if (string.IsNullOrEmpty(_sourceAssetPath)
 				|| !string.Equals(
 					_sourceAssetPath,
