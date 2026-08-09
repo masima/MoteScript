@@ -31,6 +31,7 @@ namespace MoteScript.Editor
 		[SerializeField] private MultiColumnHeaderState _variablesHeaderState;
 		private VariableTreeView _variablesTree;
 		private GUIStyle _lineStyle;
+		private GUIStyle _executionMarkerStyle;
 		private int _selectedLine = -1;
 		private int _visibleExecutionLine = -1;
 		private int _draggedSplitter;
@@ -572,8 +573,11 @@ namespace MoteScript.Editor
 			}
 
 			string[] lines = source.Replace("\r\n", "\n").Split('\n');
-			int currentLine =
-				_execution?.CurrentLocation?.StartLine ?? _selectedLine;
+			int executionLine =
+				_execution?.CurrentLocation?.StartLine ?? -1;
+			int visibleLine = executionLine > 0
+				? executionLine
+				: _selectedLine;
 			float rowHeight = EditorGUIUtility.singleLineHeight + 2f;
 			Rect viewport = new(
 				0f,
@@ -581,12 +585,12 @@ namespace MoteScript.Editor
 				rect.width,
 				Mathf.Max(0f, rect.height - titleHeight));
 			if (_execution?.CurrentLocation is MoteSourceSpan
-				&& currentLine != _visibleExecutionLine)
+				&& visibleLine != _visibleExecutionLine)
 			{
 				_sourceScroll.y = Mathf.Max(
 					0f,
-					(currentLine - 1) * rowHeight - viewport.height * 0.5f);
-				_visibleExecutionLine = currentLine;
+					(visibleLine - 1) * rowHeight - viewport.height * 0.5f);
+				_visibleExecutionLine = visibleLine;
 			}
 
 			float codeWidth = 0f;
@@ -599,7 +603,7 @@ namespace MoteScript.Editor
 			Rect content = new(
 				0f,
 				0f,
-				Mathf.Max(viewport.width - 16f, 72f + codeWidth),
+				Mathf.Max(viewport.width - 16f, 90f + codeWidth),
 				Mathf.Max(viewport.height, lines.Length * rowHeight));
 			_sourceScroll = GUI.BeginScrollView(
 				viewport,
@@ -610,27 +614,46 @@ namespace MoteScript.Editor
 				int line = index + 1;
 				float y = index * rowHeight;
 				Rect row = new(0f, y, content.width, rowHeight);
-				if (line == currentLine)
+				MoteSourceLinePresentation presentation =
+					MoteSourceLinePresentationResolver.Resolve(
+						line,
+						_selectedLine,
+						executionLine,
+						_execution?.State);
+				if (presentation != MoteSourceLinePresentation.Normal)
 				{
 					EditorGUI.DrawRect(
 						row,
-						EditorGUIUtility.isProSkin
-							? new Color(0.25f, 0.35f, 0.5f, 0.7f)
-							: new Color(0.65f, 0.8f, 1f, 0.8f));
+						GetSourceLineColor(presentation));
 				}
 				bool hasBreakpoint = HasBreakpoint(line);
+				Color previousContentColor = GUI.contentColor;
+				GUI.contentColor = hasBreakpoint
+					? new Color(0.9f, 0.2f, 0.2f)
+					: previousContentColor;
 				if (GUI.Button(
 					new Rect(0f, y, 24f, rowHeight),
 					hasBreakpoint ? "●" : "○"))
 				{
 					ToggleBreakpoint(line);
 				}
+				GUI.contentColor = previousContentColor;
+				if (IsExecutionPresentation(presentation))
+				{
+					Color previousColor = GUI.color;
+					GUI.color = GetExecutionMarkerColor(presentation);
+					GUI.Label(
+						new Rect(26f, y, 18f, rowHeight),
+						new GUIContent("▶", GetExecutionTooltip(presentation)),
+						_executionMarkerStyle);
+					GUI.color = previousColor;
+				}
 				GUI.Label(
-					new Rect(28f, y, 38f, rowHeight),
+					new Rect(46f, y, 38f, rowHeight),
 					line.ToString(),
 					_lineStyle);
 				GUI.Label(
-					new Rect(68f, y, codeWidth + 4f, rowHeight),
+					new Rect(86f, y, codeWidth + 4f, rowHeight),
 					lines[index],
 					_lineStyle);
 				Event current = Event.current;
@@ -645,6 +668,57 @@ namespace MoteScript.Editor
 			}
 			GUI.EndScrollView();
 			GUI.EndGroup();
+		}
+
+		private static bool IsExecutionPresentation(
+			MoteSourceLinePresentation presentation)
+		{
+			return presentation == MoteSourceLinePresentation.Paused
+				|| presentation == MoteSourceLinePresentation.Yielded
+				|| presentation == MoteSourceLinePresentation.Faulted;
+		}
+
+		private static Color GetSourceLineColor(
+			MoteSourceLinePresentation presentation)
+		{
+			bool dark = EditorGUIUtility.isProSkin;
+			return presentation switch
+			{
+				MoteSourceLinePresentation.Paused => dark
+					? new Color(0.62f, 0.4f, 0.08f, 0.78f)
+					: new Color(1f, 0.78f, 0.25f, 0.72f),
+				MoteSourceLinePresentation.Yielded => dark
+					? new Color(0.08f, 0.46f, 0.48f, 0.68f)
+					: new Color(0.45f, 0.85f, 0.85f, 0.72f),
+				MoteSourceLinePresentation.Faulted => dark
+					? new Color(0.62f, 0.14f, 0.14f, 0.76f)
+					: new Color(1f, 0.48f, 0.48f, 0.7f),
+				_ => dark
+					? new Color(0.22f, 0.34f, 0.52f, 0.45f)
+					: new Color(0.62f, 0.78f, 1f, 0.52f),
+			};
+		}
+
+		private static Color GetExecutionMarkerColor(
+			MoteSourceLinePresentation presentation)
+		{
+			return presentation switch
+			{
+				MoteSourceLinePresentation.Faulted => new Color(1f, 0.3f, 0.3f),
+				MoteSourceLinePresentation.Yielded => new Color(0.25f, 0.9f, 0.9f),
+				_ => new Color(1f, 0.72f, 0.18f),
+			};
+		}
+
+		private static string GetExecutionTooltip(
+			MoteSourceLinePresentation presentation)
+		{
+			return presentation switch
+			{
+				MoteSourceLinePresentation.Faulted => "Exception location",
+				MoteSourceLinePresentation.Yielded => "Yielded execution location",
+				_ => "Paused execution location",
+			};
 		}
 
 		private void OpenSourceInExternalEditor(int line)
@@ -1031,6 +1105,13 @@ namespace MoteScript.Editor
 				wordWrap = false,
 			};
 			SetTextColor(_lineStyle, textColor);
+			_executionMarkerStyle = new GUIStyle(EditorStyles.label)
+			{
+				alignment = TextAnchor.MiddleCenter,
+				font = EditorStyles.miniBoldFont,
+				wordWrap = false,
+			};
+			SetTextColor(_executionMarkerStyle, Color.white);
 		}
 
 		private static void SetTextColor(GUIStyle style, Color color)

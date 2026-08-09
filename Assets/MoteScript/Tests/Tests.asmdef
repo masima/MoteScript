@@ -5,7 +5,8 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "MoteScript",
-        "MoteScript.StandardLibraries"
+        "MoteScript.StandardLibraries",
+        "MoteScript.Debugger.Editor"
     ],
     "includePlatforms": [
         "Editor"
