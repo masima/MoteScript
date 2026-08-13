@@ -13,18 +13,6 @@ public sealed class ManagerLifecycleSample : MonoBehaviour
 		Context<float> libraries = _manager.GetSharedLibraries<float>();
 		StandardMathLibrary<float>.Register(libraries);
 
-		InitializeBehaviour(_earlyBehaviour, identifier: 1, step: 1);
-		InitializeBehaviour(_lateBehaviour, identifier: 2, step: 10);
-	}
-
-	private static void InitializeBehaviour(
-		MoteScriptBehaviour behaviour,
-		float identifier,
-		float step)
-	{
-		Context<float> context = behaviour.GetContext<float>();
-		context.Set("identifier", identifier);
-		context.Set("step", step);
 	}
 
 	private void OnGUI()

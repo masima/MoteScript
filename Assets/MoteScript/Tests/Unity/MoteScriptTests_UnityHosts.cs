@@ -1,4 +1,6 @@
 using NUnit.Framework;
+using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using MoteScript.Unity;
@@ -21,7 +23,7 @@ namespace MoteScript.Tests
 				MoteScriptBehaviour behaviour =
 					_behaviourObject.GetComponent<MoteScriptBehaviour>();
 				if (behaviour is not null) InvokeLifecycle(behaviour, "OnDisable");
-				Object.DestroyImmediate(_behaviourObject);
+				UnityEngine.Object.DestroyImmediate(_behaviourObject);
 			}
 			_behaviourObject = null;
 			if (_managerObject != null)
@@ -29,9 +31,155 @@ namespace MoteScript.Tests
 				MoteScriptManager manager =
 					_managerObject.GetComponent<MoteScriptManager>();
 				if (manager is not null) InvokeLifecycle(manager, "OnDestroy");
-				Object.DestroyImmediate(_managerObject);
+				UnityEngine.Object.DestroyImmediate(_managerObject);
 			}
 			_managerObject = null;
+		}
+
+		[Test]
+		public void Behaviour_AppliesInitialVariablesBeforeScriptAwake()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_script", new TextAsset(
+				"Awake=()=>{observed=identifier+step};"));
+			SetPrivateField(behaviour, "_initialVariables", new List<MoteInitialVariable>
+			{
+				new("identifier", 2),
+				new("step", 3),
+			});
+
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			Context<float> context = behaviour.GetContext<float>();
+			Assert.That(context["observed"].FloatValue, Is.EqualTo(5));
+		}
+
+		[Test]
+		public void Behaviour_InitialVariablesSupportStringAndNull()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_initialVariables", new List<MoteInitialVariable>
+			{
+				new("text", "value"),
+				new("nothing", (string)null),
+			});
+
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			Context<float> context = behaviour.GetContext<float>();
+			Assert.That(context["text"].StringValue, Is.EqualTo("value"));
+			Assert.That(context["nothing"].ValueType, Is.EqualTo(EValueType.String));
+			Assert.That(context["nothing"].StringValue, Is.Null);
+		}
+
+		[TestCase(MoteNumericType.Integer)]
+		[TestCase(MoteNumericType.Decimal)]
+		public void Behaviour_InitialNumberUsesManagerNumericType(
+			MoteNumericType numericType)
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			SetPrivateField(manager, "_numericType", numericType);
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_initialVariables", new List<MoteInitialVariable>
+			{
+				new("value", 12),
+			});
+
+			InvokeLifecycle(behaviour, "OnEnable");
+
+			if (numericType == MoteNumericType.Integer)
+			{
+				Assert.That(behaviour.GetContext<int>()["value"].Value, Is.EqualTo(12));
+			}
+			else
+			{
+				Assert.That(behaviour.GetContext<decimal>()["value"].Value, Is.EqualTo(12m));
+			}
+		}
+
+		[Test]
+		public void Behaviour_RejectsDuplicateInitialVariableNames()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_initialVariables", new List<MoteInitialVariable>
+			{
+				new("value", 1),
+				new("value", 2),
+			});
+
+			TargetInvocationException exception = Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(behaviour, "OnEnable"));
+
+			Assert.That(exception.InnerException, Is.TypeOf<InvalidOperationException>());
+			Assert.That(exception.InnerException.Message, Does.Contain("duplicated"));
+		}
+
+		[Test]
+		public void Behaviour_RejectsReservedInitialVariableName()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_initialVariables", new List<MoteInitialVariable>
+			{
+				new("shared", 1),
+			});
+
+			TargetInvocationException exception = Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(behaviour, "OnEnable"));
+
+			Assert.That(exception.InnerException, Is.TypeOf<InvalidOperationException>());
+			Assert.That(exception.InnerException.Message, Does.Contain("reserved"));
+		}
+
+		[Test]
+		public void Behaviour_RejectsFractionalIntegerInitialValue()
+		{
+			_managerObject = new GameObject("Mote Manager");
+			MoteScriptManager manager =
+				_managerObject.AddComponent<MoteScriptManager>();
+			SetPrivateField(manager, "_numericType", MoteNumericType.Integer);
+			AwakeAndEnableManager(manager);
+			_behaviourObject = new GameObject("Mote Behaviour");
+			MoteScriptBehaviour behaviour =
+				_behaviourObject.AddComponent<MoteScriptBehaviour>();
+			SetPrivateField(behaviour, "_initialVariables", new List<MoteInitialVariable>
+			{
+				new("value", 1.5),
+			});
+
+			TargetInvocationException exception = Assert.Throws<TargetInvocationException>(
+				() => InvokeLifecycle(behaviour, "OnEnable"));
+
+			Assert.That(exception.InnerException, Is.TypeOf<InvalidOperationException>());
+			Assert.That(exception.InnerException.Message, Does.Contain("Int32"));
 		}
 
 		[Test]

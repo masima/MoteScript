@@ -164,6 +164,7 @@ namespace MoteScript.Unity
 					behaviour,
 					behaviour.gameObject.name);
 				behaviour.AttachRuntime(this, host);
+				behaviour.ApplyInitialVariables();
 				host.InitializeAndAwake();
 			}
 			_behaviours.Add(behaviour);

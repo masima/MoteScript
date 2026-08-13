@@ -151,6 +151,15 @@ MonoBehaviour:
   _manager: {fileID: 789535819}
   _script: {fileID: 137480734621639719, guid: f23b23667617460f83c38ef8421411d5, type: 3}
   _executionPriority: 0
+  _initialVariables:
+  - _name: identifier
+    _type: 0
+    _number: 1
+    _string:
+  - _name: step
+    _type: 0
+    _number: 1
+    _string:
 --- !u!4 &403336765
 Transform:
   m_ObjectHideFlags: 0
@@ -260,6 +269,15 @@ MonoBehaviour:
   _manager: {fileID: 789535819}
   _script: {fileID: 137480734621639719, guid: f23b23667617460f83c38ef8421411d5, type: 3}
   _executionPriority: 100
+  _initialVariables:
+  - _name: identifier
+    _type: 0
+    _number: 2
+    _string:
+  - _name: step
+    _type: 0
+    _number: 10
+    _string:
 --- !u!4 &1141523793
 Transform:
   m_ObjectHideFlags: 0

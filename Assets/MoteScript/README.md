@@ -885,6 +885,19 @@ value=library.math.clamp(value,0,100);
 
 Managerの`Numeric Type`に合わせて`float`、`int`、`decimal`の型引数を使用します。型が異なるContextを取得しようとすると例外になります。
 
+### GameObject固有の初期変数
+
+`MoteScriptBehaviour`のInspectorにある`Initial Variables`へ、同じスクリプトを使用するGameObjectごとの初期値を設定できます。各項目には変数名と`Number`、`String`、`Null`のいずれかの値を指定します。初期変数は関数定義とスクリプトの`Awake`を実行する前に固有Contextへ設定されるため、`Awake`から参照できます。
+
+`Number`はManagerの`Numeric Type`に合わせて変換されます。`Integer`で小数を指定した場合や、選択した数値型の範囲外となる場合は初期化時に例外になります。空の変数名、同名項目の重複、予約済みの`shared`と`library`への上書きも許可されません。Inspectorの変更は既に生成済みのContextへ自動反映されず、Hostを次に生成するときに適用されます。
+
+例えば同じ移動スクリプトを使用する2つのGameObjectへ、それぞれ異なる値を設定できます。
+
+```text
+Early Behaviour: identifier = 1, step = 1
+Late Behaviour:  identifier = 2, step = 10
+```
+
 ### Awake・Enable・Start・Update・Disable・Destroy
 
 スクリプトを一度評価して関数定義をContextへ保持した後、定義されているライフサイクル関数だけを呼び出します。
