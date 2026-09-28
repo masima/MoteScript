@@ -856,6 +856,23 @@ if (execution.IsPaused)
 
 デバッガによる停止は`MoteExecutionState.Paused`、スクリプト自身の`yield(value)`は`MoteExecutionState.Yielded`として区別されます。`Paused`と`Yielded`のどちらからもContinue、Step Into、Step Over、Step Outで再開できます。従来どおり`Yielded`から`Resume()`を使用することもできます。`StopDebugging()`では継続フレームを破棄し、関数引数とローカル変数を復元してContextの実行所有権を解放します。
 
+### Immediateモード
+
+Debugger Window上部の`Immediate`を選ぶと、1行ずつスクリプトを入力してEnterで結果を確認できます。Immediateモードは実行中のManagerやBehaviourには接続せず、専用のConsole Contextを使用します。入力間ではContextが維持されるため、先に設定した変数や関数を後続の入力から利用できます。
+
+```text
+> value=10
+10
+> value*2
+20
+> double=(value)=>{return value*2}
+<function>
+> double(value)
+20
+```
+
+`Math`、`String`、`Regex`の標準ライブラリはあらかじめ登録されています。Console Contextの変数は入力履歴の下にある`Context Variables`へ表示され、配列と辞書も展開できます。Immediateモードでは変数TreeViewから直接編集せず、1行入力で値を変更します。上下キーで入力履歴を移動でき、`Clear`は表示結果だけを消去します。`Reset Context`または数値型の変更ではConsole Contextを作り直します。Immediateモードは1行で完結する処理専用であり、改行を含む入力と`yield`による中断・再開には対応しません。
+
 ## GameObjectで実行
 
 シーンに`MoteScriptManager`を1つ配置し、スクリプトを実行するGameObjectへ`MoteScriptBehaviour`を追加します。Managerは`DefaultExecutionOrder(-10000)`で各Behaviourより先に実行され、Manager自身にもスクリプトを指定できます。

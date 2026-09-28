@@ -17,6 +17,12 @@ namespace MoteScript.Editor
 			Decimal,
 		}
 
+		private enum WindowMode
+		{
+			Script,
+			Immediate,
+		}
+
 		private TextAsset _sourceAsset;
 		[SerializeField] private string _sourceAssetPath;
 		private NumericType _numericType;
@@ -39,6 +45,15 @@ namespace MoteScript.Editor
 		private int _visibleExecutionLine = -1;
 		private int _draggedSplitter;
 		private bool _sourceChanged;
+		[SerializeField] private WindowMode _windowMode;
+		[SerializeField] private string _immediateInput = string.Empty;
+		private readonly List<MoteImmediateResult> _immediateResults = new();
+		private readonly List<string> _immediateHistory = new();
+		private IMoteImmediateSession _immediateSession;
+		private NumericType _immediateSessionNumericType;
+		private Vector2 _immediateScroll;
+		private int _immediateHistoryIndex;
+		private bool _focusImmediateInput;
 
 		private const float SplitterHeight = 5f;
 		private const float MinimumPaneHeight = 70f;
@@ -47,6 +62,9 @@ namespace MoteScript.Editor
 		private const string RecentMoteAssetsSessionKey =
 			"MoteScript.Debugger.RecentAssets";
 		private const int MaximumRecentMoteAssets = 8;
+		private const int MaximumImmediateResults = 200;
+		private const string ImmediateInputControl =
+			"MoteScript.Immediate.Input";
 		private static string[] s_cachedMoteAssetPaths;
 
 		[MenuItem("Window/MoteScript/Debugger")]
@@ -117,6 +135,12 @@ namespace MoteScript.Editor
 		{
 			SanitizeDestroyedReferences();
 			EnsureStyles();
+			DrawModeSelection();
+			if (_windowMode == WindowMode.Immediate)
+			{
+				DrawImmediateMode();
+				return;
+			}
 			HandleKeyboardShortcuts();
 			DrawTargetSelection();
 			DrawSourceSelection();
@@ -130,6 +154,212 @@ namespace MoteScript.Editor
 				GUILayout.ExpandWidth(true),
 				GUILayout.ExpandHeight(true));
 			DrawPanes(content);
+		}
+
+		private void DrawModeSelection()
+		{
+			WindowMode next = (WindowMode)GUILayout.Toolbar(
+				(int)_windowMode,
+				new[] { "Script", "Immediate" });
+			if (next == _windowMode) return;
+			_windowMode = next;
+			_focusImmediateInput = next == WindowMode.Immediate;
+			GUI.FocusControl(null);
+		}
+
+		private void DrawImmediateMode()
+		{
+			EnsureImmediateSession();
+			EditorGUI.BeginChangeCheck();
+			NumericType nextNumericType = (NumericType)EditorGUILayout.EnumPopup(
+				"Numeric Type",
+				_numericType);
+			if (EditorGUI.EndChangeCheck())
+			{
+				_numericType = nextNumericType;
+				ResetImmediateContext(addNotice: true);
+			}
+
+			using (new EditorGUILayout.HorizontalScope())
+			{
+				GUILayout.FlexibleSpace();
+				if (GUILayout.Button("Clear", GUILayout.Width(70f)))
+				{
+					_immediateResults.Clear();
+				}
+				if (GUILayout.Button("Reset Context", GUILayout.Width(110f)))
+				{
+					ResetImmediateContext(addNotice: true);
+				}
+			}
+
+			_immediateScroll = EditorGUILayout.BeginScrollView(
+				_immediateScroll,
+				GUILayout.ExpandHeight(true));
+			for (int i = 0; i < _immediateResults.Count; ++i)
+			{
+				MoteImmediateResult result = _immediateResults[i];
+				if (!string.IsNullOrEmpty(result.Input))
+				{
+					EditorGUILayout.SelectableLabel(
+						$"> {result.Input}",
+						GUILayout.Height(EditorGUIUtility.singleLineHeight));
+				}
+				Color previous = GUI.contentColor;
+				if (result.IsError) GUI.contentColor = new Color(1f, 0.45f, 0.4f);
+				EditorGUILayout.SelectableLabel(
+					result.Output,
+					EditorStyles.wordWrappedLabel,
+					GUILayout.MinHeight(EditorGUIUtility.singleLineHeight));
+				GUI.contentColor = previous;
+			}
+			EditorGUILayout.EndScrollView();
+			Rect variablesRect = GUILayoutUtility.GetRect(
+				0f,
+				float.MaxValue,
+				MinimumPaneHeight,
+				Mathf.Max(MinimumPaneHeight, _variablesPaneHeight),
+				GUILayout.ExpandWidth(true),
+				GUILayout.Height(Mathf.Max(
+					MinimumPaneHeight,
+					_variablesPaneHeight)));
+			DrawVariablesPane(
+				variablesRect,
+				_immediateSession.GetVariables());
+
+			bool immediateInputWasFocused =
+				GUI.GetNameOfFocusedControl() == ImmediateInputControl;
+			Event immediateEvent = Event.current;
+			bool immediateKeyDown = immediateInputWasFocused
+				&& immediateEvent.type == EventType.KeyDown;
+			KeyCode immediateKeyCode = immediateKeyDown
+				? immediateEvent.keyCode
+				: KeyCode.None;
+			bool immediateIsComposing =
+				!string.IsNullOrEmpty(Input.compositionString);
+			using (new EditorGUILayout.HorizontalScope())
+			{
+				GUILayout.Label(">", GUILayout.Width(14f));
+				GUI.SetNextControlName(ImmediateInputControl);
+				_immediateInput = EditorGUILayout.TextField(_immediateInput);
+			}
+			HandleImmediateInput(
+				immediateKeyCode,
+				immediateIsComposing);
+			if (_focusImmediateInput
+				&& Event.current.type == EventType.Repaint)
+			{
+				EditorGUI.FocusTextInControl(ImmediateInputControl);
+				EditorGUIUtility.editingTextField = true;
+				_focusImmediateInput = false;
+			}
+		}
+
+		private void HandleImmediateInput(
+			KeyCode keyCode,
+			bool isComposing)
+		{
+			Event current = Event.current;
+			if (keyCode == KeyCode.UpArrow)
+			{
+				RecallImmediateHistory(-1);
+				UseCurrentEventIfAvailable(current);
+				return;
+			}
+			if (keyCode == KeyCode.DownArrow)
+			{
+				RecallImmediateHistory(1);
+				UseCurrentEventIfAvailable(current);
+				return;
+			}
+			if ((keyCode != KeyCode.Return
+					&& keyCode != KeyCode.KeypadEnter)
+				|| isComposing)
+			{
+				return;
+			}
+			UseCurrentEventIfAvailable(current);
+			ExecuteImmediateInput();
+		}
+
+		private static void UseCurrentEventIfAvailable(Event current)
+		{
+			if (current.type != EventType.Used)
+			{
+				current.Use();
+			}
+		}
+
+		private void ExecuteImmediateInput()
+		{
+			string input = _immediateInput.Trim();
+			if (input.Length == 0) return;
+			EnsureImmediateSession();
+			MoteImmediateResult result = _immediateSession.Execute(input);
+			_immediateResults.Add(result);
+			if (_immediateResults.Count > MaximumImmediateResults)
+			{
+				_immediateResults.RemoveAt(0);
+			}
+			if (_immediateHistory.Count == 0
+				|| !string.Equals(
+					_immediateHistory[^1],
+					input,
+					StringComparison.Ordinal))
+			{
+				_immediateHistory.Add(input);
+			}
+			_immediateHistoryIndex = _immediateHistory.Count;
+			_immediateInput = string.Empty;
+			_immediateScroll.y = float.MaxValue;
+			_focusImmediateInput = true;
+			Repaint();
+		}
+
+		private void RecallImmediateHistory(int direction)
+		{
+			if (_immediateHistory.Count == 0) return;
+			_immediateHistoryIndex = Mathf.Clamp(
+				_immediateHistoryIndex + direction,
+				0,
+				_immediateHistory.Count);
+			_immediateInput = _immediateHistoryIndex == _immediateHistory.Count
+				? string.Empty
+				: _immediateHistory[_immediateHistoryIndex];
+			_focusImmediateInput = true;
+			Repaint();
+		}
+
+		private void EnsureImmediateSession()
+		{
+			if (_immediateSession is not null
+				&& _immediateSessionNumericType == _numericType)
+			{
+				return;
+			}
+			_immediateSession = _numericType switch
+			{
+				NumericType.Integer => new MoteImmediateSession<int>(),
+				NumericType.Decimal => new MoteImmediateSession<decimal>(),
+				_ => new MoteImmediateSession<float>(),
+			};
+			_immediateSessionNumericType = _numericType;
+			_immediateHistoryIndex = _immediateHistory.Count;
+		}
+
+		private void ResetImmediateContext(bool addNotice)
+		{
+			_immediateSession = null;
+			EnsureImmediateSession();
+			if (addNotice)
+			{
+				_immediateResults.Add(new MoteImmediateResult(
+					string.Empty,
+					$"Context reset ({_numericType}).",
+					isError: false));
+				_immediateScroll.y = float.MaxValue;
+			}
+			_focusImmediateInput = true;
 		}
 
 		private void HandleKeyboardShortcuts()
@@ -873,14 +1103,21 @@ namespace MoteScript.Editor
 
 		private void DrawVariablesPane(Rect rect)
 		{
+			IReadOnlyList<MoteDebugVariable> variables =
+				_execution?.GetVariables() ?? Array.Empty<MoteDebugVariable>();
+			DrawVariablesPane(rect, variables);
+		}
+
+		private void DrawVariablesPane(
+			Rect rect,
+			IReadOnlyList<MoteDebugVariable> variables)
+		{
 			GUI.BeginGroup(rect);
 			GUI.Label(
 				new Rect(0f, 0f, rect.width, EditorGUIUtility.singleLineHeight),
 				"Context Variables",
 				EditorStyles.boldLabel);
 			EnsureVariableTree();
-			IReadOnlyList<MoteDebugVariable> variables =
-				_execution?.GetVariables() ?? Array.Empty<MoteDebugVariable>();
 			_variablesTree.SetVariables(variables);
 			float top = EditorGUIUtility.singleLineHeight + 2f;
 			_variablesTree.OnGUI(

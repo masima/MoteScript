@@ -12,12 +12,11 @@ public sealed class ManagerLifecycleSample : MonoBehaviour
 	{
 		Context<float> libraries = _manager.GetSharedLibraries<float>();
 		StandardMathLibrary<float>.Register(libraries);
-
 	}
 
 	private void OnGUI()
 	{
-		GUILayout.BeginArea(new Rect(20, 20, 520, 310), GUI.skin.box);
+		GUILayout.BeginArea(new Rect(20, 20, 520, 400), GUI.skin.box);
 		GUILayout.Label("MoteScript Manager Lifecycle Sample");
 		GUILayout.Space(6);
 		GUILayout.Label($"Manager: {_manager.LifecycleState}");
@@ -50,11 +49,25 @@ public sealed class ManagerLifecycleSample : MonoBehaviour
 		MoteScriptBehaviour behaviour)
 	{
 		Context<float> context = behaviour.GetContext<float>();
+		GUILayout.BeginVertical(GUI.skin.box);
+		GUILayout.Label(label);
+		GUILayout.BeginHorizontal();
 		GUILayout.Label(
-			$"{label}: lifecycle={behaviour.LifecycleState}"
-			+ $", execution={behaviour.ExecutionState?.ToString() ?? "None"}"
-			+ $", started={Read(context, "started")}"
-			+ $", value={Read(context, "localValue")}");
+			$"Lifecycle: {behaviour.LifecycleState}",
+			GUILayout.Width(240));
+		GUILayout.Label(
+			$"Execution: {behaviour.ExecutionState?.ToString() ?? "None"}",
+			GUILayout.Width(240));
+		GUILayout.EndHorizontal();
+		GUILayout.BeginHorizontal();
+		GUILayout.Label(
+			$"Started: {Read(context, "started")}",
+			GUILayout.Width(240));
+		GUILayout.Label(
+			$"Value: {Read(context, "localValue")}",
+			GUILayout.Width(240));
+		GUILayout.EndHorizontal();
+		GUILayout.EndVertical();
 	}
 
 	private static string Read(Context<float> context, string key)
