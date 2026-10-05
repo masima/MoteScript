@@ -5,11 +5,12 @@ namespace MoteScript
 {
 	internal static class StructuredExpressionReader
 	{
-		public static int FindAssignment(string expression)
+		public static int FindAssignment(string expression, int start = 0)
 		{
 			int round = 0;
 			int square = 0;
-			for (int i = 0; i < expression.Length; ++i)
+			int curly = 0;
+			for (int i = start; i < expression.Length; ++i)
 			{
 				char c = expression[i];
 				if (c == '"')
@@ -21,9 +22,12 @@ namespace MoteScript
 				else if (c == ')') --round;
 				else if (c == '[') ++square;
 				else if (c == ']') --square;
-				else if (c == '=' && round == 0 && square == 0
+				else if (c == '{') ++curly;
+				else if (c == '}') --curly;
+				else if (c == '=' && round == 0 && square == 0 && curly == 0
 					&& (i == 0 || expression[i - 1] != '=' && expression[i - 1] != '!' && expression[i - 1] != '<' && expression[i - 1] != '>')
-					&& (i + 1 >= expression.Length || expression[i + 1] != '='))
+					&& (i + 1 >= expression.Length
+						|| expression[i + 1] != '=' && expression[i + 1] != '>'))
 				{
 					return i;
 				}

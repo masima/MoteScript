@@ -341,6 +341,14 @@ namespace MoteScript
 				{
 					string leftText = expression.Substring(0, topLevelAssignment).Trim();
 					string rightText = expression.Substring(topLevelAssignment + 1).Trim();
+					if (leftText.Length == 0)
+					{
+						throw new FormatException("left value nothing.");
+					}
+					if (rightText.Length == 0)
+					{
+						throw new FormatException("right value nothing.");
+					}
 					MoteValue<T> right = DecodeStructuredValue(rightText);
 					return new MoteValue<T>(new BinaryOperatorAssignment<T>
 					{

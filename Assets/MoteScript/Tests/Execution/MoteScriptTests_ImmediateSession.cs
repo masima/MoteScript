@@ -44,6 +44,21 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void Execute_AssignsAndReadsMultiArgumentStringResult()
+		{
+			var session = new MoteImmediateSession<float>();
+
+			MoteImmediateResult assignment = session.Execute(
+				"a=string.concat(\"a\",\"b\")");
+			MoteImmediateResult read = session.Execute("a");
+
+			Assert.That(assignment.IsError, Is.False);
+			Assert.That(assignment.Output, Is.EqualTo("\"ab\""));
+			Assert.That(read.IsError, Is.False);
+			Assert.That(read.Output, Is.EqualTo("\"ab\""));
+		}
+
+		[Test]
 		public void Execute_RejectsMultipleLines()
 		{
 			var session = new MoteImmediateSession<float>();

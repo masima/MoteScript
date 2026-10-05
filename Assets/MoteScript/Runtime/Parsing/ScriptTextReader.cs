@@ -18,7 +18,8 @@ namespace MoteScript
 			int start)
 		{
 			return s_structuredStatement.IsMatch(source, start)
-				|| source.IndexOf(';', start) >= 0;
+				|| source.IndexOf(';', start) >= 0
+				|| StructuredExpressionReader.FindAssignment(source, start) >= 0;
 		}
 
 		public static int FindStringLiteralEnd(string source, int start)

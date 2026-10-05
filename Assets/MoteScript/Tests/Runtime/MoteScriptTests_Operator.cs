@@ -17,6 +17,26 @@ namespace MoteScript.Tests
 	public partial class MoteScriptTests
 	{
 		[Test]
+		public void TestAssignment_StandaloneStructuredParsingPreservesNestedAssignments()
+		{
+			var context = new Context();
+
+			Assert.AreEqual(
+				3,
+				_decoder.Decode("outer=inner=3").Evaluate(context).IntegerValue);
+			Assert.AreEqual(3, context["outer"].IntegerValue);
+			Assert.AreEqual(3, context["inner"].IntegerValue);
+
+			Assert.AreEqual(
+				6,
+				_decoder.Decode("result=(temporary=2)*3")
+					.Evaluate(context)
+					.IntegerValue);
+			Assert.AreEqual(6, context["result"].IntegerValue);
+			Assert.AreEqual(2, context["temporary"].IntegerValue);
+		}
+
+		[Test]
 		public void TestOperator()
 		{
 			var patterns = new(string sentence, float result)[]

@@ -142,6 +142,25 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void TestString_FunctionResultsAssignWithoutStatementTerminator()
+		{
+			var context = new Context();
+			StandardStringLibrary<float>.Register(context);
+
+			_decoder.Decode("value=string.concat(\"a\",\"b\")").Evaluate(context);
+			_decoder.Decode("values=(\"first\",\"second\");").Evaluate(context);
+			_decoder.Decode("values[0]=string.concat(\"c\",\"d\")").Evaluate(context);
+			_decoder.Decode("data=[text:\"before\"];").Evaluate(context);
+			_decoder.Decode("data.text=string.concat(\"e\",\"f\")").Evaluate(context);
+
+			Assert.AreEqual("ab", context["value"].StringValue);
+			Assert.AreEqual("cd", context["values"].GetArray()[0].StringValue);
+			Assert.AreEqual(
+				"ef",
+				context["data"].GetDictionary()["text"].StringValue);
+		}
+
+		[Test]
 		public void TestString_FormatUsesCSharpCompositeFormatting()
 		{
 			var context = new Context();
