@@ -24,7 +24,7 @@ namespace MoteScript
 		{
 			MoteValue<T> left = Left.EvaluateInner(context);
 
-			switch(left.GetObject())
+			switch (left.GetObject())
 			{
 				case List<MoteValue<T>> array:
 				{
@@ -44,8 +44,8 @@ namespace MoteScript
 							throw new InvalidOperationException($"invalid value type : {right.ValueType.ToString()}");
 					}
 				}
-			default:
-					throw new Exception($"not support type:{left.GetObject().GetType().ToString()}");
+				default:
+					throw UnsupportedTarget(left);
 			}
 		}
 
@@ -81,7 +81,7 @@ namespace MoteScript
 					}
 				}
 			default:
-				throw new Exception($"not support type:{left.GetObject().GetType().ToString()}");
+				throw UnsupportedTarget(left);
 			}
 		}
 
@@ -143,6 +143,13 @@ namespace MoteScript
 					throw new InvalidOperationException(
 						"ref requires an existing array element or dictionary member.");
 			}
+		}
+
+		private static InvalidOperationException UnsupportedTarget(
+			MoteValue<T> value)
+		{
+			return new InvalidOperationException(
+				$"Cannot use [] with {value.ValueType}.");
 		}
 	}
 }

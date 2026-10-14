@@ -30,6 +30,20 @@ namespace MoteScript.Tests
 			Assert.Throws<MoteScriptParseException>(() => _decoder.Decode("(1,,2)"));
 		}
 
+		[Test]
+		public void TestArray_AccessOnNonCollectionReportsTargetType()
+		{
+			InvalidOperationException readException =
+				Assert.Throws<InvalidOperationException>(() =>
+					_decoder.Decode("value=1;value[0]").Evaluate(new Context()));
+			StringAssert.Contains("Const", readException.Message);
+
+			InvalidOperationException writeException =
+				Assert.Throws<InvalidOperationException>(() =>
+					_decoder.Decode("value=1;value[0]=2").Evaluate(new Context()));
+			StringAssert.Contains("Const", writeException.Message);
+		}
+
 		/// <summary>
 		/// 配列参照
 		/// </summary>
