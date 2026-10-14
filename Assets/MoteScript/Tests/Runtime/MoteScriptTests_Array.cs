@@ -17,6 +17,19 @@ namespace MoteScript.Tests
 
 	public partial class MoteScriptTests
 	{
+		[Test]
+		public void TestArray_TrailingComma()
+		{
+			Assert.AreEqual(0, _decoder.Decode("(0)").Evaluate(new Context()).IntegerValue);
+			Assert.AreEqual(0, _decoder.Decode("(0,)").Evaluate(new Context()).GetArray()[0].IntegerValue);
+			Assert.AreEqual(0, _decoder.Decode("a=(0,);a[0]").Evaluate(new Context()).IntegerValue);
+			Assert.AreEqual(2, _decoder.Decode("(1,2,)").Evaluate(new Context()).GetArray().Count);
+			Assert.AreEqual(2, _decoder.Decode("a=((1,),(2,));a[1][0]").Evaluate(new Context()).IntegerValue);
+			Assert.AreEqual(0, _decoder.Decode("new (0,)").Evaluate(new Context()).GetArray()[0].IntegerValue);
+			Assert.Throws<MoteScriptParseException>(() => _decoder.Decode("(,)"));
+			Assert.Throws<MoteScriptParseException>(() => _decoder.Decode("(1,,2)"));
+		}
+
 		/// <summary>
 		/// 配列参照
 		/// </summary>

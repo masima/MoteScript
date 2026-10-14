@@ -54,6 +54,7 @@ namespace MoteScript
  		, IComparable<T>
 	{
 		public override string OperatorCode => "(";
+		internal bool HasTrailingComma { get; set; }
 
 		public OperatorOpenParenthereses()
 			: base(Brackets.Parenthereses, Brackets.EState.Open)
@@ -65,6 +66,17 @@ namespace MoteScript
 		{
 			// return base.FinalizeOperator(rpnStack);
 			Right = rpnStack.Pop();
+			if (HasTrailingComma)
+			{
+				if (!Right.ValueType.IsValid())
+				{
+					throw new FormatException("array element is required before trailing comma.");
+				}
+				if (!Right.TryGetOperator(out BinaryOperatorArraySeparater<T> _))
+				{
+					Right = BinaryOperatorArraySeparater<T>.InstantiateSingleParameter(Right);
+				}
+			}
 			if (!Right.ValueType.IsValid() && rpnStack.Count == 0)
 			{
 				return new MoteValue<T>(new MoteList<T>());

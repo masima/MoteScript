@@ -375,6 +375,14 @@ namespace MoteScript
 						StructuredExpressionReader.Split(inner, ',');
 					if (elements.Count > 1)
 					{
+						if (string.IsNullOrWhiteSpace(elements[elements.Count - 1]))
+						{
+							elements.RemoveAt(elements.Count - 1);
+						}
+						if (elements.Any(string.IsNullOrWhiteSpace))
+						{
+							throw new FormatException("array element is missing.");
+						}
 						return BinaryOperatorArraySeparater<T>.InstantiateParameters(
 							elements.Select(element => DecodeExpression(element)));
 					}
@@ -851,6 +859,14 @@ namespace MoteScript
 					switch (value.GetOperator())
 					{
 						case BinaryOperator<T> binaryOperator:
+							if (binaryOperator is BinaryOperatorArraySeparater<T>
+								&& currentBracket is OperatorOpenParenthereses<T> parenthesis
+								&& queue.Count > 0
+								&& queue.Peek().TryGetOperator(out OperatorCloseParenthereses<T> _))
+							{
+								parenthesis.HasTrailingComma = true;
+								break;
+							}
 							InsertBinaryOperator(queue, rpn, binaryOperator);
 							break;
 						
@@ -918,6 +934,9 @@ namespace MoteScript
 				bool isCompoundRightValue = 1 < childRpn.Count
 					&& (childRpn[childRpn.Count - 1]
 							.TryGetOperator(out OperatorOpenSquareBracket<T> _)
+						|| (childRpn[childRpn.Count - 1]
+							.TryGetOperator(out OperatorOpenParenthereses<T> parenthesis)
+							&& parenthesis.HasTrailingComma)
 						|| childRpn[childRpn.Count - 1]
 							.TryGetOperator(out UnaryOperatorNew<T> _)
 						|| childRpn[childRpn.Count - 1]
