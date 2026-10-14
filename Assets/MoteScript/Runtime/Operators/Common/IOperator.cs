@@ -1,13 +1,10 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace MoteScript
 {
 	public interface IOperator
 	{
-		//BinaryOperatorType BinaryOperatorType { get; }
 		string OperatorCode { get; }
 		int Priority { get; }
 		bool IsFinalized { get; }

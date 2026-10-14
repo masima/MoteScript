@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System;
-using System.Collections.Generic;
 
 
 namespace MoteScript
@@ -15,22 +13,6 @@ namespace MoteScript
 		public FlowControlType FlowControlType => FlowControlType.Return;
 
 		public MoteValue<T> ReturnValue { get; private set; }
-
-		// public override MoteValue<T> SplitSentence(
-		// 	MoteDecoder<T> decoder
-		// 	, string sentence
-		// 	, ref int startat
-		// 	)
-		// {
-		// 	MoteValue<T> flowControlValue = new(this);
-		// 	// Judge = MoteValue<T>.Default;
-		// 	Statement = decoder.DecodeChild(
-		// 		sentence
-		// 		, ref startat
-		// 		, endCode: BinaryOperatorSentenceSeparater<T>.OperatorCodeConst
-		// 	);
-		// 	return flowControlValue;
-		// }
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{

@@ -143,7 +143,6 @@ namespace MoteScript
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		private MoteDebugDocument.Builder _debugDocumentBuilder;
 #endif
-		// MoteDecoder<T> _childDecoder = null;
 
 #if UNITY_EDITOR || MOTESCRIPT_DEBUGGER
 		public MoteValue<T> DecodeDebug(
@@ -710,35 +709,6 @@ namespace MoteScript
 			return value;
 		}
 
-		// internal MoteValue<T> DecodeChild(string sentence, ref int startat)
-		// {
-		// 	if (_childDecoder is null)
-		// 	{
-		// 		_childDecoder = new MoteDecoder<T>();
-		// 	}
-		// 	var childValue = _childDecoder.DecodeInner(sentence, ref startat);
-		// 	return childValue;
-		// }
-		// static bool TryGetChar(string sentence, ref int startat, out char c)
-		// {
-		// 	if (sentence.Length <= startat)
-		// 	{
-		// 		c = default;
-		// 		return false;
-		// 	}
-		// 	c = sentence[startat++];
-		// 	return true;
-		// }
-		// static bool TryPeekChar(string sentence, ref int startat, out char c)
-		// {
-		// 	if (sentence.Length <= startat)
-		// 	{
-		// 		c = default;
-		// 		return false;
-		// 	}
-		// 	c = sentence[startat];
-		// 	return true;
-		// }
 		internal bool TryGetFlowControlOperator(string sentence, ref int startat, out OperatorInfo value)
 		{
 			if (!ScriptTextReader.TrimStart(

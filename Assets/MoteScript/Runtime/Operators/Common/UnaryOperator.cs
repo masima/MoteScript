@@ -42,8 +42,6 @@ namespace MoteScript
 
 		public virtual MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			// Right = rpnStack.Pop();
-			// return new MoteValue<T>(this);
 			return rpnStack.Pop();
 		}
 

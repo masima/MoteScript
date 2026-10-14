@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System;
-using System.Collections.Generic;
 
 
 namespace MoteScript
@@ -14,18 +12,6 @@ namespace MoteScript
 		public override string OperatorCode => "break";
 		public FlowControlType FlowControlType => FlowControlType.Break;
 
-
-		// public override MoteValue<T> SplitSentence(
-		// 	MoteDecoder<T> decoder
-		// 	, string sentence
-		// 	, ref int startat
-		// 	)
-		// {
-		// 	MoteValue<T> flowControlValue = new(this);
-		// 	// Judge = MoteValue<T>.Default;
-		// 	Statement = MoteValue<T>.Default;
-		// 	return flowControlValue;
-		// }
 
 		public override MoteValue<T> Evaluate(IContext<T> context)
 		{

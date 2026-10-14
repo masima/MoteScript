@@ -1,7 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
 
 namespace MoteScript
@@ -62,18 +59,6 @@ namespace MoteScript
 		public static bool IsOperator(this EValueType valueType)
 		{
 			return (valueType & EValueType.Operator) != 0;
-		}
-		public static bool IsUnaryOperator(this EValueType valueType)
-		{
-			return valueType == EValueType.UnaryOperator;
-		}
-		public static bool IsString(this EValueType valueType)
-		{
-			return valueType == EValueType.String;
-		}
-		public static bool IsArray(this EValueType valueType)
-		{
-			return valueType == EValueType.Array;
 		}
 		public static bool IsLoopControl(this EValueType valueType)
 		{

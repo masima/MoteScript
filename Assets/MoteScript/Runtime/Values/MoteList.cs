@@ -53,7 +53,6 @@ namespace MoteScript
 			return clone;
 		}
 
-		// public int Count { get; }
 		public bool TryGetValue(string key, out MoteValue<T> value)
 		{
 			switch (key)

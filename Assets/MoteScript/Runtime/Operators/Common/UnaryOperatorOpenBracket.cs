@@ -1,15 +1,11 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using TreeEditor;
 using UnityEngine;
 
 
 namespace MoteScript
 {
 	public abstract class UnaryOperatorOpenBracket<T>
-		// : BinaryOperator<T>
 		: OperatorBracket<T>
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
  		, IComparable<T>
@@ -20,18 +16,6 @@ namespace MoteScript
 		}
 
 
-		public bool IsCloseValue(MoteValue<T> value)
-		{
-			if (!value.TryGetOperator(out UnaryOperatorCloseBracket<T> closeBracket))
-			{
-				return false;
-			}
-			if (closeBracket.BracketsType == BracketsType)
-			{
-				return true;
-			}
-			return false;
-		}
 		public bool IsCloseBracket(UnaryOperatorCloseBracket<T> closeBracket)
 		{
 			if (closeBracket.BracketsType == BracketsType)
@@ -39,11 +23,6 @@ namespace MoteScript
 				return true;
 			}
 			return false;
-		}
-
-		public override MoteValue<T> Evaluate(IContext<T> context)
-		{
-			return Right.EvaluateInner(context);
 		}
 
 	}
@@ -64,7 +43,6 @@ namespace MoteScript
 
 		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			// return base.FinalizeOperator(rpnStack);
 			Right = rpnStack.Pop();
 			if (HasTrailingComma)
 			{
@@ -132,7 +110,6 @@ namespace MoteScript
 
 		public override MoteValue<T> FinalizeOperator(Stack<MoteValue<T>> rpnStack)
 		{
-			// return base.FinalizeOperator(rpnStack);
 			Right = rpnStack.Pop();
 			if (0 < rpnStack.Count)
 			{

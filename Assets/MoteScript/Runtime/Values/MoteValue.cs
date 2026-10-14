@@ -8,7 +8,6 @@ namespace MoteScript
 	using ValueTypeType = EValueType;
 
 	public struct MoteValue<T>
-		//: IMoteValue
 		where T : struct, IComparable, IFormattable, IConvertible, IEquatable<T>
 		, IComparable<T>
 	{
@@ -325,18 +324,6 @@ namespace MoteScript
 			_value = default;
 			_object = value;
 		}
-		// public MoteValue(
-		// 	ParentheresesDefine parentheresesDefine
-		// 	, EParentheresesState parentheresesState
-		// 	)
-		// {
-		// 	_valueType = parentheresesState == EParentheresesState.Open
-		// 		? (byte)EValueType.ParentheresesOpen
-		// 		: (byte)EValueType.ParentheresesClose;
-		// 	_value = default;
-		// 	_object = parentheresesDefine;
-		// }
-
 		private string AssignmentKey => _object as string;
 
 		public MoteValue<T> Evaluate(IContext<T> context)

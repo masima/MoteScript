@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace MoteScript
 {
@@ -22,36 +21,6 @@ namespace MoteScript
 				return Judge.ValueType.IsValid() && Statement.ValueType.IsValid();
 			}
 		}
-
-		// public virtual MoteValue<T> SplitSentence(
-		// 	MoteDecoder<T> decoder
-		// 	, string sentence
-		// 	, ref int startat
-		// 	)
-		// {
-		// 	if (!decoder.TryGetStatement(sentence, ref startat, "()", out Judge))
-		// 	{
-		// 		throw new InvalidOperationException();
-		// 	}
-		// 	if (!decoder.TryGetStatement(sentence, ref startat, "{}", out Statement))
-		// 	{
-		// 		throw new InvalidOperationException();
-		// 	}
-
-		// 	MoteValue<T> flowControlValue = new(this);
-		// 	if (!decoder.TryGetFlowControlOperator(sentence, ref startat, out OperatorInfo operatorInfo))
-		// 	{
-		// 		return flowControlValue;
-		// 	}
-
-		// 	// else
-		// 	startat += operatorInfo.OperatorCode.Length;
-
-		// 	var subOperator = Activator.CreateInstance(operatorInfo.Type) as FlowControlOperator<T>;
-		// 	subOperator.Judge = flowControlValue;
-		// 	return subOperator.SplitSentence(decoder, sentence, ref startat);
-		// }
-
 
 		public abstract MoteValue<T> Evaluate(IContext<T> context);
 	}
