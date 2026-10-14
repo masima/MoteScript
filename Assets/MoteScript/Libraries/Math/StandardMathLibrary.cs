@@ -44,6 +44,7 @@ namespace MoteScript
 			library["round"] = Function(Round);
 			library["truncate"] = Function(Truncate);
 			library["pi"] = Function(Pi);
+			library["random"] = Function(Random);
 
 			var libraryValue = new MoteValue<T>(library);
 			if (context.TryGetValue(libraryName, out MoteValue<T> current))
@@ -296,6 +297,36 @@ namespace MoteScript
 			RequireCount(values, 0, 0, "math.pi");
 			ThrowIfInteger("math.pi");
 			return FromDouble(Math.PI);
+		}
+
+		private static MoteValue<T> Random(
+			IContext<T> context,
+			List<MoteValue<T>> values)
+		{
+			RequireCount(values, 0, 1, "math.random");
+			if (values.Count == 0)
+			{
+				return new MoteValue<T>(new MoteRandom<T>());
+			}
+			MoteValue<T> seedValue = values[0].EvaluateInner(context);
+			seedValue.ThrowIfNotNumeric("math.random");
+			long seed;
+			try
+			{
+				decimal numericSeed = seedValue.Value.ToDecimal(null);
+				if (numericSeed != decimal.Truncate(numericSeed))
+				{
+					throw new ArgumentException("math.random seed must be an integer.");
+				}
+				seed = decimal.ToInt64(numericSeed);
+			}
+			catch (OverflowException)
+			{
+				throw new ArgumentOutOfRangeException(
+					"seed",
+					"math.random seed is outside the supported 64-bit range.");
+			}
+			return new MoteValue<T>(new MoteRandom<T>(seed));
 		}
 
 		private static MoteValue<T> Transcendental(

@@ -358,6 +358,7 @@ StandardMathLibrary<float>.Register(context);
 - `math.round(value[,digits])`
 - `math.truncate(value)`
 - `math.pi()`
+- `math.random([seed])`
 
 ```text
 radius=3;
@@ -367,6 +368,26 @@ area=math.pi()*math.pow(radius,2)
 `round`はC#と同じく既定で`MidpointRounding.ToEven`を使用します。`decimal`の指数対数・三角関数・πは、`System.Math`との互換性のため内部で一度`double`を経由するので、decimal固有の精度が必要な処理では注意してください。
 
 `CalculatorInteger`では`abs`、`min`、`max`、`clamp`、`sign`、非負整数指数の`pow`、各丸め関数を使用できます。小数結果を必要とする平方根、指数対数、三角関数、負数指数の`pow`、`pi`は`NotImplementedException`を送出します。
+
+`math.random(seed)` は指定シードから、`math.random()`は実行時に生成した自動シードから、読み取り専用の独立した乱数Contextを返します。リプレイ、テスト、ネットワーク同期など再現性が必要な処理では、必ず明示的にシードを指定してください。`rangeInt`は最大値を含まず、`rangeReal`は最大値を含む範囲として扱います。
+
+```mote
+random=math.random(123)
+dice=random.rangeInt(1,7)
+rate=random.rangeReal(0,1)
+
+automaticRandom=math.random()
+```
+
+`new`で乱数Contextを複製すると、複製時点の内部状態もコピーされます。同じ順序で呼び出す限り同じ乱数列となり、その後の状態更新はそれぞれ独立します。
+
+```mote
+copy=new random
+next1=random.rangeInt(0,100)
+next2=copy.rangeInt(0,100)
+```
+
+`rangeReal`は`float`及び`decimal`用です。`CalculatorInteger`では未実装例外になります。乱数Contextへのメンバー追加、代入、削除はできません。
 
 ## コレクションと制御構文
 

@@ -139,6 +139,116 @@ namespace MoteScript.Tests
 				() => _decoder.Decode("math.min(1)").Evaluate(context));
 		}
 
+		[Test]
+		public void TestMath_RandomWithSameSeedIsDeterministic()
+		{
+			var context = new Context();
+			StandardMathLibrary<float>.Register(context);
+
+			_decoder.Decode("left=math.random(123)").Evaluate(context);
+			_decoder.Decode("right=math.random(123)").Evaluate(context);
+			Assert.AreEqual(
+				EvaluateMathFloat("left.rangeInt(-100,100)", context),
+				EvaluateMathFloat("right.rangeInt(-100,100)", context));
+		}
+
+		[Test]
+		public void TestMath_RandomWithoutSeedCreatesUsableIndependentContexts()
+		{
+			var context = new Context();
+			StandardMathLibrary<float>.Register(context);
+
+			_decoder.Decode("first=math.random()").Evaluate(context);
+			_decoder.Decode("second=math.random()").Evaluate(context);
+
+			IContext<float> first = context["first"].GetDictionary();
+			IContext<float> second = context["second"].GetDictionary();
+			Assert.IsNotNull(first);
+			Assert.IsNotNull(second);
+			Assert.AreNotSame(first, second);
+
+			float value = EvaluateMathFloat("first.rangeInt(2,5)", context);
+			Assert.That(value, Is.InRange(2f, 4f));
+		}
+
+		[Test]
+		public void TestMath_NewRandomCopiesCurrentStateIndependently()
+		{
+			var context = new Context();
+			StandardMathLibrary<float>.Register(context);
+
+			_decoder.Decode("source=math.random(456)").Evaluate(context);
+			EvaluateMathFloat("source.rangeInt(0,10)", context);
+			_decoder.Decode("copy=new source").Evaluate(context);
+
+			Assert.AreEqual(
+				EvaluateMathFloat("source.rangeInt(0,1000000000)", context),
+				EvaluateMathFloat("copy.rangeInt(0,1000000000)", context));
+
+			EvaluateMathFloat("source.rangeInt(0,1000000000)", context);
+			Assert.AreNotEqual(
+				EvaluateMathFloat("source.rangeInt(0,1000000000)", context),
+				EvaluateMathFloat("copy.rangeInt(0,1000000000)", context));
+		}
+
+		[Test]
+		public void TestMath_RandomContextIsReadOnly()
+		{
+			var context = new Context();
+			StandardMathLibrary<float>.Register(context);
+
+			InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+				() => _decoder.Decode(
+					"random=math.random(1);random.rangeInt=math.abs")
+					.Evaluate(context));
+			StringAssert.Contains("read-only", exception.Message);
+		}
+
+		[Test]
+		public void TestMath_RandomRangesUseDocumentedBounds()
+		{
+			var context = new Context();
+			StandardMathLibrary<float>.Register(context);
+
+			for (int i = 0; i < 200; ++i)
+			{
+				float integer = EvaluateMathFloat(
+					"random=math.random(" + i + ");random.rangeInt(-3,4)",
+					context);
+				Assert.GreaterOrEqual(integer, -3f);
+				Assert.Less(integer, 4f);
+				Assert.AreEqual(Math.Truncate(integer), integer);
+
+				float real = EvaluateMathFloat("random.rangeReal(-2,3)", context);
+				Assert.GreaterOrEqual(real, -2f);
+				Assert.LessOrEqual(real, 3f);
+			}
+		}
+
+		[Test]
+		public void TestMath_RandomDecimalAndIntegerCalculators()
+		{
+			MoteDecoder<decimal>.Setup();
+			var decimalDecoder = new MoteDecoder<decimal>();
+			var decimalContext = new Context<decimal>();
+			StandardMathLibrary<decimal>.Register(decimalContext);
+			decimal real = decimalDecoder
+				.Decode("random=math.random(99);random.rangeReal(1.5,2.5)")
+				.Evaluate(decimalContext).Value;
+			Assert.That(real, Is.InRange(1.5m, 2.5m));
+
+			MoteDecoder<int>.Setup();
+			var integerDecoder = new MoteDecoder<int>();
+			var integerContext = new Context<int>();
+			StandardMathLibrary<int>.Register(integerContext);
+			int integer = integerDecoder
+				.Decode("random=math.random(99);random.rangeInt(5,8)")
+				.Evaluate(integerContext).Value;
+			Assert.That(integer, Is.InRange(5, 7));
+			Assert.Throws<NotImplementedException>(() => integerDecoder
+				.Decode("random.rangeReal(0,1)").Evaluate(integerContext));
+		}
+
 		private float EvaluateMathFloat(string sentence, Context context)
 		{
 			return _decoder.Decode(sentence).Evaluate(context).Value;
