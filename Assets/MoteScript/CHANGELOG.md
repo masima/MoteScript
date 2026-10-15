@@ -4,6 +4,33 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-15
+
+### Added
+
+- Manager共有ContextとGameObjectごとの独立Contextを扱う`MoteScriptManager`、`MoteScriptBehaviour`、Unityライフサイクル実行基盤
+- `Awake`、`Enable`、`Start`、`Update`、`Disable`、`Destroy`関数の呼び出しと、Start・UpdateでのYield継続
+- GameObjectごとの数値・文字列・null初期変数と、Manager優先実行、共有ライブラリ・共有変数
+- 実行中のManager／Behaviourを切り替えて停止・ステップ実行できるデバッグターゲットと、例外時の自動選択・状態スナップショット
+- Managerと複数Behaviourの実行順、共有値、初期変数、Yieldを確認できる`Manager Lifecycle`サンプル
+- 独立したConsole Contextで1行ずつ評価し、履歴とContext変数を確認できるDebugger WindowのImmediateモード
+- 明示シードまたは自動シードで生成でき、`new`で状態を複製できる読み取り専用乱数Contextと`math.random()`
+- 最大値を含まない`random.rangeInt()`と、最大値を含む`random.rangeReal()`
+- 末尾カンマによる1要素配列構文`(value,)`
+
+### Changed
+
+- セミコロンなしのトップレベル代入を構造化式として解析し、配列・辞書要素や関数結果の代入を通常実行とImmediateモードで統一
+- READMEへ利用方法の選択、主要型の役割、完全なクイックスタート、Unity対応バージョン、キャッシュ利用時の注意を追加
+- Runtimeから未使用using、重複処理、旧解析実装のコメントアウトコードを削除
+
+### Fixed
+
+- 破棄済みTextAssetをDebugger Windowが参照した際の`MissingReferenceException`を防止
+- 実行対象一覧の更新だけでDebugger Windowの選択対象が切り替わる問題を修正
+- 末尾カンマ付き1要素配列を多次元配列内で使用した際に、外側の配列へ要素が吸収される問題を修正
+- 数値などへ配列アクセスした際に、本来の型エラーではなく`NullReferenceException`が発生する問題を修正
+
 ## [0.12.1] - 2026-08-09
 
 ### Added

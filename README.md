@@ -26,7 +26,7 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 タグを指定して導入する場合:
 
 ```text
-https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.1
+https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.13.0
 ```
 
 Package ManagerのSamples欄から、最小構成の`Basic Usage`とGameObject実行用の`Manager Lifecycle`をインポートできます。詳しい使用方法は[パッケージREADME](Assets/MoteScript/README.md)を参照してください。
