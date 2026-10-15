@@ -6,6 +6,7 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
 
 - [Git URLからインストール](#git-urlからインストール)
 - [基本的な使い方](#基本的な使い方)
+  - [用途を選ぶ](#用途を選ぶ)
   - [クイックスタート](#クイックスタート)
   - [数値型の選択](#数値型の選択)
   - [デコーダーの再利用](#デコーダーの再利用)
@@ -42,14 +43,18 @@ Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、
   - [EditorWindowから実行](#editorwindowから実行)
   - [C#からデバッグ実行](#cからデバッグ実行)
   - [行番号と実行状態](#行番号と実行状態)
+  - [Immediateモード](#immediateモード)
 - [GameObjectで実行](#gameobjectで実行)
   - [Managerと共有Context](#managerと共有context)
+  - [GameObject固有の初期変数](#gameobject固有の初期変数)
   - [Awake・Enable・Start・Update・Disable・Destroy](#awakeenablestartupdatedisabledestroy)
   - [Yieldと実行順](#yieldと実行順)
   - [GameObjectをデバッグ](#gameobjectをデバッグ)
 - [開発](#開発)
 
 ## Git URLからインストール
+
+対応バージョンはUnity 6（6000.0）以降です。
 
 UnityのPackage Managerで **Add package from git URL...** を選択し、次の形式で入力します。
 
@@ -75,17 +80,44 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.1
 
 ## 基本的な使い方
 
+### 用途を選ぶ
+
+MoteScriptには、主に次の3つの使い方があります。
+
+- C#から式やスクリプトを評価する場合は、次の「クイックスタート」から読み進めます。
+- GameObjectのライフサイクルとして`.mote`を実行する場合は、「GameObjectで実行」を参照します。
+- スクリプトを対話的に試したり、ブレークポイントで停止したりする場合は、「Unity Editorデバッガ」を参照します。
+
+主要な型の役割は次のとおりです。
+
+- `MoteDecoder<T>`：ソース文字列を解析して、実行可能な値へ変換します。
+- `MoteValue<T>`：デコードしたスクリプトや、その評価結果を表します。
+- `Context<T>`：スクリプトから参照する変数と関数を保持します。
+- `MoteExecution<T>`：Yieldを含むスクリプトの実行状態を保持します。
+
+文字列、正規表現、数値関数は標準ライブラリとして提供されます。これらは通常のContextへ必要に応じて登録します。Debugger WindowのImmediateモードとUnity用Managerは、標準ライブラリを自動登録します。
+
 ### クイックスタート
 
 ```csharp
-MoteDecoder<float>.Setup();
+using MoteScript;
+using UnityEngine;
 
-var decoder = new MoteDecoder<float>();
-var context = new Context<float>()
-    .Set("a", 1f)
-    .Set("b", 2f);
+public sealed class MoteScriptExample : MonoBehaviour
+{
+    private void Start()
+    {
+        MoteDecoder<float>.Setup();
 
-float result = decoder.Decode("a+b").Evaluate(context).Value;
+        var decoder = new MoteDecoder<float>();
+        var context = new Context<float>()
+            .Set("a", 1f)
+            .Set("b", 2f);
+
+        float result = decoder.Decode("a+b").Evaluate(context).Value;
+        Debug.Log(result); // 3
+    }
+}
 ```
 
 従来の`Evalute()`は互換性のため残されていますが非推奨です。新しいコードでは`Evaluate()`を使用してください。
@@ -127,6 +159,13 @@ float product = decoder.Decode("a*b").Evaluate(context).Value;
 ```
 
 この例では、同じ`decoder`から`sum`は`12`、`product`は`20`になります。
+
+同一のソース文字列を何度も要求する場合は、`DecodeCached()`でデコード結果をキャッシュできます。キャッシュされた構文木は配列・辞書の結果バッファを共有するため、並列ではなく逐次評価に使用してください。不要になったキャッシュは`ClearDecodedCache()`で破棄できます。
+
+```csharp
+MoteValue<float> expression = decoder.DecodeCached("a+b");
+float result = expression.Evaluate(context).Value;
+```
 
 ### デコード済みの式を再評価
 
@@ -216,7 +255,7 @@ var context = new Context<float>()
     .Set("price", 120f)
     .Set("count", 3f);
 
-float result = decoder.DecodeCached("price*count").Evaluate(context).Value;
+float result = decoder.Decode("price*count").Evaluate(context).Value;
 ```
 
 変数の型は最初の代入で確定します。同じ型の値は再代入できますが、数値、文字列、配列、辞書、関数など異なる型の値で上書きすると`InvalidOperationException`が発生します。この規則は通常変数、既存の配列要素、既存の辞書メンバーに適用されます。
@@ -980,7 +1019,7 @@ StartとUpdateではYieldを使用できます。StartがYield中は同じGameOb
 
 ManagerのStartがYield中は、すべてのBehaviourのStartを待機させます。ManagerがFaultedまたはデバッグ停止中の場合もBehaviourの更新を進めません。
 
-Package Managerの`Basic Usage`サンプルに`ManagerLifecycle.mote`と`BehaviourLifecycle.mote`を収録しています。
+Package ManagerのSamples欄から`Manager Lifecycle`をインポートすると、サンプルシーンと`ManagerLifecycle.mote`、`BehaviourLifecycle.mote`を確認できます。
 
 ### GameObjectをデバッグ
 

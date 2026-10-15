@@ -2,6 +2,8 @@
 
 Unity向けの軽量スクリプトランタイムです。
 
+対応バージョンはUnity 6（6000.0）以降です。
+
 ## 特徴
 
 - 数値・文字列、配列、辞書、関数ローカル変数、辞書の`self`受け渡し、`ref`参照引数、条件分岐、ループを扱うコンパクトなスクリプト構文
@@ -27,4 +29,4 @@ https://github.com/masima/MoteScript.git?path=/Assets/MoteScript
 https://github.com/masima/MoteScript.git?path=/Assets/MoteScript#v0.12.1
 ```
 
-詳しい使用方法は[パッケージREADME](Assets/MoteScript/README.md)を参照してください。
+Package ManagerのSamples欄から、最小構成の`Basic Usage`とGameObject実行用の`Manager Lifecycle`をインポートできます。詳しい使用方法は[パッケージREADME](Assets/MoteScript/README.md)を参照してください。
