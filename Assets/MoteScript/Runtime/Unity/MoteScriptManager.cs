@@ -211,6 +211,8 @@ namespace MoteScript.Unity
 		{
 			return numericType switch
 			{
+				MoteNumericType.Double => new MoteScriptRuntime<double>(
+					source, owner, owner.gameObject.name),
 				MoteNumericType.Integer => new MoteScriptRuntime<int>(
 					source, owner, owner.gameObject.name),
 				MoteNumericType.Decimal => new MoteScriptRuntime<decimal>(

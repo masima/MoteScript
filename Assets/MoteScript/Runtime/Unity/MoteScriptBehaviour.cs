@@ -103,6 +103,9 @@ namespace MoteScript.Unity
 				case Context<float> floatContext:
 					variable.Apply(floatContext);
 					break;
+				case Context<double> doubleContext:
+					variable.Apply(doubleContext);
+					break;
 				case Context<int> integerContext:
 					variable.Apply(integerContext);
 					break;

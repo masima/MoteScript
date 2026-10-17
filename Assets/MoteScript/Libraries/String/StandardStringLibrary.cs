@@ -233,6 +233,10 @@ namespace MoteScript
 			{
 				number = float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
 			}
+			else if (typeof(T) == typeof(double))
+			{
+				number = double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+			}
 			else if (typeof(T) == typeof(decimal))
 			{
 				number = decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);

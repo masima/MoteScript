@@ -15,6 +15,7 @@ namespace MoteScript.Editor
 			Float,
 			Integer,
 			Decimal,
+			Double,
 		}
 
 		private enum WindowMode
@@ -339,6 +340,7 @@ namespace MoteScript.Editor
 			}
 			_immediateSession = _numericType switch
 			{
+				NumericType.Double => new MoteImmediateSession<double>(),
 				NumericType.Integer => new MoteImmediateSession<int>(),
 				NumericType.Decimal => new MoteImmediateSession<decimal>(),
 				_ => new MoteImmediateSession<float>(),
@@ -1203,6 +1205,9 @@ namespace MoteScript.Editor
 			{
 				switch (_numericType)
 				{
+					case NumericType.Double:
+						StartDebugging<double>(startPaused);
+						break;
 					case NumericType.Integer:
 						StartDebugging<int>(startPaused);
 						break;

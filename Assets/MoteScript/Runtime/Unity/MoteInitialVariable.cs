@@ -82,6 +82,11 @@ namespace MoteScript.Unity
 					if (!float.IsFinite(converted)) throw new OverflowException();
 					value = converted;
 				}
+				else if (typeof(T) == typeof(double))
+				{
+					if (!double.IsFinite(_number)) throw new OverflowException();
+					value = _number;
+				}
 				else if (typeof(T) == typeof(decimal))
 				{
 					value = checked((decimal)_number);

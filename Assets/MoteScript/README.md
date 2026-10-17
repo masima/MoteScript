@@ -1,6 +1,6 @@
 # MoteScript
 
-Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、ループ、Yieldによる中断と再開を扱う軽量スクリプトランタイムです。`float`、`int`、`decimal`向けのCalculatorと標準関数ライブラリを同梱しています。
+Unity上で数値・文字列の式、配列、辞書、関数、条件分岐、ループ、Yieldによる中断と再開を扱う軽量スクリプトランタイムです。`float`、`double`、`int`、`decimal`向けのCalculatorと標準関数ライブラリを同梱しています。
 
 ## 目次
 
@@ -122,15 +122,18 @@ public sealed class MoteScriptExample : MonoBehaviour
 
 従来の`Evalute()`は互換性のため残されていますが非推奨です。新しいコードでは`Evaluate()`を使用してください。
 
-`decimal`を使用する場合は、`MoteDecoder<decimal>.Setup()`と`Context<decimal>`を使用します。
+ほかの数値型を使用する場合は、型引数を`double`、`int`、`decimal`のいずれかへ変更します。
 
 ### 数値型の選択
 
-用途に応じて`float`、`int`、`decimal`のCalculatorを選択できます。型ごとに最初の評価前に`Setup()`を呼び出します。
+用途に応じて`float`、`double`、`int`、`decimal`のCalculatorを選択できます。型ごとに最初の評価前に`Setup()`を呼び出します。
 
 ```csharp
 MoteDecoder<float>.Setup();
 var floatDecoder = new MoteDecoder<float>();
+
+MoteDecoder<double>.Setup();
+var doubleDecoder = new MoteDecoder<double>();
 
 MoteDecoder<int>.Setup();
 var intDecoder = new MoteDecoder<int>();
@@ -426,7 +429,7 @@ next1=random.rangeInt(0,100)
 next2=copy.rangeInt(0,100)
 ```
 
-`rangeReal`は`float`及び`decimal`用です。`CalculatorInteger`では未実装例外になります。乱数Contextへのメンバー追加、代入、削除はできません。
+`rangeReal`は`float`、`double`及び`decimal`用です。`CalculatorInteger`では未実装例外になります。乱数Contextへのメンバー追加、代入、削除はできません。
 
 ## コレクションと制御構文
 
@@ -867,7 +870,7 @@ Package Managerから`Basic Usage`サンプルをインポートすると、関�
 Unityの **Window > MoteScript > Debugger** から専用ウィンドウを開けます。
 
 1. `Script`の選択メニューから`.mote`アセットを指定します。メニュー上部の検索欄ではファイル名またはパスを検索できます。分岐や直下のスクリプトがないフォルダ階層は1項目にまとめて表示され、直近に選択したアセットは`Recent`から再選択できます。
-2. `Float`、`Integer`、`Decimal`から数値型を選択します。
+2. `Float`、`Double`、`Integer`、`Decimal`から数値型を選択します。
 3. 行番号左の丸をクリックしてブレークポイントを設定します。
 4. `Run`でブレークポイントまで実行するか、未実行状態で`Step Over`または`Step Into`を押して先頭行から停止します。
 
@@ -961,7 +964,7 @@ shared.score=shared.score+1;
 value=library.math.clamp(value,0,100);
 ```
 
-Managerの`Numeric Type`に合わせて`float`、`int`、`decimal`の型引数を使用します。型が異なるContextを取得しようとすると例外になります。
+Managerの`Numeric Type`に合わせて`float`、`double`、`int`、`decimal`の型引数を使用します。型が異なるContextを取得しようとすると例外になります。
 
 ### GameObject固有の初期変数
 

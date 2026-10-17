@@ -17,6 +17,7 @@
 - 明示シードまたは自動シードで生成でき、`new`で状態を複製できる読み取り専用乱数Contextと`math.random()`
 - 最大値を含まない`random.rangeInt()`と、最大値を含む`random.rangeReal()`
 - 末尾カンマによる1要素配列構文`(value,)`
+- `double`型の式評価、標準ライブラリ、Immediateモード、Unity実行コンポーネントに対応する`CalculatorDouble`
 
 ### Changed
 

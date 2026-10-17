@@ -86,6 +86,7 @@ namespace MoteScript.Tests
 
 		[TestCase(MoteNumericType.Integer)]
 		[TestCase(MoteNumericType.Decimal)]
+		[TestCase(MoteNumericType.Double)]
 		public void Behaviour_InitialNumberUsesManagerNumericType(
 			MoteNumericType numericType)
 		{
@@ -108,9 +109,13 @@ namespace MoteScript.Tests
 			{
 				Assert.That(behaviour.GetContext<int>()["value"].Value, Is.EqualTo(12));
 			}
-			else
+			else if (numericType == MoteNumericType.Decimal)
 			{
 				Assert.That(behaviour.GetContext<decimal>()["value"].Value, Is.EqualTo(12m));
+			}
+			else
+			{
+				Assert.That(behaviour.GetContext<double>()["value"].Value, Is.EqualTo(12.0));
 			}
 		}
 

@@ -94,6 +94,17 @@ namespace MoteScript.Tests
 		}
 
 		[Test]
+		public void Execute_SupportsDoubleNumericType()
+		{
+			var session = new MoteImmediateSession<double>();
+
+			MoteImmediateResult result = session.Execute("1/8");
+
+			Assert.That(result.IsError, Is.False);
+			Assert.That(result.Output, Is.EqualTo("0.125"));
+		}
+
+		[Test]
 		public void GetVariables_ReflectsLatestContextValues()
 		{
 			var session = new MoteImmediateSession<float>();

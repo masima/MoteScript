@@ -5,5 +5,6 @@ namespace MoteScript.Unity
 		Float,
 		Integer,
 		Decimal,
+		Double,
 	}
 }

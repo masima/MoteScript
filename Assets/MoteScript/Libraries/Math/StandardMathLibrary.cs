@@ -345,6 +345,10 @@ namespace MoteScript
 			{
 				return new MoteValue<T>((T)(object)(float)value);
 			}
+			if (typeof(T) == typeof(double))
+			{
+				return new MoteValue<T>((T)(object)value);
+			}
 			if (typeof(T) == typeof(decimal))
 			{
 				return new MoteValue<T>((T)(object)(decimal)value);

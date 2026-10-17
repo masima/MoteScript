@@ -142,6 +142,13 @@ namespace MoteScript
 				decimal unit = NextUInt32() / (decimal)uint.MaxValue;
 				return new MoteValue<T>((T)(object)(min + ((max - min) * unit)));
 			}
+			if (typeof(T) == typeof(double))
+			{
+				double min = (double)(object)minimum;
+				double max = (double)(object)maximum;
+				double unit = NextUInt32() / (double)uint.MaxValue;
+				return new MoteValue<T>((T)(object)(min + ((max - min) * unit)));
+			}
 
 			float minFloat = (float)(object)minimum;
 			float maxFloat = (float)(object)maximum;
