@@ -13,7 +13,7 @@ Unity向けの軽量スクリプトランタイムです。
 - `yield`による中断・再開と、ステップ数、関数呼び出し深度、キャンセルによる実行制限
 - コア実行系から分離された文字列、正規表現、数値演算の標準ライブラリと、C#関数の登録に対応
 - Editorで常時利用でき、行ブレークポイント、ステップ実行、階層変数表示・編集に対応したデバッガ
-- Manager共有値とGameObject単位のAwake・Start・Update、Yield継続に対応したUnity実行コンポーネント
+- Manager共有値とGameObject単位のAwake・Enable・Start・Update・Disable・Destroy、Yield継続に対応したUnity実行コンポーネント
 
 ## Unity Package Manager
 
